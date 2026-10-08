@@ -203,7 +203,9 @@ async def update_settings(
         "APPOINTMENTS_REMINDER_TEMPLATE",
         "APPOINTMENTS_REMINDER_PARAMS",
         "APPOINTMENTS_REMINDER_BUTTONS",
-        "WA_WABA_CARD_LAST4"
+        "WA_WABA_CARD_LAST4",
+        "PLATFORM_API_URL",
+        "PLATFORM_API_TOKEN"
     }
     
     saved_count = 0
@@ -623,4 +625,170 @@ async def test_chat_messages_webhook(
             "success": False,
             "error": str(e)
         }
+
+class PlatformTestConnectionRequest(BaseModel):
+    __test__ = False
+    api_url: str
+    api_token: str
+
+@router.post("/test-platform-connection")
+async def check_platform_connection(
+    req: PlatformTestConnectionRequest,
+    x_client_id: int = Depends(get_validated_client_id),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Testa a conectividade com a API da plataforma externa (consulta /api/v1/courses).
+    Suporta resolução de token mascarado caso já esteja salvo no banco de dados.
+    """
+    base_url = (req.api_url or "").strip().rstrip("/")
+    token = (req.api_token or "").strip()
+
+    # Se o token estiver mascarado com asteriscos ou vazio, busca o token real decriptado salvo no banco
+    if (not token or "*" in token) and db:
+        token_cfg = db.query(AppConfig).filter(
+            AppConfig.client_id == x_client_id,
+            AppConfig.key == "PLATFORM_API_TOKEN"
+        ).first()
+        if token_cfg and token_cfg.value:
+            token = decrypt_token(token_cfg.value).strip()
+
+    if not base_url and db:
+        url_cfg = db.query(AppConfig).filter(
+            AppConfig.client_id == x_client_id,
+            AppConfig.key == "PLATFORM_API_URL"
+        ).first()
+        if url_cfg and url_cfg.value:
+            base_url = url_cfg.value.strip().rstrip("/")
+
+    if not base_url or not token:
+        raise HTTPException(status_code=400, detail="URL e Token da plataforma são obrigatórios para o teste.")
+
+    # Se estiver rodando dentro do container Docker e o usuário informar localhost/127.0.0.1,
+    # mapeia para host.docker.internal para conseguir alcançar o servidor no host da máquina
+    call_url = base_url
+    if "://127.0.0.1" in call_url:
+        call_url = call_url.replace("://127.0.0.1", "://host.docker.internal")
+    elif "://localhost" in call_url:
+        call_url = call_url.replace("://localhost", "://host.docker.internal")
+
+    endpoint = f"{call_url}/api/v1/courses"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-API-Key": token
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(endpoint, headers=headers)
+            is_success = 200 <= resp.status_code < 300
+            courses = []
+            if is_success:
+                try:
+                    courses_data = resp.json()
+                    if isinstance(courses_data, list):
+                        courses = courses_data
+                    elif isinstance(courses_data, dict) and "courses" in courses_data:
+                        courses = courses_data["courses"]
+                except Exception:
+                    pass
+
+            error_msg = None
+            if not is_success:
+                if resp.status_code == 401:
+                    error_msg = "Token de API não autorizado ou inválido (Status 401). Verifique o token gerado na plataforma."
+                elif resp.status_code == 404:
+                    error_msg = "Endpoint não encontrado na plataforma (Status 404). Verifique a URL informada."
+                else:
+                    error_msg = f"A plataforma retornou erro (Status {resp.status_code})"
+
+            return {
+                "status": resp.status_code,
+                "success": is_success,
+                "message": "Conexão estabelecida com sucesso!" if is_success else error_msg,
+                "error": error_msg,
+                "courses": courses,
+                "response_body": resp.text[:400]
+            }
+    except Exception as e:
+        return {
+            "status": 500,
+            "success": False,
+            "error": f"Não foi possível conectar à plataforma: {str(e)}"
+        }
+
+
+@router.get("/platform-courses")
+async def get_platform_courses(
+    x_client_id: int = Depends(get_validated_client_id),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna a lista de cursos cadastrados na plataforma externa (GET /api/v1/courses)
+    utilizando as credenciais salvas do cliente.
+    """
+    url_cfg = db.query(AppConfig).filter(
+        AppConfig.client_id == x_client_id,
+        AppConfig.key == "PLATFORM_API_URL"
+    ).first()
+    token_cfg = db.query(AppConfig).filter(
+        AppConfig.client_id == x_client_id,
+        AppConfig.key == "PLATFORM_API_TOKEN"
+    ).first()
+
+    base_url = (url_cfg.value if url_cfg and url_cfg.value else "").strip().rstrip("/")
+    raw_token = token_cfg.value if token_cfg and token_cfg.value else ""
+    token = decrypt_token(raw_token).strip() if raw_token else ""
+
+    if not base_url or not token:
+        return {
+            "success": False,
+            "courses": [],
+            "message": "Configure a URL e Token da plataforma em Configurações > Avançado."
+        }
+
+    call_url = base_url
+    if "://127.0.0.1" in call_url:
+        call_url = call_url.replace("://127.0.0.1", "://host.docker.internal")
+    elif "://localhost" in call_url:
+        call_url = call_url.replace("://localhost", "://host.docker.internal")
+
+    endpoint = f"{call_url}/api/v1/courses"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-API-Key": token
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(endpoint, headers=headers)
+            if 200 <= resp.status_code < 300:
+                courses_data = resp.json()
+                raw_courses = courses_data if isinstance(courses_data, list) else courses_data.get("courses", [])
+                formatted = []
+                for c in raw_courses:
+                    if isinstance(c, dict) and "id" in c:
+                        formatted.append({
+                            "id": c["id"],
+                            "title": c.get("title") or c.get("name") or f"Curso #{c['id']}"
+                        })
+                return {
+                    "success": True,
+                    "courses": formatted
+                }
+            else:
+                return {
+                    "success": False,
+                    "courses": [],
+                    "message": f"A plataforma retornou HTTP {resp.status_code}"
+                }
+    except Exception as e:
+        return {
+            "success": False,
+            "courses": [],
+            "message": f"Não foi possível buscar cursos da plataforma: {str(e)}"
+        }
+
 

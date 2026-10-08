@@ -7,8 +7,10 @@ from routers.webhooks.integrations import get_db as integrations_get_db
 @pytest.mark.asyncio
 async def test_webhook_integration_followup_saving(db_session, client):
     # 1. Configurar dependências de autenticação mockadas
-    mock_user = models.User(id=1, email="admin@test.com", role="super_admin")
-    db_session.add(mock_user)
+    mock_user = db_session.query(models.User).filter(models.User.id == 1).first()
+    if not mock_user:
+        mock_user = models.User(id=1, email="admin@test.com", role="super_admin")
+        db_session.add(mock_user)
     
     # Criar um WhatsAppTemplateCache mockado no banco para podermos resolver o nome do template de follow-up
     mock_template = models.WhatsAppTemplateCache(
@@ -140,9 +142,11 @@ async def test_webhook_integration_followup_saving(db_session, client):
 @pytest.mark.asyncio
 async def test_webhook_integration_followup_saving_invalid_delay(db_session, client):
     # 1. Configurar dependências de autenticação mockadas
-    mock_user = models.User(id=1, email="admin@test.com", role="super_admin")
-    db_session.add(mock_user)
-    db_session.commit()
+    mock_user = db_session.query(models.User).filter(models.User.id == 1).first()
+    if not mock_user:
+        mock_user = models.User(id=1, email="admin2@test.com", role="super_admin")
+        db_session.add(mock_user)
+        db_session.commit()
 
     async def override_get_current_user():
         return mock_user
@@ -196,8 +200,10 @@ async def test_webhook_integration_followup_saving_invalid_delay(db_session, cli
 @pytest.mark.asyncio
 async def test_webhook_integration_followup_saving_invalid_delay_put(db_session, client):
     # 1. Configurar dependências de autenticação mockadas
-    mock_user = models.User(id=1, email="admin@test.com", role="super_admin")
-    db_session.add(mock_user)
+    mock_user = db_session.query(models.User).filter(models.User.id == 1).first()
+    if not mock_user:
+        mock_user = models.User(id=1, email="admin3@test.com", role="super_admin")
+        db_session.add(mock_user)
     
     # Criar um WhatsAppTemplateCache mockado no banco
     mock_template = models.WhatsAppTemplateCache(

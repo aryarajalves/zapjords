@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import models
 from sqlalchemy import or_, func
 from core.logger import setup_logger
-from core.recurrent_logic import calculate_next_run
+from core.recurrent_logic import calculate_next_run, filter_contacts_by_audience
 from chatwoot_client import ChatwootClient
 from config_loader import get_settings
 
@@ -328,6 +328,17 @@ async def process_recurring_triggers(db, now_utc):
                 tc_phone = tc.get('phone') or ''
                 if tc_phone not in phones_in_list and tc_phone not in exclusions and tc_phone[-8:] not in exclusions_suffixes_8:
                     final_contacts.append(tc)
+
+        # Aplicar filtros dinâmicos de público alvo (última interação e data de criação)
+        if getattr(rt, "interaction_filter_days", None) or getattr(rt, "created_filter_days", None):
+            final_contacts = filter_contacts_by_audience(
+                db=db,
+                client_id=rt.client_id,
+                contacts=final_contacts,
+                interaction_days=getattr(rt, "interaction_filter_days", None),
+                created_days=getattr(rt, "created_filter_days", None),
+                now=now_utc
+            )
 
         if is_aborted:
             failure_reason = f"Disparo abortado: Limite de atraso (30 minutos) excedido. O disparo deveria ter ocorrido às {scheduled_time_utc.strftime('%H:%M:%S')} UTC, mas o scheduler executou às {now_utc.strftime('%H:%M:%S')} UTC ({int(delay_minutes)} minutos de atraso)."

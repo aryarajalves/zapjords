@@ -278,7 +278,11 @@ export function useIntegrations(activeClient) {
         variables_mapping: Array.isArray(m.variables_mapping) ? m.variables_mapping : [],
         followup_variables_mapping: Array.isArray(m.followup_variables_mapping) ? m.followup_variables_mapping : [],
         private_note: "true",
-        publish_external_event: true
+        publish_external_event: true,
+        auto_create_invite: Boolean(m.auto_create_invite),
+        invite_role: m.invite_role || 'aluno',
+        invite_duration_hours: m.invite_duration_hours ?? 0,
+        invite_course_access: Array.isArray(m.invite_course_access) ? m.invite_course_access : []
       })),
       product_filtering: integration.product_filtering || false,
       product_whitelist: integration.product_whitelist || [],

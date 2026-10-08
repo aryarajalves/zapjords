@@ -11,12 +11,12 @@ const TemplatePreview = ({ template, params = {} }) => {
             const parts = text.split(/(\{\{1\}\})/g);
             // Header usually only has 1 variable {{1}} if any
             return (
-                <div className="font-bold mb-3 text-white text-base">
+                <div className="font-bold mb-3 text-white text-base break-words [overflow-wrap:anywhere] [word-break:break-word]">
                     {parts.map((part, i) => {
                         if (part.match(/\{\{\d+\}\}/)) {
                             const varIndex = part.replace(/\D/g, '');
                             const val = params[`HEADER_${parseInt(varIndex) - 1}`];
-                            return <span key={i} className={val ? "text-white" : "text-green-400 bg-green-500/10 px-1 rounded"}>{val || part}</span>;
+                            return <span key={i} className={val ? "text-white break-words [overflow-wrap:anywhere]" : "text-green-400 bg-green-500/10 px-1 rounded inline-block break-words [overflow-wrap:anywhere]"}>{val || part}</span>;
                         }
                         return part;
                     })}
@@ -44,12 +44,12 @@ const TemplatePreview = ({ template, params = {} }) => {
         let text = body.text;
         const parts = text.split(/(\{\{\d+\}\})/g);
         return (
-            <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+            <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word]">
                 {parts.map((part, i) => {
                     if (part.match(/\{\{\d+\}\}/)) {
                         const varIndex = part.replace(/\D/g, '');
                         const val = params[`BODY_${parseInt(varIndex) - 1}`];
-                        return <span key={i} className={val ? "font-semibold text-white" : "text-green-400 font-bold bg-green-500/10 px-1 rounded"}>{val || part}</span>;
+                        return <span key={i} className={val ? "font-semibold text-white break-words [overflow-wrap:anywhere]" : "text-green-400 font-bold bg-green-500/10 px-1 rounded inline-block break-words [overflow-wrap:anywhere]"}>{val || part}</span>;
                     }
                     return part;
                 })}
@@ -60,7 +60,7 @@ const TemplatePreview = ({ template, params = {} }) => {
     const renderFooter = () => {
         const footer = template.components.find(c => c.type === 'FOOTER');
         if (!footer) return null;
-        return <div className="text-[10px] text-slate-500 mt-3 pt-3 border-t border-white/5">{footer.text}</div>;
+        return <div className="text-[10px] text-slate-500 mt-3 pt-3 border-t border-white/5 break-words [overflow-wrap:anywhere] [word-break:break-word]">{footer.text}</div>;
     };
 
     const renderButtons = () => {
@@ -69,7 +69,7 @@ const TemplatePreview = ({ template, params = {} }) => {
         return (
             <div className="mt-4 grid gap-2">
                 {buttons.buttons.map((btn, i) => (
-                    <div key={i} className="bg-slate-800 text-blue-400 text-center py-2.5 rounded-lg text-xs font-bold border border-white/5 shadow-sm hover:bg-slate-700/50 cursor-default transition-colors flex items-center justify-center gap-2">
+                    <div key={i} className="bg-slate-800 text-blue-400 text-center py-2.5 px-3 rounded-lg text-xs font-bold border border-white/5 shadow-sm hover:bg-slate-700/50 cursor-default transition-colors flex items-center justify-center gap-2 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                         {btn.type === 'PHONE_NUMBER' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>}
                         {btn.type === 'URL' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>}
                         {btn.text}
@@ -80,10 +80,10 @@ const TemplatePreview = ({ template, params = {} }) => {
     };
 
     return (
-        <div className="bg-[#0b141a] rounded-[2rem] p-6 border border-slate-800 w-full font-sans relative overflow-hidden shadow-2xl">
+        <div className="bg-[#0b141a] rounded-[2rem] p-6 border border-slate-800 w-full font-sans relative overflow-hidden shadow-2xl break-words [overflow-wrap:anywhere] [word-break:break-word]">
             {/* WhatsApp Chat Bubble Style */}
             <div className="absolute top-0 left-0 w-full h-1.5 bg-[#25D366]"></div>
-            <div className="bg-[#1f2c34] p-3 rounded-lg rounded-tl-none shadow-sm relative">
+            <div className="bg-[#1f2c34] p-3 rounded-lg rounded-tl-none shadow-sm relative break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">
                 {/* Tail */}
                 <svg className="absolute -left-2 top-0 text-[#1f2c34]" width="8" height="13" viewBox="0 0 8 13" fill="currentColor"><path d="M-2.28882e-07 -1.04222e-06L0 12.0003L8 0.500295L-2.28882e-07 -1.04222e-06Z" /></svg>
 

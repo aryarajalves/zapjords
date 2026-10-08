@@ -74,8 +74,8 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
         template_name = mapping.template_name
         funnel_id = mapping.funnel_id
         
-        # Fallback: se o nome estiver nulo, busca no cache pelo ID
-        if not template_name and mapping.template_id:
+        # A fonte da verdade para o nome do template é o cache da Meta pelo template_id, se disponível
+        if mapping.template_id:
             tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
                 models.WhatsAppTemplateCache.id == mapping.template_id
             ).first()
@@ -249,6 +249,24 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
                 if pending_triggers or templates_to_block:
                     db.commit()
                     logger.info(f"✅ SMART_CANCEL | {len(pending_triggers)} disparos cancelados e {len(templates_to_block)} templates bloqueados por 24h com sucesso.")
+
+        # --- GERAÇÃO AUTOMÁTICA DE CONVITE / CADASTRO NA PLATAFORMA ---
+        if getattr(mapping, "auto_create_invite", False):
+            try:
+                from services.platform_invite_service import generate_platform_invite
+                invite_res = await generate_platform_invite(
+                    client_id=client_id,
+                    role=getattr(mapping, "invite_role", "aluno") or "aluno",
+                    duration_hours=getattr(mapping, "invite_duration_hours", 0) or 0,
+                    course_access=getattr(mapping, "invite_course_access", None)
+                )
+                if invite_res and invite_res.get("full_invite_url"):
+                    invite_link = invite_res["full_invite_url"]
+                    variables["link_cadastro"] = invite_link
+                    variables["invite_url"] = invite_link
+                    logger.info(f"🔗 [PLATFORM_INVITE] Variável link_cadastro={invite_link} injetada nas variáveis do webhook #{history_id}")
+            except Exception as invite_err:
+                logger.error(f"❌ [PLATFORM_INVITE] Falha ao gerar convite automático no webhook #{history_id}: {invite_err}", exc_info=True)
 
         if not template_name and not funnel_id:
             logger.info(f"AUTO_SKIP | Mapeamento #{mapping.id} sem template nem funil definido — aplicando etiquetas e salvando lead...")

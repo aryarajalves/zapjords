@@ -26,7 +26,7 @@ import LogViewer from '../../pages/LogViewer';
 import HumanAgents from '../../pages/HumanAgents';
 import CheckoutPresellPage from '../../pages/CheckoutPresellPage';
 import CapturePageAdmin from '../../pages/CapturePageAdmin';
-import EmailMarketingMain from '../EmailMarketing/EmailMarketingMain';
+import SalesKanban from '../../pages/SalesKanban';
 
 export default function AppContentViewRouter({ logic }) {
   const pagesStatus = logic.user?.pages_status;
@@ -39,8 +39,13 @@ export default function AppContentViewRouter({ logic }) {
         </PageGuard>
       )}
 
-      {logic.currentView === 'email_marketing' && <EmailMarketingMain />}
       {logic.currentView === 'users' && <Users />}
+
+      {logic.currentView === 'sales_kanban' && (
+        <PageGuard pageKey="sales_kanban" pagesStatus={pagesStatus}>
+          <SalesKanban onViewChange={logic.handleViewChange} />
+        </PageGuard>
+      )}
 
       {logic.currentView === 'schedules' && (
         <PageGuard pageKey="schedules" pagesStatus={pagesStatus}>

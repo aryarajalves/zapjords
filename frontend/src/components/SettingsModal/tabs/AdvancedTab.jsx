@@ -2,6 +2,7 @@ import React from 'react';
 
 // Subcomponentes Modulares
 import ManyChatTokensSection from './AdvancedTab/ManyChatTokensSection';
+import PlatformSettingsSection from './AdvancedTab/PlatformSettingsSection';
 import MemoryWebhookSection from './AdvancedTab/MemoryWebhookSection';
 import ChatMessagesWebhookSection from './AdvancedTab/ChatMessagesWebhookSection';
 import MemoryLogsModal from './AdvancedTab/MemoryLogsModal';
@@ -23,6 +24,13 @@ const AdvancedTab = ({
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {isSuperAdminOrAdmin && (
                 <>
+                    {/* Plataforma Externa (Área de Membros) */}
+                    <PlatformSettingsSection
+                        formData={formData}
+                        handleChange={handleChange}
+                        visibleFields={visibleFields}
+                    />
+
                     {/* ManyChat API Key Section */}
                     <ManyChatTokensSection
                         formData={formData}

@@ -54,6 +54,10 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
           manychat_phone: '',
           manychat_custom_field: 'telefone_whatsapp',
           manychat_tag: '',
+          auto_create_invite: false,
+          invite_role: 'aluno',
+          invite_duration_hours: 0,
+          invite_course_access: [],
           followup_active: false,
           followup_template_id: '',
           followup_delay_value: 0,
@@ -72,8 +76,17 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
 
   const updateMapping = (index, field, value) => {
     const newMappings = [...formData.mappings];
-    newMappings[index] = { ...newMappings[index], [field]: value };
+    if (typeof field === 'object' && field !== null) {
+      newMappings[index] = { ...newMappings[index], ...field };
+    } else {
+      newMappings[index] = { ...newMappings[index], [field]: value };
+    }
     
+    if (field === 'template_id') {
+      const selectedTpl = templates.find(t => t.id === value || String(t.id) === String(value));
+      newMappings[index].template_name = selectedTpl ? selectedTpl.name : '';
+    }
+
     if (field === 'followup_template_id') {
       const selectedTpl = templates.find(t => t.id === value || String(t.id) === String(value));
       newMappings[index].followup_template_name = selectedTpl ? selectedTpl.name : '';

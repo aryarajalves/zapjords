@@ -324,18 +324,17 @@ async def play_dispatch(
         models.ScheduledTrigger.client_id == x_client_id,
         cast(models.ScheduledTrigger.integration_id, String) == str(uuid_obj)
     ).first()
-
     if not trigger:
         raise HTTPException(status_code=404, detail="Dispatch not found for this integration")
-
     if is_contact_blocked(db, x_client_id, trigger.contact_phone):
         raise HTTPException(
             status_code=400,
             detail=f"O contato ({trigger.contact_phone}) está bloqueado na Blacklist e não pode receber novos disparos."
         )
-    
     from services.bussola_pdf_service import ensure_trigger_document_link
+    from services.platform_invite_service import ensure_trigger_platform_invite
     repaired_components = ensure_trigger_document_link(db, trigger)
+    repaired_components, priv_msg, proc_data = await ensure_trigger_platform_invite(db, trigger, repaired_components)
 
     # Criar um novo registro (Clone) para manter o histórico íntegro
     new_trigger = models.ScheduledTrigger(
@@ -352,17 +351,17 @@ async def play_dispatch(
         template_name=trigger.template_name,
         template_language=trigger.template_language,
         template_components=repaired_components,
-        private_message=trigger.private_message,
+        private_message=priv_msg,
         private_message_delay=trigger.private_message_delay,
         private_message_concurrency=trigger.private_message_concurrency,
-        is_bulk=False, # Sempre individual ao disparar pelo histórico de um contato
-        publish_external_event=True, # Garante que o webhook de memória seja disparado no delivery
+        is_bulk=False,
+        publish_external_event=True,
         event_type=trigger.event_type or 'manual_retry',
         integration_id=trigger.integration_id,
         chatwoot_label=trigger.chatwoot_label,
         is_free_message=trigger.is_free_message,
-        processed_data=trigger.processed_data,
-        parent_id=None # Alterado para aparecer na lista principal como um novo disparo
+        processed_data=proc_data,
+        parent_id=None
     )
     
     db.add(new_trigger)

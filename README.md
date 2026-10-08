@@ -1,9 +1,6 @@
-# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.0.0 — Versão Estável)
+# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.1.0 — Versão Estável)
 
-Versão estável com **Controle e Estimativa de Custos da Meta API (Nova Política de Outubro/2026 com Franquia de 1.000 Mensagens de Serviço e Filtro por Mês Específico)**, **Integração Nativa YayForms para Formulários Webhook**, **Tratamento Contábil de Chargeback e Deduplicação Inteligente de Estornos no Financeiro**, **Mecânica Completa e Visual de Aguardar Início no Nó de Condição por Data/Hora**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% seguros)** e **Modularização Completa de Clean Code**.
-
-
-
+Versão estável com **Kanban de Vendas & CRM Multi-Produtos (Pipelines segmentados por curso/produto com valor de venda padrão, movimentação Drag & Drop com auto-scroll horizontal contínuo e adição direta via Chat)**, **Filtros Temporais para Disparos Recorrentes (Segmentação por data de criação ou última interação nos últimos 7, 14, 30, 60 ou 90 dias)**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Modularização Completa de Clean Code**.
 
 O **ZapVoice** é um ecossistema completo e profissional de automação e marketing de alta performance integrado à **API Oficial do WhatsApp (Meta)**. 
 

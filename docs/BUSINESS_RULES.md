@@ -85,6 +85,21 @@ Este documento centraliza as definições de comportamento do sistema e os requi
   - Templates de marketing/promocionais: **R$ 0,3500 por template**.
 - **Painel Financeiro de Disparos**: Apresenta em tempo real a barra de consumo da franquia, a fatura acumulada e a projeção de fechamento no fim do mês.
 
+### 15. Filtros Dinâmicos de Público Alvo em Disparos Recorrentes (Interação e Criação)
+- **Segmentação por Última Interação (`interaction_filter_days`)**: Permite filtrar o público do disparo recorrente para considerar apenas contatos que interagiram (enviaram mensagem no WhatsApp/Chat local, registrado via `ChatConversation.last_contact_message_at`) nos últimos **7, 14, 30, 60 ou 90 dias** (ou Sem Filtro/Todos). Contatos sem interação nesse período são desconsiderados do disparo.
+- **Segmentação por Data de Criação (`created_filter_days`)**: Permite filtrar o público do disparo recorrente para considerar apenas contatos cadastrados no sistema (via `WebhookLead.created_at` ou `ChatConversation.created_at`) nos últimos **7, 14, 30, 60 ou 90 dias** (ou Sem Filtro/Todos).
+- **Combinação e Preservação de Exclusões**: Os filtros de interação e criação podem ser combinados livremente. A lista manual de exclusões (`exclusion_list`) continua soberana e exclui qualquer contato explicitamente removido pelo usuário, independentemente de seus dados de interação ou data de criação. Tanto no disparo manual (`POST /recurring/{id}/trigger`) quanto na rotina automática do scheduler (`recurring_processor.py`), esses filtros são aplicados dinamicamente em tempo de execução.
+
+### 16. Kanban de Vendas / CRM Multi-Produto
+- **Propósito**: Gestão visual e interativa do funil de oportunidades de vendas 100% no modelo Kanban com drag & drop.
+- **Múltiplos Pipelines por Produto**: Cada pipeline de vendas é focado em um produto específico da operação (ex: *Mentoria Elite*, *Curso High Ticket*), permitindo etapas e métricas exclusivas por produto.
+- **Origem Automática dos Cards (Deals)**:
+  - **Webhooks de Plataformas (Kiwify, Hotmart, Eduzz, etc.)**: Eventos de vendas que trazem o nome do produto criam/atualizam automaticamente o deal no pipeline correspondente (ex: Carrinho Abandonado na coluna inicial, Compra Aprovada na coluna de Ganho/Venda Fechada).
+  - **Etiquetas Vinculadas (`associated_tags`)**: Cada pipeline pode ter uma lista de etiquetas associadas. Ao aplicar uma dessas etiquetas no contato (seja no Chat ou via Funil), o contato é inserido automaticamente no pipeline do produto.
+  - **Ação Rápida no Chat (Opção B3)**: No cabeçalho da conversa no Chat local, o operador pode clicar em "Adicionar ao Kanban" para criar um deal informando produto, estágio e valor estimado em R$.
+  - **Sincronização Retroativa de Histórico**: Ao criar o pipeline ou clicar em "Sincronizar Histórico", o sistema busca leads passados daquele produto no banco (`WebhookLead`) e organiza nos estágios correspondentes.
+- **Ações Rápidas no Card**: Cada card permite abrir a conversa no Chat local do WhatsApp com 1 clique, ou disparar templates/funis sem sair do Kanban.
+
 ---
 
 ## 🖥️ Detalhamento das Telas e UX
@@ -213,6 +228,9 @@ Abaixo estão as perguntas sobre mecânicas de fundo que ainda não estão docum
     - **Resposta**: Não precisa nesta fase inicial. Focar na entrega rápida e histórico simples.
 - [x] [NOVO] **Prazo Limite e Expiração de Disparo em Massa:** No disparo em massa, devemos disponibilizar o campo opcional de "Data e Hora Limite de Envio" com fallback automático de 24 horas caso o usuário não preencha? Mensagens retidas na fila da Meta (usuário sem internet) e contatos pendentes serão abortados ao atingir esse prazo.
     - **Resposta**: Sim. Foi disponibilizado o campo opcional "Prazo Limite de Envio" no passo de opções de disparo (`SchedulingSection`). Se o usuário não definir uma data/hora limite personalizada, o sistema adota automaticamente o **fallback padrão de 24 horas** a partir do início do disparo (`started_at`). Ao atingir o prazo limite ou as 24 horas: (1) O envio dos contatos pendentes restantes na lista é imediatamente abortado no backend (`process_bulk_send`), marcando o disparo como `aborted` e os contatos pendentes como falha por timeout; (2) Mensagens retidas na fila da Meta (`status == 'sent'` sem confirmação de `delivered`, ex: contato sem internet/offline) são limpas e marcadas como falha pelo scheduler de limpeza periódica (`cleanup_tasks.py`), atualizando os contadores do histórico.
+- [x] [NOVO] **Geração Automática de Convite/Cadastro via Webhook (Área de Membros/Plataforma Externa):** Na aba de Gatilhos das Integrações de Webhook (seção Avançado), deve haver uma opção para gerar convite de acesso do comprador automaticamente via API externa?
+    - **Resposta**: Sim. Configuração global da URL base da API e Token (`sk_live_...`) em **Configurações > Plataforma**. No gatilho de cada evento da integração (ex: Compra Aprovada), o usuário ativa o switch de criação automática, define a função/role (`aluno`), prazo do link (`duration_hours`) e lista de cursos (`course_access`). Ao receber o webhook aprovado, o ZapVoice chama `POST /api/v1/invites`, obtém o link e injeta na variável dinâmica `{{link_cadastro}}`, disponibilizando-a para envio imediato no WhatsApp do comprador via template ou funil.
+
 
 ## 📋 Histórico de Decisões
 As perguntas iniciais sobre regras de negócio foram todas respondidas e integradas às seções acima. O sistema segue o modelo de isolamento total entre clientes e automação robusta com retentativas configuradas.

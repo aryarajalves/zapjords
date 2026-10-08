@@ -2,6 +2,7 @@ import React from 'react';
 import ManyChatSection from '../ManyChatSection';
 import SmartCancelSection from '../SmartCancelSection';
 import FollowUpSection from '../FollowUpSection';
+import PlatformInviteSection from '../PlatformInviteSection';
 
 export default function AdvancedTabContent({
   mapping,
@@ -17,6 +18,7 @@ export default function AdvancedTabContent({
   return (
     <div className="p-5 space-y-4">
       <ManyChatSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
+      <PlatformInviteSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
       <SmartCancelSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
       <FollowUpSection
         mapping={mapping}

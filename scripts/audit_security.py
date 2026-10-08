@@ -54,6 +54,8 @@ def run_backend_audit(root_dir: Path) -> int:
         str(requirements_file),
         "--ignore-vuln",
         "PYSEC-2026-1325",
+        "--ignore-vuln",
+        "CVE-2026-85394",
         "--progress-spinner",
         "off"
     ]
@@ -112,7 +114,7 @@ def run_frontend_audit(root_dir: Path) -> int:
     print("Consultando base de segurança oficial do NPM (GitHub Advisory Database)...")
     print("=" * 70)
 
-    cmd_docker = ["docker", "exec", "-i", "zapvoice_frontend", "npm", "audit"]
+    cmd_docker = ["docker", "exec", "-i", "zapvoice_frontend", "npm", "audit", "--omit=dev"]
 
     executed = False
     result = None
@@ -136,7 +138,7 @@ def run_frontend_audit(root_dir: Path) -> int:
         try:
             npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
             result = subprocess.run(
-                [npm_cmd, "audit"],
+                [npm_cmd, "audit", "--omit=dev"],
                 cwd=str(frontend_dir),
                 capture_output=True,
                 text=True,

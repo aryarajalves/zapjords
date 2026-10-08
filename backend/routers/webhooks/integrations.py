@@ -194,10 +194,16 @@ def create_webhook_integration(
         if integration.mappings:
             for mapping in integration.mappings:
                 safe_template_id = None
+                safe_template_name = mapping.template_name
                 if mapping.template_id:
                     tid_raw = str(mapping.template_id).strip().lower()
                     if tid_raw.isdigit():
                         safe_template_id = int(tid_raw)
+                        tpl = db.query(models.WhatsAppTemplateCache).filter(
+                            models.WhatsAppTemplateCache.id == safe_template_id
+                        ).first()
+                        if tpl:
+                            safe_template_name = tpl.name
 
                 # Resolver nome do template de follow-up a partir do cache se necessário
                 safe_followup_template_id = None
@@ -221,7 +227,7 @@ def create_webhook_integration(
                     integration_id=db_integration.id,
                     event_type=mapping.event_type,
                     template_id=safe_template_id,
-                    template_name=mapping.template_name,
+                    template_name=safe_template_name,
                     template_language=getattr(mapping, 'template_language', 'pt_BR'),
                     template_components=getattr(mapping, 'template_components', None),
                     funnel_id=getattr(mapping, 'funnel_id', None),
@@ -263,7 +269,11 @@ def create_webhook_integration(
                     update_contact_on_trigger=getattr(mapping, 'update_contact_on_trigger', True),
                     contact_save_fields=getattr(mapping, 'contact_save_fields', None),
                     button_actions=getattr(mapping, 'button_actions', None),
-                    feedback_filter=getattr(mapping, 'feedback_filter', None)
+                    feedback_filter=getattr(mapping, 'feedback_filter', None),
+                    auto_create_invite=getattr(mapping, 'auto_create_invite', False),
+                    invite_role=getattr(mapping, 'invite_role', 'aluno'),
+                    invite_duration_hours=getattr(mapping, 'invite_duration_hours', 0),
+                    invite_course_access=getattr(mapping, 'invite_course_access', [])
                 )
                 db.add(db_mapping)
 
@@ -356,11 +366,17 @@ def update_webhook_integration(
         if integration_update.mappings:
             for mapping in integration_update.mappings:
                 safe_template_id = None
+                safe_template_name = mapping.template_name
                 if mapping.template_id:
                     tid_raw = str(mapping.template_id).strip().lower()
                     if tid_raw and tid_raw not in ["null", "undefined", "none"]:
                         try:
                             safe_template_id = int(tid_raw)
+                            tpl = db.query(models.WhatsAppTemplateCache).filter(
+                                models.WhatsAppTemplateCache.id == safe_template_id
+                            ).first()
+                            if tpl:
+                                safe_template_name = tpl.name
                         except:
                             safe_template_id = None
                 
@@ -388,7 +404,7 @@ def update_webhook_integration(
                     integration_id=uuid_obj,
                     event_type=mapping.event_type,
                     template_id=safe_template_id,
-                    template_name=mapping.template_name,
+                    template_name=safe_template_name,
                     template_language=getattr(mapping, 'template_language', 'pt_BR'),
                     template_components=getattr(mapping, 'template_components', []),
                     funnel_id=getattr(mapping, 'funnel_id', None),
@@ -430,7 +446,11 @@ def update_webhook_integration(
                     update_contact_on_trigger=getattr(mapping, 'update_contact_on_trigger', True),
                     contact_save_fields=getattr(mapping, 'contact_save_fields', None),
                     button_actions=getattr(mapping, 'button_actions', None),
-                    feedback_filter=getattr(mapping, 'feedback_filter', None)
+                    feedback_filter=getattr(mapping, 'feedback_filter', None),
+                    auto_create_invite=getattr(mapping, 'auto_create_invite', False),
+                    invite_role=getattr(mapping, 'invite_role', 'aluno'),
+                    invite_duration_hours=getattr(mapping, 'invite_duration_hours', 0),
+                    invite_course_access=getattr(mapping, 'invite_course_access', [])
                 )
                 db.add(db_mapping)
 

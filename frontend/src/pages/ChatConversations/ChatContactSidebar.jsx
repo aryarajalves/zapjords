@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiUser, FiMaximize2, FiRefreshCw, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiUser, FiMaximize2, FiRefreshCw, FiTrash2, FiSearch, FiTrello } from 'react-icons/fi';
 import { BsJournalText, BsStarFill } from 'react-icons/bs';
 import ContactProfileCard from './components/ChatContactSidebar/ContactProfileCard';
 import ContactTagsSection from './components/ChatContactSidebar/ContactTagsSection';
@@ -11,6 +11,7 @@ import MessageSearchSidebar from './components/ChatContactSidebar/MessageSearchS
 import StarredMessagesModal from './components/ChatContactSidebar/StarredMessagesModal';
 import ShareContactModal from './components/ShareContactModal';
 import MentionTextarea from './components/MentionTextarea';
+import AddChatToCrmModal from './Modals/AddChatToCrmModal';
 import { renderConvoMentions } from './utils/convoMentionUtils';
 
 export default function ChatContactSidebar({
@@ -53,6 +54,7 @@ export default function ChatContactSidebar({
     const [isMaximizedOpen, setIsMaximizedOpen] = React.useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = React.useState(false);
     const [isStarredModalOpen, setIsStarredModalOpen] = React.useState(false);
+    const [isCrmModalOpen, setIsCrmModalOpen] = React.useState(false);
     const [newTagModalData, setNewTagModalData] = React.useState(null);
 
     const userMessagesCount = React.useMemo(() => {
@@ -77,14 +79,14 @@ export default function ChatContactSidebar({
     }, [mediaData?.total_messages, messages]);
 
     React.useEffect(() => {
-        if (isMaximizedOpen || newTagModalData?.isOpen || isMediaModalOpen || isShareModalOpen) {
+        if (isMaximizedOpen || newTagModalData?.isOpen || isMediaModalOpen || isShareModalOpen || isCrmModalOpen) {
             const originalOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             return () => {
                 document.body.style.overflow = originalOverflow;
             };
         }
-    }, [isMaximizedOpen, newTagModalData?.isOpen, isMediaModalOpen, isShareModalOpen]);
+    }, [isMaximizedOpen, newTagModalData?.isOpen, isMediaModalOpen, isShareModalOpen, isCrmModalOpen]);
 
     const handleTagSubmit = (rawName) => {
         if (!rawName || !rawName.trim()) return;
@@ -155,6 +157,22 @@ export default function ChatContactSidebar({
                     <span>Mensagens Favoritas</span>
                 </div>
                 <span className="text-[10px] text-gray-400 font-mono">Ver</span>
+            </button>
+
+            {/* Botão de Atalho para Kanban de Vendas (CRM) */}
+            <button
+                type="button"
+                onClick={() => setIsCrmModalOpen(true)}
+                data-testid="crm-add-deal-button"
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-all text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-sm cursor-pointer group"
+            >
+                <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                        <FiTrello size={15} />
+                    </div>
+                    <span>Kanban de Vendas</span>
+                </div>
+                <span className="text-[10px] text-blue-500 font-medium">+ Criar Lead</span>
             </button>
 
             {/* Atribuído A */}
@@ -304,6 +322,13 @@ export default function ChatContactSidebar({
                     handleAddTagWithName={handleAddTagWithName}
                 />
             )}
+
+            {/* Modal de Adicionar ao Kanban de Vendas */}
+            <AddChatToCrmModal
+                isOpen={isCrmModalOpen}
+                onClose={() => setIsCrmModalOpen(false)}
+                selectedConvo={selectedConvo}
+            />
         </div>
     );
 }

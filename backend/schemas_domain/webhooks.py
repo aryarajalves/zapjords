@@ -52,6 +52,13 @@ class WebhookEventMappingBase(BaseModel):
     contact_save_fields: Optional[List[str]] = Field(None, description="Campos a salvar no contato (None = padrão)")
     button_actions: Optional[Dict[str, Any]] = Field(None, description="Ações de botões do template")
     feedback_filter: Optional[str] = Field(None, description="Filtro de avaliação/estrelas (ex: 5, 4, 3, 2, 1, skipped, all)")
+    
+    # Criação Automática de Acesso / Convite na Plataforma
+    auto_create_invite: Optional[bool] = Field(False, description="Ativar geração automática de convite na plataforma")
+    invite_role: Optional[str] = Field("aluno", description="Função atribuída ao usuário criado (ex: aluno, admin)")
+    invite_duration_hours: Optional[int] = Field(0, description="Duração do convite em horas (0 = indefinido)")
+    invite_course_access: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Lista de cursos liberados e suas validades")
+    
     is_active: Optional[bool] = Field(True, description="Indica se o mapeamento está ativo")
 
     @field_validator('button_actions', mode='before')
@@ -118,7 +125,36 @@ class WebhookEventMappingBase(BaseModel):
                     return json.loads(v_trimmed)
                 except:
                     return [v_trimmed]
-            return [v_trimmed]
+        return []
+
+    @field_validator('auto_create_invite', mode='before')
+    @classmethod
+    def validate_auto_create_invite(cls, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.strip().lower() in ['true', '1', 'yes', 'sim']
+        if isinstance(v, (int, float)):
+            return bool(v)
+        return False
+
+    @field_validator('invite_course_access', mode='before')
+    @classmethod
+    def validate_invite_course_access(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v_trimmed = v.strip()
+            if not v_trimmed:
+                return []
+            if v_trimmed.startswith('['):
+                try:
+                    return json.loads(v_trimmed)
+                except:
+                    return []
+            return []
         return []
 
 

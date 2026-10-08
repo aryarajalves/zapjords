@@ -24,6 +24,7 @@ vi.mock('react-icons/fi', () => ({
   FiHelpCircle: () => <span />,
   FiTerminal: () => <span />,
   FiMessageSquare: () => <span />,
+  FiTrello: () => <span />,
 }));
 
 vi.mock('./ClientSelector', () => ({
@@ -110,6 +111,11 @@ describe('Sidebar', () => {
     expect(screen.getByText('Leads Quentes')).toBeInTheDocument();
     expect(screen.queryByText('Checkout Prepopulado')).not.toBeInTheDocument();
     expect(screen.queryByText('Página de Captura')).not.toBeInTheDocument();
+  });
+
+  it('não exibe o item de menu E-mail Marketing', () => {
+    render(<Sidebar {...baseProps} user={{ role: 'super_admin' }} />);
+    expect(screen.queryByText('E-mail Marketing')).not.toBeInTheDocument();
   });
 
   it('chama onViewChange ao clicar em item de menu', () => {

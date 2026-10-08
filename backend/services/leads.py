@@ -270,6 +270,30 @@ def upsert_webhook_lead(db: Session, client_id: int, platform: str, parsed_data:
         
         db.commit()
         db.refresh(lead)
+
+        # Hook Automático de CRM / Kanban de Vendas
+        try:
+            from services.crm_service import process_webhook_lead_for_crm
+            deal_val = 0.0
+            if price:
+                try:
+                    deal_val = float(str(price).replace(",", ".").replace("R$", "").strip())
+                except Exception:
+                    deal_val = 0.0
+            process_webhook_lead_for_crm(
+                db=db,
+                client_id=client_id,
+                phone=clean_phone_lookup,
+                name=name,
+                email=email,
+                product_name=product_name_raw,
+                event_type=event_type,
+                value=deal_val,
+                lead_id=lead.id
+            )
+        except Exception as e_crm:
+            logger.warning(f"⚠️ [CRM HOOK] Erro não-bloqueante ao processar lead no CRM: {e_crm}")
+
         return lead
     except Exception as e:
         logger.error(f"❌ [LEAD SERVICE] Erro ao upsert lead: {e}")

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiClock, FiCalendar, FiUsers, FiEdit2, FiXCircle, FiPlay, FiTrash2, FiZap, FiFilter, FiEye } from 'react-icons/fi';
+import { FiClock, FiCalendar, FiUsers, FiEdit2, FiXCircle, FiPlay, FiTrash2, FiZap, FiFilter, FiEye, FiMessageSquare } from 'react-icons/fi';
 
 export function ScheduleCard({ schedule, onTrigger, onFetchContacts, onOpenEdit, onToggleStatus, onConfirmDelete, onViewMessage, isTriggering }) {
     const getScheduleSummary = (schedule) => {
@@ -46,6 +46,24 @@ export function ScheduleCard({ schedule, onTrigger, onFetchContacts, onOpenEdit,
                                 <FiFilter size={10} className="text-blue-500" />
                                 {schedule.tag ? `Etiqueta: ${schedule.tag}` : 'Lista Estática'}
                             </p>
+                            {schedule.interaction_filter_days && (
+                                <span 
+                                    className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-full text-[9px] font-black uppercase tracking-widest"
+                                    title={`Dispara apenas para quem interagiu nos últimos ${schedule.interaction_filter_days} dias`}
+                                >
+                                    <FiMessageSquare size={9} />
+                                    Interagiu: ≤{schedule.interaction_filter_days}d
+                                </span>
+                            )}
+                            {schedule.created_filter_days && (
+                                <span 
+                                    className="flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 rounded-full text-[9px] font-black uppercase tracking-widest"
+                                    title={`Dispara apenas para quem foi cadastrado nos últimos ${schedule.created_filter_days} dias`}
+                                >
+                                    <FiCalendar size={9} />
+                                    Criado: ≤{schedule.created_filter_days}d
+                                </span>
+                            )}
                             {schedule.exclusion_list?.length > 0 && (
                                 <span 
                                     className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-full text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-rose-500/20 transition-colors"

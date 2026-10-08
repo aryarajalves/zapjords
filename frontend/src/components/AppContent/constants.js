@@ -19,9 +19,11 @@ export const PAGE_NAMES = {
   import_history:       'Histórico de Importação',
   blocked:              'Contatos Bloqueados',
   financial:            'Financeiro',
+  sales_kanban:         'Kanban de Vendas',
 };
 
 export const VIEW_TITLES = {
+  sales_kanban: 'Kanban de Vendas',
   bulk_sender: 'Disparo em Massa',
   recurring_schedules: 'Disparo Recorrente Criado',
   funnels: 'Meus Funis',

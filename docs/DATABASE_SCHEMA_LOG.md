@@ -21,12 +21,18 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 - **`contact_windows`**: Cache de janelas de 24h para envio de mensagens grátis.
 - **`resting_contacts`**: Contatos em repouso por 24 horas para reaquecimento.
 - **`contact_import_history`**: Histórico e status de importações de contatos em segundo plano.
+- **`sales_pipelines`**: Pipelines de vendas por produto no Kanban de Vendas.
+- **`sales_pipeline_stages`**: Estágios / colunas customizadas de cada pipeline de produto.
+- **`sales_deals`**: Cards e oportunidades de venda com status, valor e contato.
 
 ---
 
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 08/10/2026 | Criação das Tabelas do Kanban de Vendas / CRM Multi-Produto | `sales_pipelines`, `sales_pipeline_stages`, `sales_deals` | Tabelas novas completas com relacionamentos, índices e chaves estrangeiras | `backend/scripts/database/create_sales_kanban_tables.py` |
+| 08/10/2026 | Filtro de Público Alvo por Interação e Data de Criação em Disparos Recorrentes | `recurring_triggers` | `interaction_filter_days` (INTEGER), `created_filter_days` (INTEGER) | `backend/scripts/database/add_recurring_audience_filters.py` |
+| 01/10/2026 | Criação Automática de Acesso/Convite na Plataforma | `webhook_event_mappings` | `auto_create_invite` (BOOLEAN), `invite_role` (VARCHAR), `invite_duration_hours` (INTEGER), `invite_course_access` (JSONB) | `backend/scripts/database/add_platform_invite_columns.py` |
 | 28/09/2026 | Filtro de Avaliação / Estrelas nos Gatilhos de Webhook | `webhook_event_mappings` | `feedback_filter` (VARCHAR) | `backend/scripts/database/add_feedback_filter_column.py` |
 | 22/09/2026 | Confirmação de Leitura e Status em Mensagens do Chat | `chat_messages` | `status` (VARCHAR, indexado) | `backend/scripts/add_status_column_to_chat_messages.py` |
 | 11/09/2026 | Prazo Limite de Envio e Fallback 24h | `scheduled_triggers` | `max_dispatch_time` | `backend/scripts/database/add_max_dispatch_time_column.py` |
@@ -227,6 +233,27 @@ docker exec zapvoice_app python /app/scripts/add_email_marketing_tables.py
 **Como aplicar em produção:**
 ```bash
 docker exec zapvoice_app python /app/scripts/add_funnel_new_conversation_trigger_columns.py
+```
+
+---
+
+## 📋 Migração: CRM / Kanban de Vendas - Valor Padrão do Produto (2026-10-08)
+
+**Tabela afetada:** `sales_pipelines`
+
+**Script:** `backend/scripts/database/add_pipeline_default_value.py`
+
+**Novas colunas:**
+
+| Coluna | Tipo | Default | Descrição |
+|--------|------|---------|-----------|
+| `default_value` | `DOUBLE PRECISION` / `REAL` | `0.0` | Valor padrão da venda/curso associado ao pipeline (R$) |
+
+**Contexto:** Permite definir um preço/valor padrão para o produto daquele pipeline, sugerindo e preenchendo automaticamente esse valor nas oportunidades geradas por etiquetas, webhooks ou criação manual.
+
+**Como aplicar em produção:**
+```bash
+docker exec zapvoice_app python /app/scripts/database/add_pipeline_default_value.py
 ```
 
 

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ViewContactsModal } from '../ViewContactsModal';
@@ -79,6 +79,55 @@ describe('RecurringSchedules Modals Modular Suite', () => {
 
             expect(result.current.displayedContacts).toHaveLength(1);
             expect(result.current.displayedContacts[0].name).toBe('Alice');
+        });
+
+        it('deve aplicar filtros de última interação e criação e salvar parâmetros', async () => {
+            const onSaveExclusions = vi.fn();
+            const now = new Date();
+            const date3DaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
+            const date20DaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000).toISOString();
+
+            const contactsWithDates = {
+                id: 42,
+                mode: 'tag',
+                tag: 'LEADS',
+                exclusion_list: [],
+                interaction_filter_days: null,
+                created_filter_days: null,
+                contacts: [
+                    { phone: '5511999990001', name: 'Lead Recente', last_interaction_at: date3DaysAgo, created_at: date3DaysAgo },
+                    { phone: '5511999990002', name: 'Lead Antigo', last_interaction_at: date20DaysAgo, created_at: date20DaysAgo },
+                ]
+            };
+
+            const { result } = renderHook(() => useViewContactsModal({
+                viewingContacts: contactsWithDates,
+                onSaveExclusions,
+                onRefreshContacts: vi.fn()
+            }));
+
+            expect(result.current.activeContacts).toHaveLength(2);
+
+            // Aplicar filtro de interação de 7 dias
+            act(() => {
+                result.current.setInteractionFilter(7);
+            });
+
+            expect(result.current.hasChanges).toBe(true);
+            // Apenas Lead Recente (3 dias) deve estar ativo nos 7 dias
+            expect(result.current.activeContacts).toHaveLength(1);
+            expect(result.current.activeContacts[0].phone).toBe('5511999990001');
+
+            // Salvar e verificar payload completo
+            await act(async () => {
+                await result.current.handleSave();
+            });
+
+            expect(onSaveExclusions).toHaveBeenCalledWith(42, {
+                exclusion_list: [],
+                interaction_filter_days: 7,
+                created_filter_days: null
+            });
         });
     });
 
@@ -184,6 +233,34 @@ describe('RecurringSchedules Modals Modular Suite', () => {
 
             fireEvent.click(screen.getByText('FECHAR'));
             expect(onClose).toHaveBeenCalled();
+        });
+
+        it('deve renderizar os seletores de filtros dinâmicos de interação e criação', () => {
+            render(
+                <ViewContactsModal
+                    viewingContacts={{
+                        id: 2,
+                        mode: 'tag',
+                        tag: 'LEADS',
+                        exclusion_list: [],
+                        interaction_filter_days: 14,
+                        created_filter_days: null,
+                        contacts: [
+                            { name: 'João Santos', phone: '5511988887777', email: 'joao@test.com' }
+                        ]
+                    }}
+                    onClose={vi.fn()}
+                    onSaveExclusions={vi.fn()}
+                    isSavingExclusions={false}
+                    onRefreshContacts={vi.fn()}
+                />
+            );
+
+            expect(screen.getByText('Disparar Apenas:')).toBeDefined();
+            expect(screen.getByText('Interagiram:')).toBeDefined();
+            expect(screen.getByText('Criados:')).toBeDefined();
+            // Como interaction_filter_days é 14, o botão 'Limpar Filtros' deve estar visível
+            expect(screen.getByText('Limpar Filtros')).toBeDefined();
         });
     });
 });

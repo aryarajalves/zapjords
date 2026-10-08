@@ -101,6 +101,21 @@ async def update_conversation_labels(
 
     convo.labels = unique_labels
     db.commit()
+
+    if added:
+        try:
+            from services.crm_service import process_tag_applied_for_crm
+            for tag_name in added:
+                process_tag_applied_for_crm(
+                    db=db,
+                    client_id=client_id,
+                    phone=convo.phone,
+                    name=convo.contact_name,
+                    tag=tag_name
+                )
+        except Exception as e_crm:
+            logger.warning(f"⚠️ [CRM HOOK] Erro ao processar tag no CRM: {e_crm}")
+
     return {"status": "ok", "labels": convo.labels, "human_handover_at": convo.human_handover_at.isoformat() if convo.human_handover_at else None}
 
 

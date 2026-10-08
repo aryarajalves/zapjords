@@ -68,11 +68,12 @@ from routers import (
     chat_labels,      # Etiquetas e marcadores do chat
     api_keys,         # Gerenciamento de chaves de API (Tokens de API)
     reminders,        # Lembretes de agendamento (Re-disparos de calendário)
-    email_marketing,  # Disparo de e-mails em massa
+    # email_marketing, # Desativado - migrando para ferramenta independente
     waba_payment,     # Métodos de pagamento e faturas da Meta WABA
     quick_messages,   # Respostas e mensagens rápidas
     checkout_presell, # Páginas de pré-venda e checkout
-    capture_page      # Páginas de captura de leads
+    capture_page,     # Páginas de captura de leads
+    crm               # Kanban de Vendas e CRM Multi-Produto
 )
 
 # Webhooks de entrada (sistemas externos, gestão de eventos)
@@ -322,7 +323,7 @@ app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(chat_labels.router, prefix="/api", tags=["Chat Labels"])
 app.include_router(api_keys.router, prefix="/api")
 app.include_router(reminders.router, prefix="/api")
-app.include_router(email_marketing.router, prefix="/api/email", tags=["Email Marketing"])
+# app.include_router(email_marketing.router, prefix="/api/email", tags=["Email Marketing"])
 app.include_router(waba_payment.router, prefix="/api", tags=["WABA Payment"])
 app.include_router(quick_messages.router, prefix="/api", tags=["QuickMessages"])
 
@@ -331,6 +332,7 @@ app.include_router(contacts_public_router, prefix="/api", tags=["Contacts Public
 app.include_router(leads_public_router, prefix="/api", tags=["Leads Public API"])
 app.include_router(checkout_presell.router)
 app.include_router(capture_page.router, prefix="/api")
+app.include_router(crm.router, prefix="/api")
 
 # --- Fim dos Webhooks ---
 

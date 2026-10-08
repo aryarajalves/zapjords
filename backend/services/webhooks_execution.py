@@ -161,6 +161,24 @@ async def execute_webhook_resend_logic(
                     logger.info(f"📄 [RESEND_AUTO_PDF] PDF da Bússola gerado com sucesso: {pdf_url} ({display_filename})")
                 except Exception as pdf_err:
                     logger.error(f"❌ [RESEND_AUTO_PDF] Erro ao gerar PDF da Bússola no resend: {pdf_err}")
+
+        # --- GERAÇÃO AUTOMÁTICA DE CONVITE / CADASTRO NA PLATAFORMA ---
+        if getattr(mapping, "auto_create_invite", False):
+            try:
+                from services.platform_invite_service import generate_platform_invite
+                invite_res = await generate_platform_invite(
+                    client_id=integration.client_id,
+                    role=getattr(mapping, "invite_role", "aluno") or "aluno",
+                    duration_hours=getattr(mapping, "invite_duration_hours", 0) or 0,
+                    course_access=getattr(mapping, "invite_course_access", None)
+                )
+                if invite_res and invite_res.get("full_invite_url"):
+                    invite_link = invite_res["full_invite_url"]
+                    parsed_data["link_cadastro"] = invite_link
+                    parsed_data["invite_url"] = invite_link
+                    logger.info(f"🔗 [PLATFORM_INVITE] Variável link_cadastro={invite_link} injetada nas variáveis do resend webhook #{history_id}")
+            except Exception as invite_err:
+                logger.error(f"❌ [PLATFORM_INVITE] Falha ao gerar convite automático no resend webhook #{history_id}: {invite_err}", exc_info=True)
             
         components = extract_mapped_variables(payload, parsed_data, mapping.variables_mapping or {}, header_format)
         

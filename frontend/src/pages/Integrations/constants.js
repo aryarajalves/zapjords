@@ -100,6 +100,8 @@ export const BODY_VAR_OPTIONS = [
   { value: 'form_id', label: '[YayForms] ID do Formulário' },
   { value: 'response_id', label: '[YayForms] ID da Resposta' },
   { value: 'investimento', label: '[YayForms] Faixa de Investimento' },
+  { value: 'link_cadastro', label: 'Link de Cadastro / Convite (Área de Membros)' },
+  { value: 'invite_url', label: 'URL de Convite (Relativo)' },
   { value: 'custom', label: 'Campo Personalizado / Fixo' },
 ];
 

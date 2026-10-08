@@ -228,8 +228,9 @@ async def handle_external_webhook(
                     orig_history.duplicate_count = (orig_history.duplicate_count or 0) + 1
                     db.commit()
                     logger.info(f"🚫 [WEBHOOK_DEDUPLICATION] Evento duplicado para {phone} e {event_type}. Centralizado no histórico #{orig_history_id}")
-                    # Atualiza o lock em memória com o timestamp atual
-                    GLOBAL_DEDUPLICATION_LOCKS[dedup_lock_key] = {"timestamp": now, "history_id": orig_history_id}
+                    # Mantém o timestamp da requisição original para que a janela expire aos 60s
+                    if dedup_lock_key not in GLOBAL_DEDUPLICATION_LOCKS:
+                        GLOBAL_DEDUPLICATION_LOCKS[dedup_lock_key] = {"timestamp": now, "history_id": orig_history_id}
                     return {"status": "ignored", "reason": "duplicate_event_lock", "history_id": orig_history_id}
 
         # 2.2. Trava Inteligente de Reembolso e Chargeback:

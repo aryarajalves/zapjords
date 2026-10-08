@@ -127,7 +127,7 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                 </div>
 
                 {/* 2. Área de Conteúdo Principal (Direita) */}
-                <form onSubmit={logic.handleSubmit} className="flex-1 flex flex-col h-full overflow-hidden">
+                <form onSubmit={logic.handleSubmit} autoComplete="off" className="flex-1 flex flex-col h-full overflow-hidden">
                     {/* Header da Área de Conteúdo */}
                     <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100 dark:border-white/5 bg-white dark:bg-[#1e293b]">
                         <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">

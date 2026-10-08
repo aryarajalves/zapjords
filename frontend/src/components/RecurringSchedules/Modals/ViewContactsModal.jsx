@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useViewContactsModal } from './useViewContactsModal';
 import { ViewContactsHeader } from './ViewContactsHeader';
 import { ViewContactsFilterBar } from './ViewContactsFilterBar';
@@ -28,6 +28,10 @@ export function ViewContactsModal({
         totalPages,
         displayedContacts,
         hasChanges,
+        interactionFilter,
+        setInteractionFilter,
+        createdFilter,
+        setCreatedFilter,
         handleToggleExclusion,
         handleSave,
         handleRefresh
@@ -58,6 +62,10 @@ export function ViewContactsModal({
                     excludedCount={excludedContacts.length}
                     pageSize={pageSize}
                     setPageSize={setPageSize}
+                    interactionFilter={interactionFilter}
+                    setInteractionFilter={setInteractionFilter}
+                    createdFilter={createdFilter}
+                    setCreatedFilter={setCreatedFilter}
                 />
 
                 <ViewContactsList

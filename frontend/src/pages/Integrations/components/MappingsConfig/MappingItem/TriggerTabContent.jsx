@@ -149,7 +149,13 @@ export default function TriggerTabContent({
                 <SearchableSelect
                   options={templates.map(t => ({ value: t.id, label: t.name, tags: t.tags, is_pinned: t.is_pinned }))}
                   value={mapping.template_id}
-                  onChange={(val) => updateMapping(mIndex, 'template_id', val)}
+                  onChange={(val) => {
+                    const selected = templates.find(t => String(t.id) === String(val));
+                    updateMapping(mIndex, {
+                      template_id: val,
+                      template_name: selected ? selected.name : ''
+                    });
+                  }}
                   placeholder="Selecione um Template..."
                   allowNone
                 />

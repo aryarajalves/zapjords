@@ -32,6 +32,8 @@ class RecurringTriggerBase(BaseModel):
 
     is_active: bool = True
     button_actions: Optional[Dict[str, Any]] = None
+    interaction_filter_days: Optional[int] = None
+    created_filter_days: Optional[int] = None
 
     @field_validator('button_actions', mode='before')
     @classmethod
@@ -76,6 +78,8 @@ class RecurringTriggerUpdate(BaseModel):
     exclusion_tags: Optional[List[str]] = None
     exclusion_tag_mode: Optional[str] = None
     button_actions: Optional[Dict[str, Any]] = None
+    interaction_filter_days: Optional[int] = None
+    created_filter_days: Optional[int] = None
 
 
 class RecurringTriggerCreate(RecurringTriggerBase):

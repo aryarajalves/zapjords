@@ -262,6 +262,12 @@ class WebhookEventMapping(Base):
     button_actions = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     feedback_filter = Column(String, nullable=True, default=None)
     
+    # Criação Automática de Acesso / Convite na Plataforma (Área de Membros)
+    auto_create_invite = Column(Boolean, default=False)
+    invite_role = Column(String, default="aluno")
+    invite_duration_hours = Column(Integer, default=0)
+    invite_course_access = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    
     is_active = Column(Boolean, default=True)
     cost_per_message = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -418,6 +424,8 @@ class RecurringTrigger(Base):
     last_run_at = Column(DateTime(timezone=True), nullable=True)
     next_run_at = Column(DateTime(timezone=True), index=True, nullable=True)
     button_actions = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    interaction_filter_days = Column(Integer, nullable=True)
+    created_filter_days = Column(Integer, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

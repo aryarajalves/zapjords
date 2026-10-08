@@ -8,7 +8,7 @@ from database import SessionLocal
 from core.deps import get_current_user
 from core.permissions import require_premium, require_user, require_feature
 from models import User, RecurringTrigger, WebhookLead
-from core.recurrent_logic import calculate_next_run
+from core.recurrent_logic import calculate_next_run, filter_contacts_by_audience, enrich_contacts_with_audience_data
 from chatwoot_client import ChatwootClient
 import schemas
 
@@ -429,8 +429,18 @@ async def trigger_recurring_manual(
             if tc['phone'] not in phones_in_list and tc['phone'] not in exclusions:
                 final_contacts.append(tc)
 
+    # Aplicar filtros de público alvo (interação e data de criação) se configurados
+    if rt.interaction_filter_days or rt.created_filter_days:
+        final_contacts = filter_contacts_by_audience(
+            db=db,
+            client_id=client_id,
+            contacts=final_contacts,
+            interaction_days=rt.interaction_filter_days,
+            created_days=rt.created_filter_days
+        )
+
     if not final_contacts:
-        raise HTTPException(status_code=400, detail="Nenhum contato encontrado para esta recorrência (filtro de etiqueta retornou vazio).")
+        raise HTTPException(status_code=400, detail="Nenhum contato encontrado para esta recorrência (filtros de público/etiqueta retornaram vazio).")
 
     # Create ScheduledTrigger
     new_st = ScheduledTrigger(
@@ -445,9 +455,12 @@ async def trigger_recurring_manual(
         private_message=rt.private_message,
         private_message_delay=rt.private_message_delay,
         private_message_concurrency=rt.private_message_concurrency,
+        direct_message=rt.direct_message,
+        direct_message_params=rt.direct_message_params,
         status='queued',
         is_bulk=True,
         is_recurring=True,
+        recurring_trigger_id=rt.id,
         button_actions=rt.button_actions,
         scheduled_time=datetime.now(timezone.utc)
     )
@@ -530,13 +543,16 @@ async def get_recurring_contacts(
                     "is_excluded": True
                 })
                         
+        enriched_contacts = enrich_contacts_with_audience_data(db, client_id, contacts)
         return {
-            "contacts": contacts, 
+            "contacts": enriched_contacts, 
             "mode": "tag", 
             "tag": record.tag, 
-            "count": len(contacts),
+            "count": len(enriched_contacts),
             "exclusion_list": list(exclusions),
-            "source": source
+            "source": source,
+            "interaction_filter_days": record.interaction_filter_days,
+            "created_filter_days": record.created_filter_days
         }
     
     # Se usar lista estática (sem tag)
@@ -547,7 +563,8 @@ async def get_recurring_contacts(
                 "phone": c.get('phone'),
                 "name": c.get('name') or "Sem Nome",
                 "email": c.get('email', '-'),
-                "is_excluded": is_in_exclusions(c.get('phone', ''), exclusions)
+                "is_excluded": is_in_exclusions(c.get('phone', ''), exclusions),
+                "created_at": c.get('created_at')
             })
             
         # Garantir que todo contato que está na lista de exclusão apareça na resposta
@@ -558,14 +575,25 @@ async def get_recurring_contacts(
                     "phone": excluded_phone,
                     "name": "Contato Removido",
                     "email": "-",
-                    "is_excluded": True
+                    "is_excluded": True,
+                    "created_at": None
                 })
                 
+        enriched_contacts = enrich_contacts_with_audience_data(db, client_id, contacts)
         return {
-            "contacts": contacts, 
+            "contacts": enriched_contacts, 
             "mode": "static", 
-            "count": len(contacts),
-            "exclusion_list": list(exclusions)
+            "count": len(enriched_contacts),
+            "exclusion_list": list(exclusions),
+            "interaction_filter_days": record.interaction_filter_days,
+            "created_filter_days": record.created_filter_days
         }
     
-    return {"contacts": [], "mode": "none", "count": 0, "exclusion_list": []}
+    return {
+        "contacts": [], 
+        "mode": "none", 
+        "count": 0, 
+        "exclusion_list": [],
+        "interaction_filter_days": record.interaction_filter_days,
+        "created_filter_days": record.created_filter_days
+    }

@@ -193,27 +193,31 @@ export function useRecurringSchedules(activeClient) {
     };
 
     const [isUpdatingExclusions, setIsUpdatingExclusions] = useState(false);
-    const handleUpdateExclusions = async (id, exclusionList) => {
+    const handleUpdateExclusions = async (id, payloadOrList) => {
         setIsUpdatingExclusions(true);
         try {
+            const bodyPayload = Array.isArray(payloadOrList)
+                ? { exclusion_list: payloadOrList }
+                : (payloadOrList && typeof payloadOrList === 'object' ? payloadOrList : { exclusion_list: payloadOrList });
+
             const response = await fetchWithAuth(`${API_URL}/schedules/recurring/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ exclusion_list: exclusionList })
+                body: JSON.stringify(bodyPayload)
             }, activeClient.id);
 
             if (response.ok) {
-                toast.success('Lista de exclusões atualizada com sucesso!');
+                toast.success('Público alvo e exclusões atualizados com sucesso!');
                 fetchContacts(id);
                 fetchSchedules();
                 return true;
             } else {
                 const err = await response.json();
-                toast.error(err.detail || 'Erro ao atualizar lista de exclusões');
+                toast.error(err.detail || 'Erro ao atualizar público alvo');
                 return false;
             }
         } catch (err) {
-            toast.error('Erro de conexão ao salvar exclusões');
+            toast.error('Erro de conexão ao salvar público alvo');
             return false;
         } finally {
             setIsUpdatingExclusions(false);
