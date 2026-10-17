@@ -6,9 +6,9 @@ const HeaderSection = ({ logic }) => {
     const currentMedia = mediaCache[formData.header_type] || { url: '', fileName: '', previewUrl: null };
 
     return (
-        <div className="bg-gray-50/50 dark:bg-gray-900/20 p-6 rounded-2xl border border-gray-100 dark:border-gray-700">
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">Cabeçalho (Opcional)</label>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="bg-gray-50/50 dark:bg-gray-900/20 p-4 sm:p-6 rounded-2xl border border-gray-100 dark:border-gray-700">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 sm:mb-4">Cabeçalho (Opcional)</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-4 sm:mb-6">
                 {[
                     { id: 'NONE', label: 'Nenhum', icon: FiSlash },
                     { id: 'TEXT', label: 'Texto', icon: FiFileText },
@@ -20,12 +20,12 @@ const HeaderSection = ({ logic }) => {
                         key={m.id}
                         type="button"
                         onClick={() => setFormData({ ...formData, header_type: m.id, header_media_url: mediaCache[m.id]?.url || '' })}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.header_type === m.id
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border-2 transition-all ${formData.header_type === m.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold'
                             : 'border-transparent bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                     >
-                        <m.icon size={20} className="mb-1" />
+                        <m.icon size={20} className="mb-1 shrink-0" />
                         <span className="text-[10px] font-bold uppercase">{m.label}</span>
                     </button>
                 ))}

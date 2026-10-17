@@ -81,4 +81,19 @@ describe('ActiveChatHeader - Botão Maximizar Conversa', () => {
         const btn = screen.getByTitle('Maximizar conversa');
         expect(btn.className).not.toContain('bg-amber-500/15');
     });
+
+    it('renderiza o botão Voltar para lista de conversas no mobile', () => {
+        render(<ActiveChatHeader {...baseProps} />);
+        const backBtn = screen.getByTestId('chat-mobile-back-btn');
+        expect(backBtn).toBeDefined();
+        expect(backBtn.getAttribute('aria-label')).toBe('Voltar para a lista de conversas');
+    });
+
+    it('chama setSelectedConvo com null ao clicar no botão Voltar no mobile', () => {
+        const setSelectedConvo = vi.fn();
+        render(<ActiveChatHeader {...baseProps} setSelectedConvo={setSelectedConvo} />);
+        const backBtn = screen.getByTestId('chat-mobile-back-btn');
+        fireEvent.click(backBtn);
+        expect(setSelectedConvo).toHaveBeenCalledWith(null);
+    });
 });

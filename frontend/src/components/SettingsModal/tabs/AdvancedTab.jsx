@@ -3,8 +3,8 @@ import React from 'react';
 // Subcomponentes Modulares
 import ManyChatTokensSection from './AdvancedTab/ManyChatTokensSection';
 import PlatformSettingsSection from './AdvancedTab/PlatformSettingsSection';
-import MemoryWebhookSection from './AdvancedTab/MemoryWebhookSection';
-import ChatMessagesWebhookSection from './AdvancedTab/ChatMessagesWebhookSection';
+import BussolaSettingsSection from './AdvancedTab/BussolaSettingsSection';
+import AgentFlowSection from './AdvancedTab/AgentFlowSection';
 import MemoryLogsModal from './AdvancedTab/MemoryLogsModal';
 import ChatLogsModal from './AdvancedTab/ChatLogsModal';
 
@@ -31,6 +31,13 @@ const AdvancedTab = ({
                         visibleFields={visibleFields}
                     />
 
+                    {/* App Bússola Astrológica */}
+                    <BussolaSettingsSection
+                        formData={formData}
+                        handleChange={handleChange}
+                        visibleFields={visibleFields}
+                    />
+
                     {/* ManyChat API Key Section */}
                     <ManyChatTokensSection
                         formData={formData}
@@ -38,8 +45,8 @@ const AdvancedTab = ({
                         visibleFields={visibleFields}
                     />
 
-                    {/* Webhook de Memória do Agente */}
-                    <MemoryWebhookSection
+                    {/* Painel Unificado AgentFlow (Memória + Mensagens) */}
+                    <AgentFlowSection
                         formData={formData}
                         handleChange={handleChange}
                         testingWebhook={testingWebhook}
@@ -47,12 +54,6 @@ const AdvancedTab = ({
                         setShowMemoryLogsTable={setShowMemoryLogsTable}
                         setMemoryLogsPage={setMemoryLogsPage}
                         fetchMemoryLogs={fetchMemoryLogs}
-                    />
-
-                    {/* Webhook de Integração de Mensagens (AgentFlow) */}
-                    <ChatMessagesWebhookSection
-                        formData={formData}
-                        handleChange={handleChange}
                         testingChatWebhook={testingChatWebhook}
                         handleTestChatWebhook={handleTestChatWebhook}
                         setShowChatLogsTable={setShowChatLogsTable}

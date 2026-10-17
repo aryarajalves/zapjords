@@ -16,6 +16,7 @@ export const PLATFORM_FILTER_OPTIONS = [
   { value: 'bussola_quiz', label: 'Landing Page - Bussola Quiz' },
   { value: 'cakto',     label: 'Cakto' },
   { value: 'eduzz',     label: 'Eduzz' },
+  { value: 'formulario_personalizado', label: 'Formulário Personalizado' },
   { value: 'greenn',    label: 'Greenn' },
   { value: 'guru',      label: 'Digital Manager Guru' },
   { value: 'herospark', label: 'HeroSpark' },

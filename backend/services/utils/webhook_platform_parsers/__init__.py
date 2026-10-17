@@ -31,6 +31,12 @@ from .bussola_quiz import (
 from .yayforms import (
     parse_yayforms,
 )
+from .checkout_jords import (
+    parse_checkout_jords,
+)
+from .formulario_personalizado import (
+    parse_formulario_personalizado,
+)
 
 __all__ = [
     "get_doc_label",
@@ -54,4 +60,6 @@ __all__ = [
     "parse_zapgroup",
     "parse_bussola_quiz",
     "parse_yayforms",
+    "parse_checkout_jords",
+    "parse_formulario_personalizado",
 ]

@@ -125,7 +125,7 @@ const TemplateItem = ({ tpl, logic }) => {
                             handleOpenPopover();
                         }
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-800 transition-all flex items-center justify-center border border-violet-100 dark:border-violet-800/30"
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-800 transition-all flex items-center justify-center border border-violet-100 dark:border-violet-800/30"
                     title="Gerenciar Etiquetas"
                 >
                     <FiTag size={10} />
@@ -138,7 +138,7 @@ const TemplateItem = ({ tpl, logic }) => {
                             e.stopPropagation();
                             handlePinTemplate(tpl.id, !tpl.is_pinned);
                         }}
-                        className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-all flex items-center justify-center border ${
+                        className={`opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded transition-all flex items-center justify-center border ${
                             tpl.is_pinned 
                                 ? 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-800 border-amber-100 dark:border-amber-800/30' 
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 border-gray-250 dark:border-gray-650'
@@ -236,7 +236,7 @@ const TemplateItem = ({ tpl, logic }) => {
                                 setTemplateToDelete(tpl.name);
                                 setIsDeleteModalOpen(true);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-800 transition-all"
+                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-800 transition-all flex items-center justify-center"
                             title="Excluir Template"
                         >
                             <FiTrash2 size={12} />
@@ -248,7 +248,7 @@ const TemplateItem = ({ tpl, logic }) => {
                                 e.stopPropagation();
                                 unarchiveTemplate(tpl.name);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 bg-green-50 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-800 transition-all flex items-center justify-center"
+                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 bg-green-50 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-800 transition-all flex items-center justify-center"
                             title="Desarquivar Template"
                         >
                             <FiArchive size={12} />
@@ -259,7 +259,7 @@ const TemplateItem = ({ tpl, logic }) => {
                                 e.stopPropagation();
                                 archiveTemplate(tpl.name);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-800 transition-all flex items-center justify-center"
+                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-800 transition-all flex items-center justify-center"
                             title="Arquivar Template"
                         >
                             <FiArchive size={12} />
@@ -270,7 +270,7 @@ const TemplateItem = ({ tpl, logic }) => {
                             e.stopPropagation();
                             handleEdit(tpl);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800 transition-all text-[10px] font-bold"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800 transition-all text-[10px] font-bold"
                     >
                         EDITAR
                     </button>

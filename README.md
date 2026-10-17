@@ -1,6 +1,6 @@
-# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.1.0 — Versão Estável)
+# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.0.4 — Versão Estável)
 
-Versão estável com **Kanban de Vendas & CRM Multi-Produtos (Pipelines segmentados por curso/produto com valor de venda padrão, movimentação Drag & Drop com auto-scroll horizontal contínuo e adição direta via Chat)**, **Filtros Temporais para Disparos Recorrentes (Segmentação por data de criação ou última interação nos últimos 7, 14, 30, 60 ou 90 dias)**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Modularização Completa de Clean Code**.
+Versão estável com **Suporte Completo à Plataforma de Vendas Checkout Jords e Pagamentos em Criptomoeda (USDT, Polygon, NOWPayments, exibição rica de carteira e código de pedido)**, **Criação Automática de Convites do App Bússola Astrológica via Webhook (variável {{link_bussola}})**, **Kanban de Vendas & CRM Multi-Produtos**, **Filtros Temporais para Disparos Recorrentes**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Modularização Completa de Clean Code**.
 
 O **ZapVoice** é um ecossistema completo e profissional de automação e marketing de alta performance integrado à **API Oficial do WhatsApp (Meta)**. 
 
@@ -65,9 +65,12 @@ Visualização e controle de conversas diretamente no painel do ZapVoice:
 *   **Auditoria e Guia de Segurança**: Consulte o arquivo [`SECURITY.md`](SECURITY.md) para o roadmap completo de blindagem, boas práticas ativas e diagnóstico de segurança da aplicação.
 
 ### 6. Integrações de Webhooks & Mapeamento de Contatos
-Integração nativa com as principais plataformas do mercado: **Hotmart, Kiwify, Eduzz (checkout Sun, Nutror, MyEduzz), Guru, Kirvano, Greenn, Cakto, Braip, Ticto, HeroSpark, Elementor, ZapGroup e YayForms**.
-*   **Mapeamento Completo de Status**: Mapeamento inteligente de eventos como Compra Aprovada, Pix Gerado, Boleto Impresso, Cartão Recusado, Carrinho Abandonado, Reembolso, Chargeback, Assinatura Ativa/Cancelada e Troca de Plano.
+Integração nativa com as principais plataformas do mercado: **Hotmart, Kiwify, Eduzz (checkout Sun, Nutror, MyEduzz), Guru, Kirvano, Greenn, Cakto, Braip, Ticto, HeroSpark, Elementor, ZapGroup, YayForms, Checkout Jords (com suporte a criptomoedas NOWPayments/USDT Polygon) e Formulário Personalizado (parser inteligente de perguntas e respostas dinâmicas)**.
+*   **Mapeamento Completo de Status**: Mapeamento inteligente de eventos como Compra Aprovada, Pix Gerado, Boleto Impresso, Cartão Recusado, Carrinho Abandonado, Reembolso, Chargeback, Assinatura Ativa/Cancelada, Troca de Plano e Resposta de Formulário.
+*   **Parser Heurístico para Formulários**: Extração automatizada e adaptativa de nome completo, WhatsApp/telefone, e-mail e título a partir de perguntas e respostas personalizadas livres.
+*   **Atualização em Tempo Real (WebSocket)**: Painel de integrações e modal de histórico sincronizados instantaneamente via WebSocket sem necessidade de recarregar a página (F5) ao receber novas requisições.
 *   **Campos Customizados de Contato**: Permite configurar regras para extrair informações do payload do webhook (como e-mail, telefone, CPF, etc.) e salvá-los no contato local do lead.
+*   **Geração Automática de Convites Bússola**: Criação automática de links de convite para o aplicativo Bússola Astrológica via webhook, disponibilizados através da variável de substituição `{{link_bussola}}`.
 *   **Inteligência de Vendas Casadas**: Detecção automática de ofertas **Order Bump** e campanhas de **Upsell / Upgrade** baseadas no nome do produto ou tags do payload para evitar duplicação ou segmentar funis específicos.
 *   **Filtros de Interface e Ordenação**: Painel de visualização com dropdown de pesquisa por plataforma, filtros rápidos de integrações "Com Gatilhos" e "Com Histórico", e ordenação decrescente baseada na contagem total de disparos no histórico.
 

@@ -32,7 +32,7 @@ export default function AppContentViewRouter({ logic }) {
   const pagesStatus = logic.user?.pages_status;
 
   return (
-    <div className="p-8 pt-0">
+    <div className="p-3.5 sm:p-6 md:p-8 pt-0">
       {logic.currentView === 'blocked' && (
         <PageGuard pageKey="blocked" pagesStatus={pagesStatus}>
           <BlockedContacts />

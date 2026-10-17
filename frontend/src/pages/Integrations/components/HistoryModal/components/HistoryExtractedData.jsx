@@ -3,6 +3,7 @@ import { FiZap, FiSettings, FiCheckCircle } from 'react-icons/fi';
 import { COUNTRY_INFO } from '../utils/HistoryHelpers';
 import { EVENT_TYPES } from '../../../constants';
 import HistoryManyChatStatus from './HistoryManyChatStatus';
+import HistoryCryptoPaymentBanner from './HistoryCryptoPaymentBanner';
 
 const METHOD_TRANSLATIONS = {
   'credit_card': 'Cartão de Crédito',
@@ -16,7 +17,9 @@ const METHOD_TRANSLATIONS = {
   'paypal': 'PayPal',
   'free': 'Gratuito',
   'bankslip': 'Boleto',
-  'hybrid': 'Híbrido'
+  'hybrid': 'Híbrido',
+  'crypto': 'Criptomoeda',
+  'cripto': 'Criptomoeda'
 };
 
 export default function HistoryExtractedData({
@@ -66,6 +69,9 @@ export default function HistoryExtractedData({
           )}
         </div>
       )}
+
+      {/* Banner de Pagamento em Criptomoeda */}
+      <HistoryCryptoPaymentBanner processed={processed} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[12px] relative z-10">
         <div className="flex justify-between border-b border-blue-200/30 dark:border-blue-700/20 pb-1.5">

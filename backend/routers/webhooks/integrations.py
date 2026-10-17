@@ -273,7 +273,11 @@ def create_webhook_integration(
                     auto_create_invite=getattr(mapping, 'auto_create_invite', False),
                     invite_role=getattr(mapping, 'invite_role', 'aluno'),
                     invite_duration_hours=getattr(mapping, 'invite_duration_hours', 0),
-                    invite_course_access=getattr(mapping, 'invite_course_access', [])
+                    invite_course_access=getattr(mapping, 'invite_course_access', []),
+                    bussola_auto_create_invite=getattr(mapping, 'bussola_auto_create_invite', False),
+                    bussola_invite_role=getattr(mapping, 'bussola_invite_role', 'client'),
+                    bussola_validity_type=getattr(mapping, 'bussola_validity_type', 'never'),
+                    bussola_custom_api_key=getattr(mapping, 'bussola_custom_api_key', None)
                 )
                 db.add(db_mapping)
 
@@ -450,7 +454,11 @@ def update_webhook_integration(
                     auto_create_invite=getattr(mapping, 'auto_create_invite', False),
                     invite_role=getattr(mapping, 'invite_role', 'aluno'),
                     invite_duration_hours=getattr(mapping, 'invite_duration_hours', 0),
-                    invite_course_access=getattr(mapping, 'invite_course_access', [])
+                    invite_course_access=getattr(mapping, 'invite_course_access', []),
+                    bussola_auto_create_invite=getattr(mapping, 'bussola_auto_create_invite', False),
+                    bussola_invite_role=getattr(mapping, 'bussola_invite_role', 'client'),
+                    bussola_validity_type=getattr(mapping, 'bussola_validity_type', 'never'),
+                    bussola_custom_api_key=getattr(mapping, 'bussola_custom_api_key', None)
                 )
                 db.add(db_mapping)
 

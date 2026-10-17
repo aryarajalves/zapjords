@@ -107,6 +107,14 @@ export default function PlatformSettingsSection({ formData, handleChange, visibl
         </button>
       </div>
 
+      {/* Info card explicando a diferença de forma cristalina */}
+      <div className="p-2.5 bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-2 text-xs text-blue-700 dark:text-blue-300">
+        <span className="text-sm shrink-0">💡</span>
+        <div className="leading-relaxed">
+          <strong>Como configurar as URLs:</strong> A URL da API é o <strong className="text-emerald-600 dark:text-emerald-400">Backend</strong> (onde o ZapVoice valida tokens e gera convites). A URL da Área de Alunos é o <strong className="text-cyan-600 dark:text-cyan-400">Frontend</strong> (a tela web onde o aluno acessa pelo WhatsApp para cadastrar sua senha).
+        </div>
+      </div>
+
       {/* Inputs invisíveis para desviar autofill indevido do gerenciador de senhas do navegador */}
       <div className="hidden" aria-hidden="true">
         <input type="text" name="chrome_prevent_autofill_username" tabIndex="-1" autoComplete="new-password" />
@@ -114,24 +122,29 @@ export default function PlatformSettingsSection({ formData, handleChange, visibl
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-        {/* URL da API */}
+        {/* URL da API (Backend) */}
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1">
-            URL Base da Plataforma
-          </label>
+          <div className="flex items-center gap-1.5 px-1 flex-wrap">
+            <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+              URL da API da Plataforma
+            </label>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+              Backend (API)
+            </span>
+          </div>
           <input
             type="text"
             name="PLATFORM_API_URL"
             value={formData.PLATFORM_API_URL || ''}
             onChange={handleChange}
-            placeholder="https://suaplataforma.com.br"
+            placeholder="https://api.suaplataforma.com.br"
             className="w-full p-2.5 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-mono text-xs bg-white dark:bg-[#111827] text-gray-900 dark:text-white"
             autoComplete="new-password"
             data-lpignore="true"
             data-form-type="other"
           />
-          <p className="text-[9px] text-gray-400 px-1">
-            Ex: https://seusite.com.br ou http://seu-ip:8010 (sem barra final).
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 px-1 leading-relaxed">
+            <strong className="text-emerald-600 dark:text-emerald-400">Servidor / Backend:</strong> Endereço onde o ZapVoice faz requisições internas (Ex: <span className="font-mono text-gray-600 dark:text-gray-300">https://api.seusite.com.br</span> ou <span className="font-mono text-gray-600 dark:text-gray-300">http://seu-ip:8010</span>).
           </p>
         </div>
 
@@ -174,9 +187,17 @@ export default function PlatformSettingsSection({ formData, handleChange, visibl
 
       {/* URL de Acesso do Aluno (Frontend da Área de Membros) */}
       <div className="space-y-1.5 mt-2">
-        <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1">
-          URL da Área de Alunos (Frontend) <span className="font-normal text-gray-400">(Opcional)</span>
-        </label>
+        <div className="flex items-center gap-1.5 px-1 flex-wrap">
+          <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+            URL da Área de Alunos
+          </label>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">
+            Frontend (Interface do Aluno)
+          </span>
+          <span className="text-[9px] text-gray-400 font-normal ml-auto">
+            (Opcional)
+          </span>
+        </div>
         <input
           type="text"
           name="PLATFORM_FRONTEND_URL"
@@ -188,8 +209,8 @@ export default function PlatformSettingsSection({ formData, handleChange, visibl
           data-lpignore="true"
           data-form-type="other"
         />
-        <p className="text-[9px] text-gray-400 px-1">
-          Link da interface web onde os alunos realizam o cadastro. Se não informado, o ZapVoice ajustará automaticamente a porta ou usará a URL base.
+        <p className="text-[10px] text-gray-500 dark:text-gray-400 px-1 leading-relaxed">
+          <strong className="text-cyan-600 dark:text-cyan-400">Frontend / Tela do Aluno:</strong> Link da área de membros que o aluno recebe no WhatsApp para criar a senha. Se o seu sistema usar o mesmo domínio para tudo ou você deixar vazio, o ZapVoice usará a URL do Backend acima.
         </p>
       </div>
 

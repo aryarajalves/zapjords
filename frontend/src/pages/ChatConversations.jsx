@@ -178,60 +178,64 @@ export default function ChatConversations({ onClose, onNavigate }) {
 
                 <div className="flex flex-1 min-h-0 bg-white dark:bg-[#1e293b] overflow-hidden">
                 {!isChatMaximized && (
-                    <ChatListSidebar
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        statusFilter={statusFilter}
-                        setStatusFilter={setStatusFilter}
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
-                        selectedLabelFilter={selectedLabelFilter}
-                        setSelectedLabelFilter={setSelectedLabelFilter}
-                        activeFilterTab={activeFilterTab}
-                        setActiveFilterTab={setActiveFilterTab}
-                        filterWindowOpen={filterWindowOpen}
-                        setFilterWindowOpen={setFilterWindowOpen}
-                        filterTemplate24h={filterTemplate24h}
-                        setFilterTemplate24h={setFilterTemplate24h}
-                        filterUnread={filterUnread}
-                        setFilterUnread={setFilterUnread}
-                        filterHasNote={filterHasNote}
-                        setFilterHasNote={setFilterHasNote}
-                        filterUrgent={filterUrgent}
-                        setFilterUrgent={setFilterUrgent}
-                        filterHasReplied={filterHasReplied}
-                        setFilterHasReplied={setFilterHasReplied}
-                        filterHasActiveFunnel={filterHasActiveFunnel}
-                        setFilterHasActiveFunnel={setFilterHasActiveFunnel}
-                        filterLastMessageRead={filterLastMessageRead}
-                        setFilterLastMessageRead={setFilterLastMessageRead}
-                        filterLastMessageUnread={filterLastMessageUnread}
-                        setFilterLastMessageUnread={setFilterLastMessageUnread}
-                        filterBlockStatus={filterBlockStatus}
-                        setFilterBlockStatus={setFilterBlockStatus}
-                        filterStartDate={filterStartDate}
-                        setFilterStartDate={setFilterStartDate}
-                        filterEndDate={filterEndDate}
-                        setFilterEndDate={setFilterEndDate}
-                        orderBy={orderBy}
-                        setOrderBy={setOrderBy}
-                        engine={engine}
-                        selectedConvo={selectedConvo}
-                        setSelectedConvo={setSelectedConvo}
-                        selectAllPages={selectAllPages}
-                        setSelectAllPages={setSelectAllPages}
-                        excludedConvoIds={excludedConvoIds}
-                        setExcludedConvoIds={setExcludedConvoIds}
-                        setIsBulkTagModalOpen={chatOps.setIsBulkTagModalOpen}
-                        isOpenAiConfigured={noteAndAi.isOpenAiConfigured}
-                        isAnalyzingAi={noteAndAi.isAnalyzingAi}
-                        handleAnalyzeBulkChatsDoubts={noteAndAi.handleAnalyzeBulkChatsDoubts}
-                        formatTime={formatTime}
-                    />
+                    <div className={`h-full shrink-0 ${selectedConvo ? 'hidden md:flex' : 'flex w-full md:w-auto'}`}>
+                        <ChatListSidebar
+                            activeTab={activeTab}
+                            setActiveTab={setActiveTab}
+                            statusFilter={statusFilter}
+                            setStatusFilter={setStatusFilter}
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                            selectedLabelFilter={selectedLabelFilter}
+                            setSelectedLabelFilter={setSelectedLabelFilter}
+                            activeFilterTab={activeFilterTab}
+                            setActiveFilterTab={setActiveFilterTab}
+                            filterWindowOpen={filterWindowOpen}
+                            setFilterWindowOpen={setFilterWindowOpen}
+                            filterTemplate24h={filterTemplate24h}
+                            setFilterTemplate24h={setFilterTemplate24h}
+                            filterUnread={filterUnread}
+                            setFilterUnread={setFilterUnread}
+                            filterHasNote={filterHasNote}
+                            setFilterHasNote={setFilterHasNote}
+                            filterUrgent={filterUrgent}
+                            setFilterUrgent={setFilterUrgent}
+                            filterHasReplied={filterHasReplied}
+                            setFilterHasReplied={setFilterHasReplied}
+                            filterHasActiveFunnel={filterHasActiveFunnel}
+                            setFilterHasActiveFunnel={setFilterHasActiveFunnel}
+                            filterLastMessageRead={filterLastMessageRead}
+                            setFilterLastMessageRead={setFilterLastMessageRead}
+                            filterLastMessageUnread={filterLastMessageUnread}
+                            setFilterLastMessageUnread={setFilterLastMessageUnread}
+                            filterBlockStatus={filterBlockStatus}
+                            setFilterBlockStatus={setFilterBlockStatus}
+                            filterStartDate={filterStartDate}
+                            setFilterStartDate={setFilterStartDate}
+                            filterEndDate={filterEndDate}
+                            setFilterEndDate={setFilterEndDate}
+                            orderBy={orderBy}
+                            setOrderBy={setOrderBy}
+                            engine={engine}
+                            selectedConvo={selectedConvo}
+                            setSelectedConvo={setSelectedConvo}
+                            selectAllPages={selectAllPages}
+                            setSelectAllPages={setSelectAllPages}
+                            excludedConvoIds={excludedConvoIds}
+                            setExcludedConvoIds={setExcludedConvoIds}
+                            setIsBulkTagModalOpen={chatOps.setIsBulkTagModalOpen}
+                            isOpenAiConfigured={noteAndAi.isOpenAiConfigured}
+                            isAnalyzingAi={noteAndAi.isAnalyzingAi}
+                            handleAnalyzeBulkChatsDoubts={noteAndAi.handleAnalyzeBulkChatsDoubts}
+                            formatTime={formatTime}
+                        />
+                    </div>
                 )}
 
                     <div 
-                        className="flex-1 flex flex-col h-full bg-white dark:bg-[#0f172a] relative"
+                        className={`flex-1 flex-col h-full bg-white dark:bg-[#0f172a] relative min-w-0 ${
+                            selectedConvo ? 'flex' : 'hidden md:flex'
+                        }`}
                         onDragEnter={mediaUploader.handleDragEnter}
                         onDragOver={mediaUploader.handleDragOver}
                         onDragLeave={mediaUploader.handleDragLeave}
@@ -368,6 +372,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             handleToggleStarMessage={chatOps.handleToggleStarMessage}
                             formatMessageTimestamp={formatMessageTimestamp}
                             handleDeleteNoteMsg={noteAndAi.handleDeleteNoteMsg}
+                            onClose={() => setShowRightSidebar(false)}
                         />
                     )}
                 </div>

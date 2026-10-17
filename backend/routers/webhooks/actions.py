@@ -165,6 +165,27 @@ async def test_webhook_integration(
     db.commit()
     db.refresh(history)
 
+    # Emitir evento em tempo real para atualizar o botão e modal de histórico via WebSocket
+    try:
+        from rabbitmq_client import rabbitmq
+        import asyncio
+        from datetime import timezone
+        created_at_iso = history.created_at.isoformat() if getattr(history, "created_at", None) else datetime.now(timezone.utc).isoformat()
+        asyncio.create_task(rabbitmq.publish_event("webhook_history_update", {
+            "history_id": int(history.id) if history.id else None,
+            "integration_id": str(integration.id) if integration.id else None,
+            "client_id": int(integration.client_id) if integration.client_id else None,
+            "event_type": detected_event,
+            "status": history.status,
+            "processed_data": processed_data,
+            "payload": test_payload,
+            "created_at": created_at_iso,
+            "duplicate_count": 0,
+            "is_new": True
+        }))
+    except Exception as ws_err:
+        logger.warning(f"⚠️ Erro ao emitir evento WS de teste de webhook: {ws_err}")
+
     # Dispara tarefas em segundo plano (Full Flow)
     if mapping:
         # Sincroniza Lead com o banco central de leads (com tags do mapeamento)

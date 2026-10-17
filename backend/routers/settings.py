@@ -205,7 +205,9 @@ async def update_settings(
         "APPOINTMENTS_REMINDER_BUTTONS",
         "WA_WABA_CARD_LAST4",
         "PLATFORM_API_URL",
-        "PLATFORM_API_TOKEN"
+        "PLATFORM_API_TOKEN",
+        "BUSSOLA_API_URL",
+        "BUSSOLA_API_KEY"
     }
     
     saved_count = 0

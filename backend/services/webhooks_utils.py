@@ -155,35 +155,48 @@ def parse_webhook_payload(platform: str, payload: dict) -> dict:
     elif platform_lower == 'yayforms':
         from services.utils.webhook_platform_parsers import parse_yayforms
         parse_yayforms(payload, result)
+    elif platform_lower in ['checkout_jords', 'checkoutjords', 'jords']:
+        from services.utils.webhook_platform_parsers import parse_checkout_jords
+        parse_checkout_jords(payload, result)
+    elif platform_lower in ['formulario_personalizado', 'formulario', 'custom_form', 'formulariopersonalizado']:
+        from services.utils.webhook_platform_parsers import parse_formulario_personalizado
+        parse_formulario_personalizado(payload, result)
     elif platform_lower in ['elementor', 'generic', 'outra', 'outros']:
-        # Tenta capturar campos comuns em payloads desconhecidos
-        result['name'] = (
-            get_val(["name"]) or get_val(["first_name"]) or get_val(["full_name"]) or 
-            get_val(["nome"]) or get_val(["buyer_name"]) or get_val(["customer_name"]) or
-            get_val(["contact_name"]) or
-            get_val(["data", "name"]) or get_val(["data", "customer", "name"])
-        )
-        result['email'] = (
-            get_val(["email"]) or get_val(["email_address"]) or 
-            get_val(["contact_email"]) or
-            get_val(["data", "email"]) or get_val(["customer", "email"])
-        )
-        result['phone'] = (
-            get_val(["phone"]) or get_val(["telephone"]) or get_val(["cellphone"]) or 
-            get_val(["whatsapp"]) or get_val(["phone_number"]) or get_val(["mobile"]) or
-            get_val(["celular"]) or get_val(["telefone"]) or
-            get_val(["contact_phone"]) or get_val(["contact_phone_number"]) or
-            get_val(["data", "phone"]) or get_val(["customer", "phone"]) or
-            get_val(["fields", "whatsapp"]) or get_val(["form", "phone"])
-        )
-        result['product_name'] = (
-            get_val(["product"]) or get_val(["product_name"]) or get_val(["item_name"]) or
-            get_val(["data", "product", "name"]) or get_val(["form_name"])
-        )
-        result['event_type'] = (
-            get_val(["event"]) or get_val(["event_type"]) or get_val(["status"]) or 
-            ("form_submission" if platform_lower == "elementor" else "outros")
-        )
+        if isinstance(payload.get("order"), dict) and (payload.get("order", {}).get("order_code") or payload.get("order", {}).get("crypto_currency") or payload.get("order", {}).get("gateway_name")):
+            from services.utils.webhook_platform_parsers import parse_checkout_jords
+            parse_checkout_jords(payload, result)
+        elif isinstance(payload.get("answers"), (list, dict)):
+            from services.utils.webhook_platform_parsers import parse_formulario_personalizado
+            parse_formulario_personalizado(payload, result)
+        else:
+            # Tenta capturar campos comuns em payloads desconhecidos
+            result['name'] = (
+                get_val(["name"]) or get_val(["first_name"]) or get_val(["full_name"]) or 
+                get_val(["nome"]) or get_val(["buyer_name"]) or get_val(["customer_name"]) or
+                get_val(["contact_name"]) or
+                get_val(["data", "name"]) or get_val(["data", "customer", "name"])
+            )
+            result['email'] = (
+                get_val(["email"]) or get_val(["email_address"]) or 
+                get_val(["contact_email"]) or
+                get_val(["data", "email"]) or get_val(["customer", "email"])
+            )
+            result['phone'] = (
+                get_val(["phone"]) or get_val(["telephone"]) or get_val(["cellphone"]) or 
+                get_val(["whatsapp"]) or get_val(["phone_number"]) or get_val(["mobile"]) or
+                get_val(["celular"]) or get_val(["telefone"]) or
+                get_val(["contact_phone"]) or get_val(["contact_phone_number"]) or
+                get_val(["data", "phone"]) or get_val(["customer", "phone"]) or
+                get_val(["fields", "whatsapp"]) or get_val(["form", "phone"])
+            )
+            result['product_name'] = (
+                get_val(["product"]) or get_val(["product_name"]) or get_val(["item_name"]) or
+                get_val(["data", "product", "name"]) or get_val(["form_name"])
+            )
+            result['event_type'] = (
+                get_val(["event"]) or get_val(["event_type"]) or get_val(["status"]) or 
+                ("form_submission" if platform_lower == "elementor" else "outros")
+            )
 
     # Standardize Phone (Generic Fallback)
     if not result.get('phone'):
@@ -476,7 +489,10 @@ def parse_webhook_payload(platform: str, payload: dict) -> dict:
             "transferencia": "Transferência",
             "debito": "Débito",
             "cartao": "Cartão de Crédito",
-            "cartaodecredito": "Cartão de Crédito"
+            "cartaodecredito": "Cartão de Crédito",
+            "crypto": "Criptomoeda",
+            "cripto": "Criptomoeda",
+            "cryptocurrency": "Criptomoeda"
         }
         result["payment_method"] = pm_map.get(pm_clean, result["payment_method"])
 

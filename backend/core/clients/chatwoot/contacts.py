@@ -236,11 +236,14 @@ class ChatwootContactsMixin:
         search_queries = [clean_phone, f"+{clean_phone}"]
         if clean_phone.startswith("55"):
             if len(clean_phone) == 13:
-                search_queries.append(clean_phone[:4] + clean_phone[5:])
+                sem_9 = clean_phone[:4] + clean_phone[5:]
+                search_queries.extend([sem_9, f"+{sem_9}"])
             elif len(clean_phone) == 12:
-                search_queries.append(clean_phone[:4] + "9" + clean_phone[4:])
+                com_9 = clean_phone[:4] + "9" + clean_phone[4:]
+                search_queries.extend([com_9, f"+{com_9}"])
         if len(clean_phone) >= 8:
             search_queries.append(clean_phone[-8:])
+        search_queries = list(dict.fromkeys(search_queries))
 
         # Buscar TODOS os contact_ids para este telefone (pode haver duplicatas em inboxes diferentes)
         all_contact_ids = set()
@@ -340,9 +343,15 @@ class ChatwootContactsMixin:
         clean_phone = ''.join(filter(str.isdigit, phone_number))
         search_queries = [clean_phone, f"+{clean_phone}"]
         if clean_phone.startswith("55"):
-            if len(clean_phone) == 13: search_queries.append(clean_phone[:4] + clean_phone[5:])
-            elif len(clean_phone) == 12: search_queries.append(clean_phone[:4] + "9" + clean_phone[4:])
-        if len(clean_phone) >= 8: search_queries.append(clean_phone[-8:])
+            if len(clean_phone) == 13:
+                sem_9 = clean_phone[:4] + clean_phone[5:]
+                search_queries.extend([sem_9, f"+{sem_9}"])
+            elif len(clean_phone) == 12:
+                com_9 = clean_phone[:4] + "9" + clean_phone[4:]
+                search_queries.extend([com_9, f"+{com_9}"])
+        if len(clean_phone) >= 8:
+            search_queries.append(clean_phone[-8:])
+        search_queries = list(dict.fromkeys(search_queries))
 
         # Busca todas as variações de contato possíveis para cobrir duplicados de 9º dígito
         found_contacts = []

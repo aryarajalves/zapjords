@@ -27,12 +27,37 @@ export default function Integrations({
 
   // 1. Hook de Integrações (Listagem, Criação, Edição, Deleção, Templates e Tags)
   const {
-    integrations, loading, templates, chatwootLabels, funnels, isModalOpen, setIsModalOpen,
+    integrations, setIntegrations, loading, templates, chatwootLabels, funnels, isModalOpen, setIsModalOpen,
     isSaving, editingIntegration, formData, setFormData, isDeleteModalOpen, setIsDeleteModalOpen,
     integrationToDelete, setIntegrationToDelete, bulkResendProgress, setBulkResendProgress,
     fetchIntegrations, handleSaveIntegration, handleDeleteIntegration, openNewModal, openEditModal,
     leadTags
   } = useIntegrations(activeClient);
+
+  // Estado de integrações com histórico atualizado recentemente via WebSocket para feedback visual
+  const [recentUpdatedIntegrationIds, setRecentUpdatedIntegrationIds] = React.useState(new Set());
+  const updateTimeoutMapRef = React.useRef(new Map());
+
+  const handleRecentHistoryUpdate = React.useCallback((integrationId) => {
+    if (!integrationId) return;
+    const idStr = String(integrationId);
+    setRecentUpdatedIntegrationIds(prev => new Set([...prev, idStr]));
+
+    if (updateTimeoutMapRef.current.has(idStr)) {
+      clearTimeout(updateTimeoutMapRef.current.get(idStr));
+    }
+
+    const timer = setTimeout(() => {
+      setRecentUpdatedIntegrationIds(prev => {
+        const next = new Set(prev);
+        next.delete(idStr);
+        return next;
+      });
+      updateTimeoutMapRef.current.delete(idStr);
+    }, 4000);
+
+    updateTimeoutMapRef.current.set(idStr, timer);
+  }, []);
 
   // 2. Hook de Histórico de Webhooks (Registros, Sincronização, Reenvio e Mapeamento)
   const {
@@ -105,10 +130,15 @@ export default function Integrations({
     isHistoryModalOpen,
     historyIntegrationId: historyIntegration?.id,
     fetchIntegrations,
+    setIntegrations,
+    onRecentHistoryUpdate: handleRecentHistoryUpdate,
     setBulkResendProgress,
     setSelectedDispatch,
     setDispatchHistory,
     setWebhookHistory,
+    fetchHistory,
+    webhookHistoryStatusFilter,
+    webhookHistorySearch,
     bulkResendProgress
   });
 
@@ -166,6 +196,7 @@ export default function Integrations({
           totalPages={totalPages}
           filterPlatform={filterPlatform}
           totalIntegrationsCount={integrations.length}
+          recentUpdatedIntegrationIds={recentUpdatedIntegrationIds}
           onOpenHistory={handleOpenHistory}
           onOpenDispatchHistory={(item) => { setDispatchIntegration(item); setIsDispatchHistoryModalOpen(true); }}
           onOpenTestModal={(item) => { setIntegrationToTest(item); setIsTestModalOpen(true); }}

@@ -333,8 +333,10 @@ async def play_dispatch(
         )
     from services.bussola_pdf_service import ensure_trigger_document_link
     from services.platform_invite_service import ensure_trigger_platform_invite
+    from services.bussola_invite_service import ensure_trigger_bussola_invite
     repaired_components = ensure_trigger_document_link(db, trigger)
     repaired_components, priv_msg, proc_data = await ensure_trigger_platform_invite(db, trigger, repaired_components)
+    repaired_components, priv_msg, proc_data = await ensure_trigger_bussola_invite(db, trigger, repaired_components)
 
     # Criar um novo registro (Clone) para manter o histórico íntegro
     new_trigger = models.ScheduledTrigger(

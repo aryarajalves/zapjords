@@ -21,7 +21,7 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
   };
 
   const addMapping = () => {
-    const defaultEventType = platform === 'yayforms'
+    const defaultEventType = ['yayforms', 'formulario_personalizado'].includes(platform)
       ? 'formulario'
       : (platform === 'elementor'
           ? 'form_submission'

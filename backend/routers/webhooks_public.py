@@ -1,4 +1,5 @@
 # Grupo 1: Bibliotecas padrão do Python
+import asyncio
 import json
 import re
 import uuid
@@ -228,6 +229,19 @@ async def handle_external_webhook(
                     orig_history.duplicate_count = (orig_history.duplicate_count or 0) + 1
                     db.commit()
                     logger.info(f"🚫 [WEBHOOK_DEDUPLICATION] Evento duplicado para {phone} e {event_type}. Centralizado no histórico #{orig_history_id}")
+                    try:
+                        asyncio.create_task(rabbitmq.publish_event("webhook_history_update", {
+                            "history_id": int(orig_history.id),
+                            "integration_id": str(integration.id),
+                            "client_id": int(integration.client_id),
+                            "event_type": orig_history.event_type,
+                            "status": orig_history.status,
+                            "processed_data": orig_history.processed_data,
+                            "duplicate_count": orig_history.duplicate_count,
+                            "is_new": False
+                        }))
+                    except Exception as ws_err:
+                        logger.warning(f"Erro ao emitir evento WS de dedup: {ws_err}")
                     # Mantém o timestamp da requisição original para que a janela expire aos 60s
                     if dedup_lock_key not in GLOBAL_DEDUPLICATION_LOCKS:
                         GLOBAL_DEDUPLICATION_LOCKS[dedup_lock_key] = {"timestamp": now, "history_id": orig_history_id}
@@ -378,13 +392,18 @@ async def handle_external_webhook(
 
         # Emitir evento em tempo real para atualizar o frontend sem necessidade de F5
         try:
+            created_at_iso = history.created_at.isoformat() if getattr(history, "created_at", None) else datetime.now(timezone.utc).isoformat()
             asyncio.create_task(rabbitmq.publish_event("webhook_history_update", {
                 "history_id": int(history.id) if history.id else None,
                 "integration_id": str(integration.id) if integration.id else None,
                 "client_id": int(integration.client_id) if integration.client_id else None,
                 "event_type": event_type,
                 "status": history.status,
-                "processed_data": processed_dict
+                "processed_data": processed_dict,
+                "payload": payload,
+                "created_at": created_at_iso,
+                "duplicate_count": history.duplicate_count or 0,
+                "is_new": True
             }))
         except Exception as ws_err:
             logger.warning(f" Erro ao emitir evento WS de webhook: {ws_err}")
@@ -394,6 +413,20 @@ async def handle_external_webhook(
             history.status = "skipped"
             history.error_message = f"Nenhum mapeamento encontrado para o evento: {event_type}"
             db.commit()
+            try:
+                asyncio.create_task(rabbitmq.publish_event("webhook_history_update", {
+                    "history_id": int(history.id) if history.id else None,
+                    "integration_id": str(integration.id) if integration.id else None,
+                    "client_id": int(integration.client_id) if integration.client_id else None,
+                    "event_type": event_type,
+                    "status": "skipped",
+                    "error_message": history.error_message,
+                    "processed_data": processed_dict,
+                    "duplicate_count": history.duplicate_count or 0,
+                    "is_new": False
+                }))
+            except Exception as ws_err:
+                logger.warning(f" Erro ao emitir evento WS de webhook skipped: {ws_err}")
             return {"status": "skipped", "reason": "no_mapping_found"}
 
         # Logging das variáveis extraídas para debug

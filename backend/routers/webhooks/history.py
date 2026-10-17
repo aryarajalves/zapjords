@@ -160,6 +160,15 @@ async def clear_webhook_history(
     ).delete(synchronize_session=False)
 
     db.commit()
+    try:
+        from rabbitmq_client import rabbitmq
+        import asyncio
+        asyncio.create_task(rabbitmq.publish_event("webhook_history_cleared", {
+            "integration_id": str(integration.id),
+            "client_id": int(x_client_id)
+        }))
+    except Exception as ws_err:
+        logger.warning(f"Erro ao emitir evento WS de clear webhook history: {ws_err}")
     return {"status": "success"}
 
 @router.delete("/{integration_id}/history/{history_id}", summary="Excluir um registro de histórico")
@@ -181,8 +190,19 @@ async def delete_webhook_history(
     if not history:
         raise HTTPException(status_code=404, detail="Registro não encontrado")
 
+    int_id_str = str(history.integration_id)
     db.delete(history)
     db.commit()
+    try:
+        from rabbitmq_client import rabbitmq
+        import asyncio
+        asyncio.create_task(rabbitmq.publish_event("webhook_history_deleted", {
+            "history_ids": [history_id],
+            "integration_id": int_id_str,
+            "client_id": int(x_client_id)
+        }))
+    except Exception as ws_err:
+        logger.warning(f"Erro ao emitir evento WS de delete webhook history: {ws_err}")
     return {"status": "success"}
 
 @router.post("/{integration_id}/history/bulk-delete", summary="Excluir múltiplos registros")
@@ -207,6 +227,16 @@ async def bulk_delete_webhook_history(
     ).delete(synchronize_session=False)
 
     db.commit()
+    try:
+        from rabbitmq_client import rabbitmq
+        import asyncio
+        asyncio.create_task(rabbitmq.publish_event("webhook_history_deleted", {
+            "history_ids": history_ids,
+            "integration_id": str(integration_id),
+            "client_id": int(x_client_id)
+        }))
+    except Exception as ws_err:
+        logger.warning(f"Erro ao emitir evento WS de bulk delete webhook history: {ws_err}")
     return {"status": "success"}
 
 @router.post("/history/{history_id}/sync", summary="Sincronizar/Re-processar extração de dados")

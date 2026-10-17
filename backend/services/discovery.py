@@ -12,15 +12,19 @@ async def discover_or_create_chatwoot_conversation(client_id: int, phone: str, n
         cw = ChatwootClient(client_id=client_id)
         
         # 1. Buscar contato pelo telefone
+        from services.utils.phone_utils import normalize_phone
         clean_phone = "".join(filter(str.isdigit, str(phone)))
         search_queries = [clean_phone, f"+{clean_phone}"]
         if clean_phone.startswith("55"):
             if len(clean_phone) == 13:
-                search_queries.append(clean_phone[:4] + clean_phone[5:])
+                sem_9 = clean_phone[:4] + clean_phone[5:]
+                search_queries.extend([sem_9, f"+{sem_9}"])
             elif len(clean_phone) == 12:
-                search_queries.append(clean_phone[:4] + "9" + clean_phone[4:])
+                com_9 = clean_phone[:4] + "9" + clean_phone[4:]
+                search_queries.extend([com_9, f"+{com_9}"])
         if len(clean_phone) >= 8:
             search_queries.append(clean_phone[-8:])
+        search_queries = list(dict.fromkeys(search_queries))
             
         contact_id = None
         contact_name = name
@@ -44,16 +48,17 @@ async def discover_or_create_chatwoot_conversation(client_id: int, phone: str, n
                 continue
         
         if not contact_id:
-            logger.info(f"🔄 [DISCOVERY] Contato não localizado para {phone}. Criando...")
+            effective_phone = normalize_phone(clean_phone) or phone
+            logger.info(f"🔄 [DISCOVERY] Contato não localizado para {phone} (tentando criação com {effective_phone})...")
             inbox_id = await cw.get_default_whatsapp_inbox()
-            res = await cw.ensure_conversation(phone, name or phone, inbox_id)
+            res = await cw.ensure_conversation(effective_phone, name or effective_phone, inbox_id)
             if res:
-                logger.info(f"✅ [DISCOVERY] Contato e Conversa criados com sucesso para {phone}")
+                logger.info(f"✅ [DISCOVERY] Contato e Conversa criados com sucesso para {effective_phone}")
                 return {
                     "conversation_id": res.get("conversation_id"),
                     "contact_id": res.get("contact_id"),
                     "account_id": res.get("account_id"),
-                    "contact_name": name or phone
+                    "contact_name": name or effective_phone
                 }
             return None
 

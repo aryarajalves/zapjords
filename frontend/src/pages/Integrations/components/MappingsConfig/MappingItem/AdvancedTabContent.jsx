@@ -3,6 +3,7 @@ import ManyChatSection from '../ManyChatSection';
 import SmartCancelSection from '../SmartCancelSection';
 import FollowUpSection from '../FollowUpSection';
 import PlatformInviteSection from '../PlatformInviteSection';
+import BussolaInviteSection from '../BussolaInviteSection';
 
 export default function AdvancedTabContent({
   mapping,
@@ -19,6 +20,7 @@ export default function AdvancedTabContent({
     <div className="p-5 space-y-4">
       <ManyChatSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
       <PlatformInviteSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
+      <BussolaInviteSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
       <SmartCancelSection mapping={mapping} mIndex={mIndex} updateMapping={updateMapping} />
       <FollowUpSection
         mapping={mapping}

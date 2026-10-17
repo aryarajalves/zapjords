@@ -3,7 +3,9 @@ import { toast } from 'react-hot-toast';
 import { exportConversationToDoc } from '../exportConversationToDoc';
 
 export function useChatModalState() {
-    const [showRightSidebar, setShowRightSidebar] = useState(true);
+    const [showRightSidebar, setShowRightSidebar] = useState(
+        typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+    );
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [isMaximizedInputOpen, setIsMaximizedInputOpen] = useState(false);
     const [showFunnelModal, setShowFunnelModal] = useState(false);

@@ -46,6 +46,7 @@ from routers import (
     funnels,          # Funis de vendas e automações de mensagens
     schedules,        # Agendamentos de disparos
     settings,         # Configurações gerais do sistema
+    bussola,          # Integração e geração de convites no App Bússola Astrológica
     whatsapp,         # Conexão e envio via WhatsApp
     whatsapp_profile, # Configurações e Perfil do WhatsApp
     blocked,          # Lista de contatos bloqueados
@@ -139,7 +140,7 @@ ENABLE_DOCS = os.getenv("ENABLE_DOCS", "true").lower() == "true"
 
 app = FastAPI(
     title="ZapVoice - API Oficial de Automação & Mensageria",
-    version="1.8.2",
+    version="2.0.4",
     docs_url="/docs" if ENABLE_DOCS else None,
     redoc_url="/redoc" if ENABLE_DOCS else None,
     openapi_url="/openapi.json" if ENABLE_DOCS else None,
@@ -307,6 +308,7 @@ app.include_router(clients.router, prefix="/api", tags=["Clients"])
 app.include_router(whatsapp.router, prefix="/api", tags=["WhatsApp"])
 app.include_router(whatsapp_profile.router, prefix="/api", tags=["WhatsApp"])
 app.include_router(settings.router, prefix="/api", tags=["Settings"])
+app.include_router(bussola.router, prefix="/api", tags=["Bussola"])
 app.include_router(blocked.router, prefix="/api", tags=["Blocked"])
 app.include_router(resting.router, prefix="/api", tags=["Resting"])
 app.include_router(health.router, prefix="/api", tags=["Health"])

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiSend, FiPaperclip, FiMic, FiSquare, FiMaximize2, FiCornerUpLeft, FiX, FiRefreshCw, FiSmile, FiTrash2 } from 'react-icons/fi';
+import { FiSend, FiPaperclip, FiMic, FiSquare, FiMaximize2, FiCornerUpLeft, FiX, FiRefreshCw, FiSmile, FiTrash2, FiPlus } from 'react-icons/fi';
 import { BsJournalText } from 'react-icons/bs';
 import { getFirstName } from '../../../utils/nameFormatter';
 import EmojiPickerDropdown from './EmojiPickerDropdown';
@@ -26,6 +26,7 @@ export default function ActiveChatInput({
     isSendingAudio
 }) {
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+    const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
     const isWindowClosed = engine.timeLeft24h === 'Janela Fechada';
 
     const quickReplies = useQuickReplies({
@@ -90,7 +91,7 @@ export default function ActiveChatInput({
                     setReplyingTo(null);
                     setIsEmojiPickerOpen(false);
                 }} 
-                className="p-4 border-t border-gray-200 dark:border-white/5 bg-gray-50/20 dark:bg-[#111827]/20 flex gap-2 relative items-center"
+                className="p-2 sm:p-4 border-t border-gray-200 dark:border-white/5 bg-gray-50/20 dark:bg-[#111827]/20 flex gap-1.5 sm:gap-2 relative items-center"
             >
                 {/* Upload de arquivos de mídia */}
                 <input
@@ -101,12 +102,80 @@ export default function ActiveChatInput({
                     accept="image/*,video/*,audio/*,application/pdf"
                     disabled={engine.isSending || isWindowClosed || engine.isRecording || Boolean(recordedAudio)}
                 />
+
+                {/* Menu de ações extras no mobile (+): Mídia, Templates e Maximizar */}
+                {!engine.isRecording && !recordedAudio && (
+                    <div className="relative z-40 sm:hidden">
+                        <button
+                            type="button"
+                            data-testid="mobile-actions-toggle-btn"
+                            onClick={() => setIsMobileActionsOpen(!isMobileActionsOpen)}
+                            disabled={engine.isSending}
+                            className={`p-2 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${
+                                isMobileActionsOpen
+                                    ? 'bg-blue-600/20 text-blue-500 border border-blue-500/30'
+                                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300'
+                            }`}
+                            title="Mais opções de envio"
+                        >
+                            <FiPlus size={18} className={`transition-transform duration-200 ${isMobileActionsOpen ? 'rotate-45' : ''}`} />
+                        </button>
+
+                        {isMobileActionsOpen && (
+                            <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsMobileActionsOpen(false)} />
+                                <div 
+                                    className="absolute bottom-12 left-0 z-40 bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-2 min-w-[210px] flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2"
+                                    data-testid="mobile-actions-dropdown"
+                                >
+                                    <button
+                                        type="button"
+                                        disabled={isWindowClosed}
+                                        onClick={() => {
+                                            setIsMobileActionsOpen(false);
+                                            document.getElementById('chat-media-upload').click();
+                                        }}
+                                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={isWindowClosed ? "Indisponível fora da janela 24h" : "Enviar Mídia ou Documento"}
+                                    >
+                                        <FiPaperclip size={16} className="text-blue-500" />
+                                        <span>Mídia ou Documento</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsMobileActionsOpen(false);
+                                            setShowTemplateModal(true);
+                                        }}
+                                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition text-left cursor-pointer"
+                                    >
+                                        <BsJournalText size={16} className="text-emerald-500" />
+                                        <span>Template WhatsApp</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsMobileActionsOpen(false);
+                                            setIsMaximizedInputOpen(true);
+                                        }}
+                                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition text-left cursor-pointer"
+                                    >
+                                        <FiMaximize2 size={16} className="text-amber-500" />
+                                        <span>Maximizar campo</span>
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Botões individuais visíveis em desktop (sm+) */}
                 {!engine.isRecording && !recordedAudio && (
                     <button
                         type="button"
                         onClick={() => document.getElementById('chat-media-upload').click()}
                         disabled={engine.isSending || isWindowClosed}
-                        className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                        className="hidden sm:flex p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 rounded-xl transition-all items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                         title={isWindowClosed ? "Janela Fechada" : "Enviar Mídia ou Documento"}
                     >
                         <FiPaperclip size={18} />
@@ -118,7 +187,7 @@ export default function ActiveChatInput({
                         type="button"
                         onClick={() => setShowTemplateModal(true)}
                         disabled={engine.isSending}
-                        className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                        className="hidden sm:flex p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 rounded-xl transition-all items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                         title="Enviar Template (WhatsApp)"
                     >
                         <BsJournalText size={18} />
@@ -130,7 +199,7 @@ export default function ActiveChatInput({
                         type="button"
                         onClick={() => setIsMaximizedInputOpen(true)}
                         disabled={engine.isSending || isWindowClosed}
-                        className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                        className="hidden sm:flex p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 rounded-xl transition-all items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                         title="Maximizar campo de texto"
                     >
                         <FiMaximize2 size={18} />
@@ -144,7 +213,7 @@ export default function ActiveChatInput({
                             type="button"
                             onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
                             disabled={engine.isSending || isWindowClosed}
-                            className={`p-2.5 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${
+                            className={`p-2 sm:p-2.5 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${
                                 isEmojiPickerOpen
                                     ? 'bg-blue-600/20 text-blue-500 border border-blue-500/30'
                                     : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300'
@@ -215,10 +284,10 @@ export default function ActiveChatInput({
                             rows={1}
                             placeholder={
                                 engine.isLoadingMessages 
-                                    ? "Carregando histórico da conversa..." 
+                                    ? "Carregando histórico..." 
                                     : isWindowClosed 
-                                        ? "Janela de 24h fechada. O cliente precisa enviar uma nova mensagem." 
-                                        : "Digite sua mensagem de resposta... (digite / para respostas rápidas)"
+                                        ? "Janela 24h fechada." 
+                                        : "Digite sua mensagem... (/ para rápidas)"
                             }
                             value={engine.newMessage}
                             onChange={(e) => {
@@ -250,7 +319,7 @@ export default function ActiveChatInput({
                                     }
                                 }
                             }}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-200 text-sm rounded-xl border border-gray-200 dark:border-white/5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-55 disabled:bg-gray-100 dark:disabled:bg-gray-800 resize-none max-h-36 min-h-[42px] font-sans leading-relaxed overflow-y-auto"
+                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-200 text-sm rounded-xl sm:rounded-2xl border border-gray-200 dark:border-white/5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-55 disabled:bg-gray-100 dark:disabled:bg-gray-800 resize-none max-h-36 min-h-[40px] font-sans leading-relaxed overflow-y-auto"
                             disabled={engine.isSending || isWindowClosed}
                         />
                     </div>
@@ -262,7 +331,7 @@ export default function ActiveChatInput({
                         type="button"
                         onClick={engine.isRecording ? stopRecordingToPreview : startRecording}
                         disabled={engine.isSending || isWindowClosed || engine.isLoadingMessages}
-                        className={`p-2.5 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${
+                        className={`p-2 sm:p-2.5 rounded-xl transition-all flex items-center justify-center shrink-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${
                             engine.isRecording
                             ? 'bg-red-500 hover:bg-red-600 text-white'
                             : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300'
@@ -278,7 +347,7 @@ export default function ActiveChatInput({
                     <button
                         type="submit"
                         disabled={engine.isSending || !engine.newMessage.trim() || isWindowClosed || engine.isLoadingMessages}
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 flex items-center justify-center transition-all disabled:opacity-50 cursor-pointer"
+                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl p-2 sm:px-4 sm:py-2.5 flex items-center justify-center transition-all disabled:opacity-50 cursor-pointer shrink-0"
                     >
                         {engine.isSending ? (
                             <FiRefreshCw className="animate-spin" size={16} />
@@ -288,12 +357,12 @@ export default function ActiveChatInput({
                     </button>
                 )}
 
-                {/* Botão enviar sempre visível quando não há texto nem gravação nem preview */}
+                {/* Botão enviar desativado (apenas desktop quando vazio) */}
                 {!engine.newMessage.trim() && !engine.isRecording && !recordedAudio && (
                     <button
                         type="submit"
                         disabled={true}
-                        className="bg-blue-600/50 text-white rounded-xl px-4 py-2.5 flex items-center justify-center transition-all opacity-40 cursor-not-allowed"
+                        className="hidden sm:flex bg-blue-600/50 text-white rounded-xl px-4 py-2.5 items-center justify-center transition-all opacity-40 cursor-not-allowed shrink-0"
                     >
                         <FiSend size={16} />
                     </button>

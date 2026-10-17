@@ -61,7 +61,7 @@ export default function ChatListSidebar({
         : engine.selectedConvoIds.length;
 
     return (
-        <div className="w-96 border-r border-gray-200 dark:border-white/5 flex flex-col h-full bg-gray-50/50 dark:bg-[#111827]/40 shrink-0">
+        <div className="w-full md:w-96 border-r border-gray-200 dark:border-white/5 flex flex-col h-full bg-gray-50/50 dark:bg-[#111827]/40 shrink-0">
             <ChatListFilters
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}

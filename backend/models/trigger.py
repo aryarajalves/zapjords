@@ -268,6 +268,12 @@ class WebhookEventMapping(Base):
     invite_duration_hours = Column(Integer, default=0)
     invite_course_access = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     
+    # Criação Automática de Acesso / Convite no App Bússola Astrológica
+    bussola_auto_create_invite = Column(Boolean, default=False)
+    bussola_invite_role = Column(String, default="client")
+    bussola_validity_type = Column(String, default="never")
+    bussola_custom_api_key = Column(String, nullable=True)
+    
     is_active = Column(Boolean, default=True)
     cost_per_message = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

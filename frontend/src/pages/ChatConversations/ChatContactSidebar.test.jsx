@@ -249,6 +249,21 @@ describe('ChatContactSidebar and Subcomponents', () => {
             expect(screen.getByText('20')).toBeInTheDocument();
             expect(screen.getByText('35 total')).toBeInTheDocument();
         });
+
+        it('renders mobile close button and calls onClose when clicked', () => {
+            const handleClose = vi.fn();
+            render(
+                <ChatContactSidebar
+                    {...defaultProps}
+                    onClose={handleClose}
+                />
+            );
+
+            const closeBtn = screen.getByTestId('contact-sidebar-close-btn');
+            expect(closeBtn).toBeInTheDocument();
+            fireEvent.click(closeBtn);
+            expect(handleClose).toHaveBeenCalledTimes(1);
+        });
     });
 });
 

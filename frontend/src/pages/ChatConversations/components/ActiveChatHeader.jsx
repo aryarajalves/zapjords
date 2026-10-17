@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiX, FiCheckCircle, FiSidebar, FiSlash, FiLayers, FiFileText, FiRefreshCw, FiSearch, FiArchive, FiTag, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
+import { FiX, FiCheckCircle, FiSidebar, FiSlash, FiLayers, FiFileText, FiRefreshCw, FiSearch, FiArchive, FiTag, FiMaximize2, FiMinimize2, FiArrowLeft } from 'react-icons/fi';
 import { BsPinAngle, BsPinAngleFill, BsExclamationCircle, BsExclamationCircleFill, BsStars } from 'react-icons/bs';
 import { getFirstName } from '../../../utils/nameFormatter';
 import ConversationLabelsList from './ConversationLabelsList';
@@ -29,19 +29,31 @@ export default function ActiveChatHeader({
     const isWindowClosed = !engine.timeLeft24h || engine.timeLeft24h === 'Janela Fechada' || String(engine.timeLeft24h).toLowerCase().includes('fechada');
 
     return (
-        <div className="p-4 border-b border-gray-200 dark:border-white/5 flex justify-between items-center bg-gray-50/20 dark:bg-[#111827]/20">
-            <div>
-                <h3 className="font-bold text-gray-800 dark:text-white text-base flex items-center gap-2">
-                    {selectedConvo.contact_name ? getFirstName(selectedConvo.contact_name) : selectedConvo.phone}
-                    <span className="text-xs font-semibold px-2 py-0.5 bg-gray-200/60 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 rounded-lg">
-                        ID: {selectedConvo.id}
-                    </span>
-                </h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {selectedConvo.phone}
-                    </span>
-                    {!showRightSidebar && (
+        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-white/5 flex justify-between items-center bg-gray-50/20 dark:bg-[#111827]/20 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+                {/* Botão Voltar para lista de conversas no mobile */}
+                <button
+                    type="button"
+                    onClick={() => setSelectedConvo(null)}
+                    data-testid="chat-mobile-back-btn"
+                    className="md:hidden p-2 -ml-1 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-white/5 transition-colors cursor-pointer shrink-0"
+                    title="Voltar para a lista de conversas"
+                    aria-label="Voltar para a lista de conversas"
+                >
+                    <FiArrowLeft size={18} />
+                </button>
+                <div className="min-w-0">
+                    <h3 className="font-bold text-gray-800 dark:text-white text-sm sm:text-base flex items-center gap-2 truncate">
+                        {selectedConvo.contact_name ? getFirstName(selectedConvo.contact_name) : selectedConvo.phone}
+                        <span className="text-xs font-semibold px-2 py-0.5 bg-gray-200/60 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 rounded-lg shrink-0">
+                            ID: {selectedConvo.id}
+                        </span>
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {selectedConvo.phone}
+                        </span>
+                        {!showRightSidebar && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5 border transition-colors ${
                             isWindowClosed
                                 ? 'bg-red-500/15 text-red-500 dark:text-red-400 border-red-500/30'
@@ -54,19 +66,20 @@ export default function ActiveChatHeader({
                         </span>
                     )}
                 </div>
-                <ConversationLabelsList
-                    labels={selectedConvo.labels}
-                    getLabelColor={engine?.getLabelColor}
-                    contactName={selectedConvo.contact_name || selectedConvo.phone}
-                    variant="header"
-                    className="mt-1.5"
-                />
+                    <ConversationLabelsList
+                        labels={selectedConvo.labels}
+                        getLabelColor={engine?.getLabelColor}
+                        contactName={selectedConvo.contact_name || selectedConvo.phone}
+                        variant="header"
+                        className="mt-1.5"
+                    />
+                </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <button
                     onClick={handleTogglePin}
                     title={selectedConvo.pinned ? "Desafixar conversa" : "Fixar conversa"}
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
                         selectedConvo.pinned
                             ? 'bg-blue-600 text-white border-transparent'
                             : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -80,7 +93,7 @@ export default function ActiveChatHeader({
                         exportConversationToDoc(selectedConvo, engine.messages, activeClientId);
                     }}
                     title="Exportar Conversa (HTML / PDF)"
-                    className="p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800/30 transition-all flex items-center justify-center"
+                    className="hidden md:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800/30 transition-all items-center justify-center cursor-pointer"
                 >
                     <FiFileText size={16} />
                 </button>
@@ -90,7 +103,7 @@ export default function ActiveChatHeader({
                         onClick={handleAnalyzeSingleChatDoubts}
                         disabled={isAnalyzingAi}
                         title="Analisar dúvidas não respondidas pelo agente nesta conversa (IA)"
-                        className="px-3 py-1.5 rounded-xl border bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 hover:border-purple-300 transition-all flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer disabled:opacity-50"
+                        className="hidden lg:flex px-3 py-1.5 rounded-xl border bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 hover:border-purple-300 transition-all items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer disabled:opacity-50"
                     >
                         {isAnalyzingAi ? <FiRefreshCw className="animate-spin" size={14} /> : <BsStars size={14} />}
                         <span>Dúvidas (IA)</span>
@@ -100,7 +113,7 @@ export default function ActiveChatHeader({
                 <button
                     onClick={handleToggleUrgent}
                     title={selectedConvo.urgent ? "Remover urgência" : "Marcar como urgente"}
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
                         selectedConvo.urgent
                             ? 'bg-red-600 text-white border-transparent'
                             : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -113,7 +126,7 @@ export default function ActiveChatHeader({
                     <button
                         onClick={() => setShowFunnelModal(true)}
                         title="Disparar Funil"
-                        className="p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                        className="hidden sm:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer"
                     >
                         <FiLayers size={16} />
                     </button>
@@ -134,7 +147,7 @@ export default function ActiveChatHeader({
                             ? 'Contato em repouso temporário — clique para remover do repouso'
                             : 'Bloquear ou colocar em repouso'
                     }
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`hidden md:flex p-2 rounded-xl border transition-all cursor-pointer ${
                         selectedConvo.block_status === 'blocked'
                             ? 'bg-red-500/10 border-red-500/30 text-red-500'
                             : selectedConvo.block_status === 'resting'
@@ -147,7 +160,7 @@ export default function ActiveChatHeader({
 
                 <button
                     onClick={engine.handleToggleStatus}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
                         selectedConvo.status === 'resolved'
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                             : 'bg-blue-600 text-white border-transparent hover:bg-blue-700'
@@ -160,7 +173,7 @@ export default function ActiveChatHeader({
                 <button
                     onClick={() => engine.handleToggleArchive && engine.handleToggleArchive()}
                     title={selectedConvo.status === 'archived' ? "Desarquivar conversa" : "Arquivar conversa"}
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`hidden md:flex p-2 rounded-xl border transition-all cursor-pointer ${
                         selectedConvo.status === 'archived'
                             ? 'bg-amber-500/20 text-amber-500 dark:text-amber-400 border-amber-500/40 shadow-sm'
                             : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 dark:hover:border-amber-800/30'
@@ -175,7 +188,7 @@ export default function ActiveChatHeader({
                         if (setIsSearchMode) setIsSearchMode(prev => !prev);
                     }}
                     title="Pesquisar mensagens nesta conversa"
-                    className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                    className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
                         isSearchMode && showRightSidebar
                             ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                             : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800/30'
@@ -187,7 +200,7 @@ export default function ActiveChatHeader({
                 <button
                     onClick={() => setIsChatMaximized?.(!isChatMaximized)}
                     title={isChatMaximized ? "Restaurar layout" : "Maximizar conversa"}
-                    className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                    className={`hidden lg:flex p-2 rounded-xl border transition-all cursor-pointer ${
                         isChatMaximized
                             ? 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400'
                             : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 dark:hover:border-amber-800/30'
@@ -197,6 +210,7 @@ export default function ActiveChatHeader({
                 </button>
 
                 <button
+                    data-testid="toggle-chat-details-btn"
                     onClick={() => setShowRightSidebar(!showRightSidebar)}
                     title={showRightSidebar ? "Fechar detalhes" : "Abrir detalhes"}
                     className={`p-2 rounded-xl border transition-all ${

@@ -38,7 +38,7 @@ export default function IntegrationsFilterBar({
   };
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 dark:border-white/5 bg-white/30 dark:bg-white/[0.02]">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-gray-100 dark:border-white/5 bg-white/30 dark:bg-white/[0.02]">
       <FiSettings size={12} className="text-gray-400 shrink-0" />
       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Plataforma</span>
       <div className="relative" ref={platformDropdownRef}>

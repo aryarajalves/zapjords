@@ -15,6 +15,7 @@ export default function IntegrationsTable({
   totalPages,
   filterPlatform,
   totalIntegrationsCount,
+  recentUpdatedIntegrationIds,
   onOpenHistory,
   onOpenDispatchHistory,
   onOpenTestModal,
@@ -61,7 +62,8 @@ export default function IntegrationsTable({
 
   return (
     <>
-      <table className="w-full text-left">
+      <div className="overflow-x-auto w-full">
+        <table className="w-full text-left min-w-[720px]">
         <thead>
           <tr className="border-b border-gray-100 dark:border-gray-800/50">
             <th className="px-4 py-3 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Nome</th>
@@ -77,8 +79,14 @@ export default function IntegrationsTable({
             <tr><td colSpan="6" className="px-8 py-20 text-center text-gray-500 italic">Carregando integrações...</td></tr>
           ) : filteredIntegrations.length === 0 ? (
             <tr><td colSpan="6" className="px-8 py-20 text-center text-gray-500 italic">Nenhuma integração encontrada.</td></tr>
-          ) : paginatedIntegrations.map((item) => (
-            <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.01] transition-all group">
+          ) : paginatedIntegrations.map((item) => {
+            const isRecentlyUpdated = Boolean(recentUpdatedIntegrationIds && recentUpdatedIntegrationIds.has(String(item.id)));
+            return (
+            <tr key={item.id} className={`transition-all group ${
+              isRecentlyUpdated
+                ? 'bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06]'
+                : 'hover:bg-gray-50 dark:hover:bg-white/[0.01]'
+            }`}>
               <td className="px-4 py-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold text-xs shrink-0">
@@ -121,12 +129,14 @@ export default function IntegrationsTable({
                 </span>
               </td>
               <td className="px-4 py-4">
-                <span className={`inline-flex items-center gap-1 text-xs font-black px-2 py-1 rounded-lg whitespace-nowrap ${
-                  (item.history_count || 0) > 0
+                <span className={`inline-flex items-center gap-1 text-xs font-black px-2 py-1 rounded-lg whitespace-nowrap transition-all duration-300 ${
+                  isRecentlyUpdated
+                    ? 'bg-emerald-500/20 text-emerald-400 ring-2 ring-emerald-500/40 shadow-lg shadow-emerald-500/20 animate-pulse'
+                    : (item.history_count || 0) > 0
                     ? 'bg-blue-500/10 text-blue-400'
                     : 'bg-white/5 text-gray-500'
                 }`}>
-                  <FiActivity size={10} />
+                  <FiActivity size={10} className={isRecentlyUpdated ? 'animate-bounce text-emerald-400' : ''} />
                   {(item.history_count || 0).toLocaleString('pt-BR')}
                 </span>
               </td>
@@ -140,9 +150,18 @@ export default function IntegrationsTable({
                   </button>
                   <button
                     onClick={() => onOpenHistory(item)}
-                    className="shrink-0 text-[9px] font-black bg-blue-500/10 text-blue-500 px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white transition-all flex items-center gap-1 uppercase tracking-tighter whitespace-nowrap cursor-pointer"
+                    title={isRecentlyUpdated ? 'Novo dado recebido no histórico via WebSocket!' : 'Ver Histórico'}
+                    className={`shrink-0 text-[9px] font-black px-2 py-1 rounded-md transition-all flex items-center gap-1 uppercase tracking-tighter whitespace-nowrap cursor-pointer ${
+                      isRecentlyUpdated
+                        ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50 shadow-md shadow-emerald-500/20 animate-pulse'
+                        : 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white'
+                    }`}
                   >
-                    <FiActivity size={10} /> Histórico
+                    <FiActivity size={10} className={isRecentlyUpdated ? 'animate-bounce text-emerald-400' : ''} />
+                    Histórico
+                    {isRecentlyUpdated && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping ml-0.5" />
+                    )}
                   </button>
                   <button
                     onClick={() => onOpenTestModal(item)}
@@ -167,13 +186,14 @@ export default function IntegrationsTable({
                 </div>
               </td>
             </tr>
-          ))}
+          ); })}
         </tbody>
       </table>
+      </div>
 
       {/* Rodapé de Paginação */}
       {!loading && totalIntegrationsCount > 0 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-white/5">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3.5 sm:px-5 py-3 border-t border-gray-100 dark:border-white/5">
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Exibir</span>
             <select

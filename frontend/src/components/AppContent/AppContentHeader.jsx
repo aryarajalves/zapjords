@@ -8,11 +8,11 @@ export default function AppContentHeader({ logic }) {
   const currentTitle = VIEW_TITLES[logic.currentView];
 
   return (
-    <header className="mb-8 flex justify-between items-start p-8 pb-0">
-      <div>
-        <div className="flex items-center gap-3">
+    <header className="mb-4 sm:mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 sm:p-6 md:p-8 pb-0">
+      <div className="w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           {currentTitle && (
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
               {currentTitle}
             </h1>
           )}
@@ -32,10 +32,12 @@ export default function AppContentHeader({ logic }) {
           )}
         </div>
         {logic.clientName && logic.currentView === 'bulk_sender' && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Api Oficial do WhatsApp do cliente {logic.clientName}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Api Oficial do WhatsApp do cliente {logic.clientName}
+          </p>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
         {(SIMULATE_MESSAGING || logic.currentView === 'stress_test') && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 dark:bg-yellow-500/20 border border-yellow-500/30 dark:border-yellow-500/40 text-yellow-700 dark:text-yellow-400 text-xs font-bold rounded-xl animate-pulse" title="Modo Simulação / Teste de Estresse Ativo">
             <FiZap size={14} className="animate-bounce" />

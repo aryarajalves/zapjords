@@ -10,33 +10,36 @@ const TemplateForm = ({ logic }) => {
     const { formData, editingId, loading, handleSubmit, setIsGuideOpen, resetForm } = logic;
 
     return (
-        <div id="templateForm" className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700 transition-all duration-300">
-            <div className="flex items-center justify-between mb-8 border-b border-gray-100 dark:border-gray-700 pb-6">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400">
-                        <FiLayout size={24} />
+        <div id="templateForm" className="w-full bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 lg:p-8 border border-gray-100 dark:border-gray-700 transition-all duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 border-b border-gray-100 dark:border-gray-700 pb-4 sm:pb-6">
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                        <FiLayout className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
                             {editingId ? 'Editar Template' : 'Criar Novo Template'}
                         </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Desenvolva templates de mensagens para a API Oficial do WhatsApp</p>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-snug">
+                            Desenvolva templates de mensagens para a API Oficial do WhatsApp
+                        </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-start sm:self-auto">
                     <button
                         type="button"
                         onClick={() => setIsGuideOpen(true)}
-                        className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700/50 px-3 py-1.5 rounded-xl transition-all hover:scale-105 shadow-sm"
+                        className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700/50 px-3.5 py-2 rounded-xl transition-all shadow-sm"
                         title="Abrir guia de criação de templates"
                     >
                         <FiBookOpen size={14} />
-                        Guia
+                        Guia Oficial
                     </button>
                     {editingId && (
                         <button
+                            type="button"
                             onClick={resetForm}
-                            className="text-xs font-bold text-red-500 hover:underline px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-lg"
+                            className="text-xs font-bold text-red-500 hover:underline px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-xl transition-all"
                         >
                             Cancelar Edição
                         </button>
@@ -44,18 +47,18 @@ const TemplateForm = ({ logic }) => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
                 <BasicInfo logic={logic} />
                 <HeaderSection logic={logic} />
                 <BodySection logic={logic} />
                 <FooterSection logic={logic} />
                 <ButtonsSection logic={logic} />
 
-                <div className="flex justify-end gap-4 pt-6 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex justify-end gap-4 pt-4 sm:pt-6 border-t border-gray-100 dark:border-gray-700">
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
                     >
                         {loading ? 'Processando...' : <><FiCheckCircle /> {editingId ? 'Salvar Alterações' : 'Enviar para Aprovação'}</>}
                     </button>

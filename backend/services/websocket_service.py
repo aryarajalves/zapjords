@@ -44,7 +44,7 @@ async def handle_websocket_connection(websocket: WebSocket, token: str = None):
             "email": user.email,
             "role": user.role,
             "accessible_client_ids": allowed_ids if not is_super_admin else None,
-            "client_id": None
+            "client_id": getattr(user, "client_id", None)
         }
     finally:
         db.close()

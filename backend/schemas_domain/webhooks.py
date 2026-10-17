@@ -59,6 +59,12 @@ class WebhookEventMappingBase(BaseModel):
     invite_duration_hours: Optional[int] = Field(0, description="Duração do convite em horas (0 = indefinido)")
     invite_course_access: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Lista de cursos liberados e suas validades")
     
+    # Criação Automática de Acesso no App Bússola Astrológica
+    bussola_auto_create_invite: Optional[bool] = Field(False, description="Ativar geração automática de convite no App Bússola")
+    bussola_invite_role: Optional[str] = Field("client", description="Função atribuída no convite (client ou admin)")
+    bussola_validity_type: Optional[str] = Field("never", description="Tipo de validade do convite (never, 24h, 48h, 72h)")
+    bussola_custom_api_key: Optional[str] = Field(None, description="API Key opcional da Bússola para este gatilho")
+    
     is_active: Optional[bool] = Field(True, description="Indica se o mapeamento está ativo")
 
     @field_validator('button_actions', mode='before')
@@ -130,6 +136,17 @@ class WebhookEventMappingBase(BaseModel):
     @field_validator('auto_create_invite', mode='before')
     @classmethod
     def validate_auto_create_invite(cls, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.strip().lower() in ['true', '1', 'yes', 'sim']
+        if isinstance(v, (int, float)):
+            return bool(v)
+        return False
+
+    @field_validator('bussola_auto_create_invite', mode='before')
+    @classmethod
+    def validate_bussola_auto_create_invite(cls, v):
         if isinstance(v, bool):
             return v
         if isinstance(v, str):

@@ -50,64 +50,6 @@ export function useWebhookHistory(activeClient, fetchIntegrations) {
     }
   }, [activeClient]);
 
-  // WebSocket Realtime para atualização do modal de histórico em tempo real sem F5
-  useEffect(() => {
-    if (!activeClient) return;
-
-    let ws;
-    const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
-    const wsToken = localStorage.getItem('token');
-    const wsFinalUrl = wsToken ? `${wsBase}?token=${wsToken}` : wsBase;
-
-    try {
-      ws = new WebSocket(wsFinalUrl);
-
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.event === 'webhook_history_update') {
-            const eventData = payload.data || {};
-            const dataClientId = eventData.client_id;
-            
-            if (dataClientId && String(dataClientId) !== String(activeClient.id)) {
-              return;
-            }
-
-            const currentIntegrationId = currentIntegrationIdRef.current;
-            if (!currentIntegrationId) return;
-
-            if (eventData.history_id && eventData.processed_data) {
-              setWebhookHistory(prev => {
-                const itemIndex = prev.findIndex(item => String(item.id) === String(eventData.history_id));
-                if (itemIndex !== -1) {
-                  const updated = [...prev];
-                  updated[itemIndex] = {
-                    ...updated[itemIndex],
-                    status: eventData.status || updated[itemIndex].status,
-                    processed_data: eventData.processed_data
-                  };
-                  return updated;
-                } else if (eventData.integration_id && String(eventData.integration_id) === String(currentIntegrationId)) {
-                  fetchHistory(currentIntegrationId, webhookHistoryStatusFilter, webhookHistorySearch, true);
-                }
-                return prev;
-              });
-            } else if (eventData.integration_id && String(eventData.integration_id) === String(currentIntegrationId)) {
-              fetchHistory(currentIntegrationId, webhookHistoryStatusFilter, webhookHistorySearch, true);
-            }
-          }
-        } catch (e) {
-          console.error("Erro no WS do useWebhookHistory:", e);
-        }
-      };
-    } catch (e) {
-      console.error("Erro ao conectar WS no useWebhookHistory:", e);
-    }
-
-    return () => {
-      if (ws) ws.close();
-    };
-  }, [activeClient, fetchHistory, webhookHistoryStatusFilter, webhookHistorySearch]);
 
   const handleResendWebhook = async (historyId) => {
     setIsResending(true);

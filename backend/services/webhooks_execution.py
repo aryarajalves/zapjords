@@ -179,6 +179,25 @@ async def execute_webhook_resend_logic(
                     logger.info(f"🔗 [PLATFORM_INVITE] Variável link_cadastro={invite_link} injetada nas variáveis do resend webhook #{history_id}")
             except Exception as invite_err:
                 logger.error(f"❌ [PLATFORM_INVITE] Falha ao gerar convite automático no resend webhook #{history_id}: {invite_err}", exc_info=True)
+
+        # --- GERAÇÃO AUTOMÁTICA DE CONVITE NO APP BÚSSOLA ASTROLÓGICA ---
+        if getattr(mapping, "bussola_auto_create_invite", False):
+            try:
+                from services.bussola_invite_service import generate_bussola_invite
+                bussola_res = await generate_bussola_invite(
+                    client_id=integration.client_id,
+                    role=getattr(mapping, "bussola_invite_role", "client") or "client",
+                    validity_type=getattr(mapping, "bussola_validity_type", "never") or "never",
+                    custom_api_key=getattr(mapping, "bussola_custom_api_key", None)
+                )
+                if bussola_res and bussola_res.get("invite_url"):
+                    bussola_link = bussola_res["invite_url"]
+                    parsed_data["link_bussola"] = bussola_link
+                    if "link_cadastro" not in parsed_data:
+                        parsed_data["link_cadastro"] = bussola_link
+                    logger.info(f"🔮 [BUSSOLA_INVITE] Link do convite gerado: {bussola_link} (injetado em link_bussola do resend webhook #{history_id})")
+            except Exception as bussola_err:
+                logger.error(f"❌ [BUSSOLA_INVITE] Falha ao gerar convite Bússola no resend webhook #{history_id}: {bussola_err}", exc_info=True)
             
         components = extract_mapped_variables(payload, parsed_data, mapping.variables_mapping or {}, header_format)
         

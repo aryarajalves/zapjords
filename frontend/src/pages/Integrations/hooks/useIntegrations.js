@@ -110,39 +110,6 @@ export function useIntegrations(activeClient) {
     }
   }, [activeClient, fetchIntegrations, fetchTemplates, fetchChatwootLabels, fetchFunnels, fetchLeadTags]);
 
-  // WebSocket Realtime para atualização da contagem de histórico e lista de integrações sem F5
-  useEffect(() => {
-    if (!activeClient) return;
-
-    let ws;
-    const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
-    const wsToken = localStorage.getItem('token');
-    const wsFinalUrl = wsToken ? `${wsBase}?token=${wsToken}` : wsBase;
-
-    try {
-      ws = new WebSocket(wsFinalUrl);
-
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.event === 'webhook_history_update' || payload.event === 'webhook_caught') {
-            const dataClientId = payload.data?.client_id;
-            if (!dataClientId || String(dataClientId) === String(activeClient.id)) {
-              fetchIntegrations(true);
-            }
-          }
-        } catch (e) {
-          console.error("Erro ao processar evento WebSocket em useIntegrations:", e);
-        }
-      };
-    } catch (e) {
-      console.error("Erro ao conectar WebSocket em useIntegrations:", e);
-    }
-
-    return () => {
-      if (ws) ws.close();
-    };
-  }, [activeClient, fetchIntegrations]);
 
   const handleSaveIntegration = async () => {
     if (!formData.name.trim()) return toast.error('Nome é obrigatório');
@@ -296,6 +263,7 @@ export function useIntegrations(activeClient) {
 
   return {
     integrations,
+    setIntegrations,
     loading,
     templates,
     chatwootLabels,

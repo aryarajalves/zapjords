@@ -137,5 +137,47 @@ describe('Integrations Modular Components', () => {
       fireEvent.click(screen.getByTitle('Excluir'));
       expect(onOpenDeleteModal).toHaveBeenCalledWith(mockIntegrations[0]);
     });
+
+    it('aplica classes de pulso e indicador em tempo real no botão de histórico quando recentUpdatedIntegrationIds contém o id da integração', () => {
+      const mockIntegrations = [
+        {
+          id: 202,
+          name: 'Kiwify Realtime',
+          platform: 'kiwify',
+          mappings: [],
+          history_count: 10
+        }
+      ];
+
+      const recentSet = new Set(['202']);
+
+      render(
+        <IntegrationsTable
+          loading={false}
+          filteredIntegrations={mockIntegrations}
+          paginatedIntegrations={mockIntegrations}
+          listPageSize={5}
+          setListPageSize={vi.fn()}
+          listCurrentPage={1}
+          setListCurrentPage={vi.fn()}
+          safePage={1}
+          totalPages={1}
+          filterPlatform=""
+          totalIntegrationsCount={1}
+          recentUpdatedIntegrationIds={recentSet}
+          onOpenHistory={vi.fn()}
+          onOpenDispatchHistory={vi.fn()}
+          onOpenTestModal={vi.fn()}
+          onOpenEditModal={vi.fn()}
+          onOpenDeleteModal={vi.fn()}
+        />
+      );
+
+      const historyBtn = screen.getByRole('button', { name: /Histórico/i });
+      expect(historyBtn).toBeDefined();
+      expect(historyBtn.className).toContain('animate-pulse');
+      expect(historyBtn.className).toContain('text-emerald-400');
+      expect(historyBtn.getAttribute('title')).toContain('Novo dado recebido no histórico via WebSocket!');
+    });
   });
 });

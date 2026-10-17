@@ -33,7 +33,11 @@ vi.mock('react-icons/fi', () => ({
     FiRepeat: () => <span>Repeat</span>,
     FiUsers: () => <span>Users</span>,
     FiZap: () => <span>Zap</span>,
-    FiInfo: () => <span>Info</span>
+    FiInfo: () => <span>Info</span>,
+    FiCalendar: () => <span>Calendar</span>,
+    FiList: () => <span>List</span>,
+    FiCheckCircle: () => <span>CheckCircle</span>,
+    FiAlertCircle: () => <span>AlertCircle</span>
 }));
 
 // Mock ConfirmModal
@@ -140,5 +144,28 @@ describe('ScheduleCalendar Component', () => {
         expect(screen.getByText('Editar Agendamento')).toBeInTheDocument();
         expect(screen.getByText('Nova Data')).toBeInTheDocument();
         expect(screen.getByText('Novo Horário')).toBeInTheDocument();
+    });
+
+    it('alterna para a visualização em lista ao clicar no botão de Lista', async () => {
+        fetchWithAuth.mockResolvedValue({
+            ok: true,
+            json: async () => mockEvents
+        });
+
+        render(<ScheduleCalendar refreshKey="1" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Template Boas Vindas')).toBeInTheDocument();
+        });
+
+        // Localiza e clica no botão de Lista
+        const listButtons = screen.getAllByRole('button', { name: /lista/i });
+        fireEvent.click(listButtons[0]);
+
+        // No modo lista, os eventos devem ser renderizados com os detalhes de contato
+        await waitFor(() => {
+            expect(screen.getByText('1 contatos')).toBeInTheDocument();
+            expect(screen.getByText('50 contatos')).toBeInTheDocument();
+        });
     });
 });

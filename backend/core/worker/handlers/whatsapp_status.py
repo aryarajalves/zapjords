@@ -27,6 +27,11 @@ async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, 
             
         trigger = db.query(models.ScheduledTrigger).get(trigger_id) if trigger_id else None
         
+        # Garantir número de telefone canônico e normalizado com 9º dígito para a sincronização
+        from services.utils.phone_utils import normalize_phone
+        canonical_phone = (message_record.phone_number if message_record and message_record.phone_number else None) or (trigger.contact_phone if trigger and trigger.contact_phone else None) or phone
+        phone = normalize_phone(canonical_phone) or canonical_phone
+        
         # --- CRIAR CONVERSA E SALVAR TEMPLATE NO CHAT LOCAL APÓS ENTREGA ---
         if message_record.message_type == 'TEMPLATE' or (message_record.template_name and str(message_record.template_name).strip()):
             try:
@@ -374,7 +379,6 @@ async def handle_whatsapp_statuses(db, statuses: list, value: dict):
                             is_bsud = str(message_record.phone_number).startswith("BR.")
                             if not is_bsud:
                                 try:
-                                    from sqlalchemy import or_
                                     clean_phone = ''.join(filter(str.isdigit, str(message_record.phone_number)))
                                     suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
                                     lead = db.query(models.WebhookLead).filter(
@@ -391,47 +395,51 @@ async def handle_whatsapp_statuses(db, statuses: list, value: dict):
                                             models.MessageStatus.phone_number == lead.bsud
                                         ).first()
                                         if not already_tried:
-                                            logger.info(f"🔄 [BSUD-FALLBACK-ASYNC] Falha no envio para o número normal {clean_phone}. Tentando BSUD '{lead.bsud}'...")
-                                            # Agendar o envio em background
-                                            async def send_async_fallback(tid, client_id, bsud_id, t_name, lang, components):
-                                                try:
-                                                    from chatwoot_client import ChatwootClient
-                                                    from database import SessionLocal
-                                                    cw = ChatwootClient(client_id=client_id)
-                                                    fallback_res = await cw.send_template(
-                                                        contact_phone=bsud_id,
-                                                        template_name=t_name,
-                                                        template_language=lang or "pt_BR",
-                                                        template_components=components
-                                                    )
-                                                    if fallback_res and not fallback_res.get("error"):
-                                                        new_wamid = (fallback_res.get("messages", [{}])[0].get("id") or fallback_res.get("id", "")).replace("wamid.", "")
-                                                        db_fallback = SessionLocal()
-                                                        new_ms = models.MessageStatus(
-                                                            trigger_id=tid,
-                                                            message_id=new_wamid,
-                                                            phone_number=bsud_id,
-                                                            contact_name=trigger.contact_name,
-                                                            status='sent',
-                                                            message_type='TEMPLATE',
-                                                            content=message_record.content,
-                                                            template_name=t_name
+                                            target_template_name = (trigger.template_name if trigger else None) or (message_record.template_name if message_record else None)
+                                            if target_template_name:
+                                                logger.info(f"🔄 [BSUD-FALLBACK-ASYNC] Falha no envio para o número normal {clean_phone}. Tentando BSUD '{lead.bsud}' com template '{target_template_name}'...")
+                                                # Agendar o envio em background
+                                                async def send_async_fallback(tid, client_id, bsud_id, t_name, lang, components):
+                                                    try:
+                                                        from chatwoot_client import ChatwootClient
+                                                        from database import SessionLocal
+                                                        cw = ChatwootClient(client_id=client_id)
+                                                        fallback_res = await cw.send_template(
+                                                            contact_phone=bsud_id,
+                                                            template_name=t_name,
+                                                            template_language=lang or "pt_BR",
+                                                            template_components=components
                                                         )
-                                                        db_fallback.add(new_ms)
-                                                        db_fallback.commit()
-                                                        db_fallback.close()
-                                                        logger.info(f"✅ [BSUD-FALLBACK-ASYNC] Fallback enviado com sucesso para {bsud_id}")
-                                                except Exception as ex:
-                                                    logger.error(f"❌ [BSUD-FALLBACK-ASYNC] Erro ao disparar fallback: {ex}")
-                                            
-                                            asyncio.create_task(send_async_fallback(
-                                                trigger.id, 
-                                                trigger.client_id, 
-                                                lead.bsud, 
-                                                trigger.template_name, 
-                                                trigger.template_language,
-                                                trigger.template_components or []
-                                            ))
+                                                        if fallback_res and not fallback_res.get("error"):
+                                                            new_wamid = (fallback_res.get("messages", [{}])[0].get("id") or fallback_res.get("id", "")).replace("wamid.", "")
+                                                            db_fallback = SessionLocal()
+                                                            new_ms = models.MessageStatus(
+                                                                trigger_id=tid,
+                                                                message_id=new_wamid,
+                                                                phone_number=bsud_id,
+                                                                contact_name=trigger.contact_name,
+                                                                status='sent',
+                                                                message_type='TEMPLATE',
+                                                                content=message_record.content,
+                                                                template_name=t_name
+                                                            )
+                                                            db_fallback.add(new_ms)
+                                                            db_fallback.commit()
+                                                            db_fallback.close()
+                                                            logger.info(f"✅ [BSUD-FALLBACK-ASYNC] Fallback enviado com sucesso para {bsud_id}")
+                                                    except Exception as ex:
+                                                        logger.error(f"❌ [BSUD-FALLBACK-ASYNC] Erro ao disparar fallback: {ex}")
+                                                
+                                                asyncio.create_task(send_async_fallback(
+                                                    trigger.id, 
+                                                    trigger.client_id, 
+                                                    lead.bsud, 
+                                                    target_template_name, 
+                                                    trigger.template_language,
+                                                    trigger.template_components or []
+                                                ))
+                                            else:
+                                                logger.warning(f"⚠️ [BSUD-FALLBACK-ASYNC] Ignorando envio BSUD '{lead.bsud}': nome do template não definido.")
                                 except Exception as e_fallback:
                                     logger.error(f"❌ Erro no fluxo de fallback BSUD assíncrono: {e_fallback}")
                     
@@ -581,7 +589,10 @@ async def handle_whatsapp_statuses(db, statuses: list, value: dict):
  
                     is_template_msg = message_record.message_type == 'TEMPLATE' or (message_record.template_name and str(message_record.template_name).strip())
                     if (trigger or is_template_msg) and status in ('delivered', 'read'):
-                        asyncio.create_task(wah.handle_deferred_post_delivery(trigger.id if trigger else None, message_record.id, status, msg_id, recipient))
+                        from services.utils.phone_utils import normalize_phone
+                        target_sync_p = (message_record.phone_number if message_record and message_record.phone_number else None) or (trigger.contact_phone if trigger and trigger.contact_phone else None) or recipient
+                        sync_phone = normalize_phone(target_sync_p) or target_sync_p
+                        asyncio.create_task(wah.handle_deferred_post_delivery(trigger.id if trigger else None, message_record.id, status, msg_id, sync_phone))
                         if trigger and trigger.status == 'paused_waiting_delivery':
                             # Cenário A: Gatilho de Template com Funil ZapVoice Pendente
                             if trigger.template_name is not None and trigger.funnel_id is not None:

@@ -25,6 +25,7 @@ vi.mock('react-icons/fi', () => ({
   FiTerminal: () => <span />,
   FiMessageSquare: () => <span />,
   FiTrello: () => <span />,
+  FiX: () => <span />,
 }));
 
 vi.mock('./ClientSelector', () => ({
@@ -155,5 +156,58 @@ describe('Sidebar', () => {
   it('usa primeira letra do app name quando sem logo', () => {
     render(<Sidebar {...baseProps} appBranding={{ name: 'ZapVoice', logo: null }} />);
     expect(screen.getByText('Z')).toBeInTheDocument();
+  });
+
+  it('renderiza backdrop e botão de fechar quando isOpenMobile for true', () => {
+    const onCloseMobile = vi.fn();
+    render(<Sidebar {...baseProps} isOpenMobile={true} onCloseMobile={onCloseMobile} />);
+    expect(screen.getByTestId('mobile-sidebar-backdrop')).toBeInTheDocument();
+    expect(screen.getByTestId('close-mobile-sidebar-btn')).toBeInTheDocument();
+  });
+
+  it('chama onCloseMobile ao clicar no botão de fechar do mobile', () => {
+    const onCloseMobile = vi.fn();
+    render(<Sidebar {...baseProps} isOpenMobile={true} onCloseMobile={onCloseMobile} />);
+    fireEvent.click(screen.getByTestId('close-mobile-sidebar-btn'));
+    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+  });
+
+  it('chama onCloseMobile ao clicar no backdrop do mobile', () => {
+    const onCloseMobile = vi.fn();
+    render(<Sidebar {...baseProps} isOpenMobile={true} onCloseMobile={onCloseMobile} />);
+    fireEvent.click(screen.getByTestId('mobile-sidebar-backdrop'));
+    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+  });
+
+  it('chama onCloseMobile além de onViewChange ao selecionar um item de menu no mobile', () => {
+    const onCloseMobile = vi.fn();
+    const onViewChange = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        isOpenMobile={true}
+        onCloseMobile={onCloseMobile}
+        onViewChange={onViewChange}
+      />
+    );
+    fireEvent.click(screen.getByText('Meus Funis'));
+    expect(onViewChange).toHaveBeenCalledWith('funnels');
+    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+  });
+
+  it('chama onCloseMobile ao clicar em configurações', () => {
+    const onCloseMobile = vi.fn();
+    const onSettings = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        isOpenMobile={true}
+        onCloseMobile={onCloseMobile}
+        onSettings={onSettings}
+      />
+    );
+    fireEvent.click(screen.getByText('Configurações'));
+    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+    expect(onSettings).toHaveBeenCalledTimes(1);
   });
 });

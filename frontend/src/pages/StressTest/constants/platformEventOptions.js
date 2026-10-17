@@ -228,4 +228,8 @@ export const PLATFORM_EVENT_OPTIONS = {
     yayforms: [
         { value: 'formulario', label: 'Formulário (YayForms)' },
     ],
+    formulario_personalizado: [
+        { value: 'formulario', label: 'Formulário (Envio)' },
+        { value: 'form_submission', label: 'Envio de Formulário' },
+    ],
 };

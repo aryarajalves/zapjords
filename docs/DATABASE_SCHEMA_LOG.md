@@ -252,8 +252,30 @@ docker exec zapvoice_app python /app/scripts/add_funnel_new_conversation_trigger
 **Contexto:** Permite definir um preço/valor padrão para o produto daquele pipeline, sugerindo e preenchendo automaticamente esse valor nas oportunidades geradas por etiquetas, webhooks ou criação manual.
 
 **Como aplicar em produção:**
+
+---
+
+## 📋 Migração: Criação Automática de Convite no App Bússola Astrológica (2026-10-15)
+
+**Tabela afetada:** `webhook_event_mappings`
+
+**Script:** `backend/scripts/database/add_bussola_invite_columns.py`
+
+**Novas colunas:**
+
+| Coluna | Tipo | Default | Descrição |
+|--------|------|---------|-----------|
+| `bussola_auto_create_invite` | `BOOLEAN` | `FALSE` | Ativa a criação automática de convite no App Bússola Astrológica via API |
+| `bussola_invite_role` | `VARCHAR` | `'client'` | Papel/função no convite (`client` para Aluno ou `admin` para Administrador) |
+| `bussola_validity_type` | `VARCHAR` | `'never'` | Tipo de validade do convite (`never`, `24h`, `48h`, `72h`) |
+| `bussola_custom_api_key` | `VARCHAR` | `NULL` | API Key opcional da Bússola para sobrescrever a chave padrão global |
+
+**Contexto:** Permite que disparos acionados por Webhooks de plataformas externas (Kiwify, Hotmart, Eduzz, etc.) gerem automaticamente links de convite na API do App Bússola Astrológica (`POST /admin/invites`) e disponibilizem a URL na variável `{{link_bussola}}` para envio no WhatsApp.
+
+**Como aplicar em produção:**
 ```bash
-docker exec zapvoice_app python /app/scripts/database/add_pipeline_default_value.py
+docker exec zapvoice_app python /app/scripts/database/add_bussola_invite_columns.py
 ```
+
 
 

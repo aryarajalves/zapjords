@@ -16,9 +16,9 @@ const TemplateList = ({ logic }) => {
     );
 
     return (
-        <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700 transition-all duration-300">
-                <div className="flex items-center justify-between mb-6">
+        <div className="w-full space-y-4 sm:space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700 transition-all duration-300">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
                         <FiLayout size={18} /> Meus Templates
                     </h3>

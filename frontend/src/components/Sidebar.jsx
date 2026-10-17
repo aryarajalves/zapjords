@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiHome, FiLayers, FiClock, FiSettings, FiLogOut, FiSlash, FiUsers, FiGitMerge, FiPlus, FiCalendar, FiActivity, FiZap, FiDollarSign, FiDatabase, FiInstagram, FiHelpCircle, FiTerminal, FiMessageSquare, FiTrello } from 'react-icons/fi';
+import { FiHome, FiLayers, FiClock, FiSettings, FiLogOut, FiSlash, FiUsers, FiGitMerge, FiPlus, FiCalendar, FiActivity, FiZap, FiDollarSign, FiDatabase, FiInstagram, FiHelpCircle, FiTerminal, FiMessageSquare, FiTrello, FiX } from 'react-icons/fi';
 import ClientSelector from './ClientSelector';
 import ConfirmModal from './ConfirmModal';
 import { useClient } from '../contexts/ClientContext';
@@ -10,7 +10,18 @@ const SIMULATE_MESSAGING = import.meta.env.VITE_SIMULATE_MESSAGING === 'true' ||
                            window._env_?.SIMULATE_MESSAGING === 'true' || 
                            window._env_?.SIMULATE_MESSAGING === true;
 
-export default function Sidebar({ activeView, onViewChange, onLogout, onSettings, user, clientName, onClientCreate, appBranding }) {
+export default function Sidebar({
+    activeView,
+    onViewChange,
+    onLogout,
+    onSettings,
+    user,
+    clientName,
+    onClientCreate,
+    appBranding,
+    isOpenMobile = false,
+    onCloseMobile
+}) {
     const { activeClient } = useClient();
     const appName = appBranding?.name || 'ZapVoice';
     const appLogo = appBranding?.logo;
@@ -81,6 +92,7 @@ export default function Sidebar({ activeView, onViewChange, onLogout, onSettings
     ];
 
     const handleLogoutClick = () => {
+        if (onCloseMobile) onCloseMobile();
         setConfirmModal({
             isOpen: true,
             title: 'Sair do Sistema',
@@ -92,26 +104,60 @@ export default function Sidebar({ activeView, onViewChange, onLogout, onSettings
     };
 
     return (
-        <aside className="w-64 bg-white dark:bg-[#1e293b] border-r border-gray-200 dark:border-white/5 flex flex-col h-screen sticky top-0 shadow-sm z-30 font-sans transition-colors duration-200">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-3 mb-3">
-                    {appLogo ? (
-                        <div className={`${logoContainerClass} rounded-lg overflow-hidden shadow-md shrink-0`}>
-                            <img src={resolveUrl(appLogo)} alt={appName} className="w-full h-full object-cover" />
-                        </div>
-                    ) : (
-                        <div className={`${logoContainerClass} bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold ${logoTextSize} shadow-md shrink-0`}>
-                            {appName[0]}
-                        </div>
+        <>
+            {/* Backdrop Mobile */}
+            {isOpenMobile && (
+                <div
+                    data-testid="mobile-sidebar-backdrop"
+                    onClick={onCloseMobile}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+                    aria-label="Fechar menu lateral"
+                />
+            )}
+
+            <aside
+                className={`w-72 max-w-[85vw] md:w-64 bg-white dark:bg-[#1e293b] border-r border-gray-200 dark:border-white/5 flex flex-col h-screen font-sans transition-transform duration-300 ease-in-out z-50 ${
+                    isOpenMobile
+                        ? 'fixed inset-y-0 left-0 shadow-2xl translate-x-0'
+                        : 'fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:static md:sticky md:top-0 md:shadow-sm md:flex'
+                }`}
+            >
+                <div className="p-5 md:p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {appLogo ? (
+                            <div className={`${logoContainerClass} rounded-lg overflow-hidden shadow-md shrink-0`}>
+                                <img src={resolveUrl(appLogo)} alt={appName} className="w-full h-full object-cover" />
+                            </div>
+                        ) : (
+                            <div className={`${logoContainerClass} bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold ${logoTextSize} shadow-md shrink-0`}>
+                                {appName[0]}
+                            </div>
+                        )}
+                        <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight">{appName}</span>
+                    </div>
+
+                    {/* Botão de Fechar no Mobile */}
+                    {onCloseMobile && (
+                        <button
+                            type="button"
+                            onClick={onCloseMobile}
+                            data-testid="close-mobile-sidebar-btn"
+                            className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            title="Fechar Menu"
+                            aria-label="Fechar Menu"
+                        >
+                            <FiX size={20} />
+                        </button>
                     )}
-                    <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight">{appName}</span>
                 </div>
+
                 {clientName && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed pl-1">
-                        Api Oficial do WhatsApp do cliente <span className="font-semibold text-gray-700 dark:text-gray-300">{clientName} (ID: {activeClient?.id})</span>
-                    </p>
+                    <div className="px-5 py-2 bg-gray-50/50 dark:bg-white/[0.02] border-b border-gray-100 dark:border-white/5">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                            Api Oficial do WhatsApp do cliente <span className="font-semibold text-gray-700 dark:text-gray-300">{clientName} (ID: {activeClient?.id})</span>
+                        </p>
+                    </div>
                 )}
-            </div>
 
             <ClientSelector onCreateClick={onClientCreate} />
 
@@ -183,7 +229,10 @@ export default function Sidebar({ activeView, onViewChange, onLogout, onSettings
                                     return (
                                         <button
                                             key={item.id}
-                                            onClick={() => onViewChange(item.id)}
+                                            onClick={() => {
+                                                onViewChange(item.id);
+                                                if (onCloseMobile) onCloseMobile();
+                                            }}
                                             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium text-sm ${isActive
                                                 ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm'
                                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-200'
@@ -212,8 +261,11 @@ export default function Sidebar({ activeView, onViewChange, onLogout, onSettings
 
                 {activeClient && user?.role !== 'vendedor' && !user?.blocked_features?.includes('settings') && (
                     <button
-                        onClick={onSettings}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm hover:text-gray-900 dark:hover:text-white transition-all font-medium text-sm border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+                        onClick={() => {
+                            if (onCloseMobile) onCloseMobile();
+                            onSettings();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm hover:text-gray-900 dark:hover:text-white transition-all font-medium text-sm border border-transparent hover:border-gray-200 dark:hover:border-gray-600 cursor-pointer"
                     >
                         <FiSettings size={18} />
                         Configurações
@@ -222,7 +274,7 @@ export default function Sidebar({ activeView, onViewChange, onLogout, onSettings
 
                 <button
                     onClick={handleLogoutClick}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm cursor-pointer"
                 >
                     <FiLogOut size={18} />
                     Sair
@@ -239,5 +291,6 @@ export default function Sidebar({ activeView, onViewChange, onLogout, onSettings
                 onConfirm={confirmModal.onConfirm}
             />
         </aside>
+    </>
     );
 }

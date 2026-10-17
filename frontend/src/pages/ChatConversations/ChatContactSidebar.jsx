@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiUser, FiMaximize2, FiRefreshCw, FiTrash2, FiSearch, FiTrello } from 'react-icons/fi';
+import { FiUser, FiMaximize2, FiRefreshCw, FiTrash2, FiSearch, FiTrello, FiX } from 'react-icons/fi';
 import { BsJournalText, BsStarFill } from 'react-icons/bs';
 import ContactProfileCard from './components/ChatContactSidebar/ContactProfileCard';
 import ContactTagsSection from './components/ChatContactSidebar/ContactTagsSection';
@@ -49,7 +49,8 @@ export default function ChatContactSidebar({
     messages = [],
     handleToggleStarMessage,
     formatMessageTimestamp,
-    handleDeleteNoteMsg
+    handleDeleteNoteMsg,
+    onClose
 }) {
     const [isMaximizedOpen, setIsMaximizedOpen] = React.useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = React.useState(false);
@@ -102,20 +103,49 @@ export default function ChatContactSidebar({
     // Se estiver no modo de busca de mensagens, exibe o painel de pesquisa estilo WhatsApp
     if (isSearchMode) {
         return (
-            <div className="w-80 h-full shrink-0">
-                <MessageSearchSidebar
-                    convoId={selectedConvo.id}
-                    activeClientId={activeClientId}
-                    onClose={() => setIsSearchMode && setIsSearchMode(false)}
-                    onSelectMessage={onSelectMessage}
+            <>
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden animate-fade-in"
+                    onClick={() => setIsSearchMode && setIsSearchMode(false)}
+                    data-testid="message-search-backdrop"
                 />
-            </div>
+                <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 md:relative md:inset-auto md:w-80 md:z-auto h-full shrink-0 bg-white dark:bg-[#111827] shadow-2xl md:shadow-none animate-fade-in">
+                    <MessageSearchSidebar
+                        convoId={selectedConvo.id}
+                        activeClientId={activeClientId}
+                        onClose={() => setIsSearchMode && setIsSearchMode(false)}
+                        onSelectMessage={onSelectMessage}
+                    />
+                </div>
+            </>
         );
     }
 
     return (
-        <div className="w-80 border-l border-gray-200 dark:border-white/5 p-6 flex flex-col h-full overflow-y-auto overflow-x-hidden bg-gray-50/50 dark:bg-[#111827]/40 space-y-6 shrink-0 animate-fade-in text-gray-800 dark:text-gray-100">
-            {/* Perfil do Contato & Janela 24h */}
+        <>
+            {onClose && (
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden animate-fade-in"
+                    onClick={onClose}
+                    data-testid="contact-sidebar-backdrop"
+                />
+            )}
+            <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 md:relative md:inset-auto md:w-80 md:z-auto border-l border-gray-200 dark:border-white/5 p-5 sm:p-6 flex flex-col h-full overflow-y-auto overflow-x-hidden bg-white dark:bg-[#111827] md:bg-gray-50/50 md:dark:bg-[#111827]/40 space-y-5 sm:space-y-6 shrink-0 shadow-2xl md:shadow-none animate-fade-in text-gray-800 dark:text-gray-100">
+                {onClose && (
+                    <div className="flex md:hidden items-center justify-between pb-3 border-b border-gray-200 dark:border-white/10 shrink-0">
+                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Dados do Contato</span>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
+                            data-testid="contact-sidebar-close-btn"
+                            title="Fechar dados do contato"
+                        >
+                            <FiX size={20} />
+                        </button>
+                    </div>
+                )}
+                {/* Perfil do Contato & Janela 24h */}
             <ContactProfileCard
                 selectedConvo={selectedConvo}
                 setSelectedConvo={setSelectedConvo}
@@ -330,5 +360,6 @@ export default function ChatContactSidebar({
                 selectedConvo={selectedConvo}
             />
         </div>
+        </>
     );
 }

@@ -268,6 +268,25 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
             except Exception as invite_err:
                 logger.error(f"❌ [PLATFORM_INVITE] Falha ao gerar convite automático no webhook #{history_id}: {invite_err}", exc_info=True)
 
+        # --- GERAÇÃO AUTOMÁTICA DE CONVITE NO APP BÚSSOLA ASTROLÓGICA ---
+        if getattr(mapping, "bussola_auto_create_invite", False):
+            try:
+                from services.bussola_invite_service import generate_bussola_invite
+                bussola_res = await generate_bussola_invite(
+                    client_id=client_id,
+                    role=getattr(mapping, "bussola_invite_role", "client") or "client",
+                    validity_type=getattr(mapping, "bussola_validity_type", "never") or "never",
+                    custom_api_key=getattr(mapping, "bussola_custom_api_key", None)
+                )
+                if bussola_res and bussola_res.get("invite_url"):
+                    bussola_link = bussola_res["invite_url"]
+                    variables["link_bussola"] = bussola_link
+                    if "link_cadastro" not in variables:
+                        variables["link_cadastro"] = bussola_link
+                    logger.info(f"🔮 [BUSSOLA_INVITE] Link do convite gerado: {bussola_link} (injetado em link_bussola do webhook #{history_id})")
+            except Exception as bussola_err:
+                logger.error(f"❌ [BUSSOLA_INVITE] Falha ao gerar convite Bússola no webhook #{history_id}: {bussola_err}", exc_info=True)
+
         if not template_name and not funnel_id:
             logger.info(f"AUTO_SKIP | Mapeamento #{mapping.id} sem template nem funil definido — aplicando etiquetas e salvando lead...")
             
@@ -569,6 +588,19 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
         history.status = "processed"
         db.commit()
         logger.info(f"✅ AUTO_SUCCESS | Webhook #{history_id} processado. Trigger ID: {st.id}")
+        try:
+            await rabbitmq.publish_event("webhook_history_update", {
+                "history_id": int(history.id),
+                "integration_id": str(history.integration_id),
+                "client_id": int(client_id),
+                "event_type": history.event_type,
+                "status": "processed",
+                "processed_data": history.processed_data,
+                "duplicate_count": history.duplicate_count or 0,
+                "is_new": False
+            })
+        except Exception as ws_err:
+            logger.warning(f"Erro ao emitir evento WS de webhook processed: {ws_err}")
 
     except Exception as e:
         logger.error(f"❌ AUTO_ERROR | Falha ao processar automação #{history_id}: {e}")
@@ -578,5 +610,19 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
             history.status = "failed"
             history.error_message = str(e)
             db.commit()
+            try:
+                await rabbitmq.publish_event("webhook_history_update", {
+                    "history_id": int(history.id),
+                    "integration_id": str(history.integration_id),
+                    "client_id": int(client_id),
+                    "event_type": history.event_type,
+                    "status": "failed",
+                    "error_message": str(e),
+                    "processed_data": history.processed_data,
+                    "duplicate_count": history.duplicate_count or 0,
+                    "is_new": False
+                })
+            except Exception as ws_err:
+                logger.warning(f"Erro ao emitir evento WS de webhook failed: {ws_err}")
     finally:
         db.close()
