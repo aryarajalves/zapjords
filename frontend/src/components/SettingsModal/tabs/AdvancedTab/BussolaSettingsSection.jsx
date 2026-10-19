@@ -72,17 +72,17 @@ export default function BussolaSettingsSection({ formData, handleChange, visible
 
   return (
     <div className="space-y-4 mb-8 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="p-1.5 bg-amber-500/10 text-amber-500 dark:text-amber-400 rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-2">
+          <span className="p-1.5 bg-amber-500/10 text-amber-500 dark:text-amber-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
             <FiCompass className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-200">
               App Bússola Astrológica
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Configure a API do App Bússola para criação automática de convites via Webhooks (<code className="text-amber-500 font-bold">{"{{link_bussola}}"}</code>).
+              Configure a API do Backend do App Bússola para criação automática de convites via Webhooks (<code className="text-amber-500 font-bold">{"{{link_bussola}}"}</code>).
             </p>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function BussolaSettingsSection({ formData, handleChange, visible
           type="button"
           onClick={handleTestConnection}
           disabled={testing}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg transition-colors shadow-sm cursor-pointer shrink-0"
         >
           {testing ? (
             <>
@@ -107,12 +107,25 @@ export default function BussolaSettingsSection({ formData, handleChange, visible
         </button>
       </div>
 
+      {/* Info card explicando que se trata do endpoint do Backend */}
+      <div className="p-2.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300">
+        <span className="text-sm shrink-0">💡</span>
+        <div className="leading-relaxed">
+          <strong>Endpoint do Backend:</strong> Insira o endereço da <strong className="text-amber-600 dark:text-amber-400">API do Backend</strong> da Bússola (onde a rota <code>/admin/invites</code> processa a geração dos convites), <strong>não</strong> a URL do site ou interface do usuário.
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-        {/* URL da API */}
+        {/* URL da API (Backend) */}
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1">
-            URL Base da API da Bússola
-          </label>
+          <div className="flex items-center gap-1.5 px-1 flex-wrap">
+            <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+              URL Base da API da Bússola
+            </label>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+              Backend (API)
+            </span>
+          </div>
           <input
             type="text"
             name="BUSSOLA_API_URL"
@@ -123,8 +136,8 @@ export default function BussolaSettingsSection({ formData, handleChange, visible
             autoComplete="new-password"
             data-lpignore="true"
           />
-          <p className="text-[9px] text-gray-400 px-1">
-            Ex: https://api.bussolaastrologica.com.br ou http://localhost:8005 (sem barra final).
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 px-1 leading-relaxed">
+            <strong className="text-amber-600 dark:text-amber-400">Endpoint do Backend:</strong> Servidor onde o ZapVoice gera convites via API (Ex: <span className="font-mono text-gray-600 dark:text-gray-300">https://api.bussolaastrologica.com.br</span> ou <span className="font-mono text-gray-600 dark:text-gray-300">http://localhost:8005</span>, sem barra final).
           </p>
         </div>
 

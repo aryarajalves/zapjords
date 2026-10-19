@@ -72,13 +72,13 @@ export default function PlatformSettingsSection({ formData, handleChange, visibl
 
   return (
     <div className="space-y-4 mb-8 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-2">
+          <span className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
             <FiGlobe className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-200">
               Plataforma Externa (Área de Membros)
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -91,7 +91,7 @@ export default function PlatformSettingsSection({ formData, handleChange, visibl
           type="button"
           onClick={handleTestConnection}
           disabled={testing}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg transition-colors shadow-sm cursor-pointer shrink-0"
         >
           {testing ? (
             <>

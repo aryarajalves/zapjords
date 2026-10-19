@@ -219,18 +219,22 @@ const TemplateSelectionSection = ({
             {selectedTemplateObj && (
                 <div className="space-y-8 animate-in zoom-in-95 duration-300">
                     {/* Ações rápidas do Template Selecionado (Ex: Limpar 24h) */}
-                    <div className="flex justify-between items-center bg-slate-900/60 border border-white/5 rounded-xl px-4 py-3">
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <span className="font-bold text-white">{selectedTemplateObj.name}</span>
-                            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono uppercase">{selectedTemplateObj.category || 'MARKETING'}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 border border-white/5 rounded-xl p-3.5 sm:px-4 sm:py-3 overflow-hidden">
+                        <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0 flex-wrap">
+                            <span className="font-bold text-white truncate max-w-full sm:max-w-[280px]" title={selectedTemplateObj.name}>
+                                {selectedTemplateObj.name}
+                            </span>
+                            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono uppercase shrink-0">
+                                {selectedTemplateObj.category || 'MARKETING'}
+                            </span>
                         </div>
                         <button
                             type="button"
                             onClick={() => setIsReset24hModalOpen(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+                            className="self-start sm:self-auto flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 shrink-0 whitespace-nowrap cursor-pointer"
                             title="Zerar restrição de 24h para este template (permite re-envio imediato para todos os contatos)"
                         >
-                            <span>🔄</span>
+                            <span className="shrink-0 text-sm">🔄</span>
                             <span>Resetar Janela de 24h</span>
                         </button>
                     </div>

@@ -68,4 +68,19 @@ describe('SettingsModal', () => {
     render(<SettingsModal isOpen={false} onClose={() => {}} />);
     expect(screen.queryByText('Configurações do Sistema')).not.toBeInTheDocument();
   });
+
+  it('renderiza estrutura responsiva com flex-col no mobile e flex-row no desktop', () => {
+    const { container } = render(<SettingsModal isOpen={true} onClose={() => {}} />);
+    const modalBox = container.querySelector('.max-w-5xl');
+    expect(modalBox).toBeInTheDocument();
+    expect(modalBox.className).toContain('flex-col');
+    expect(modalBox.className).toContain('md:flex-row');
+
+    // Botões de fechar (um para mobile e um para desktop)
+    const closeButtons = screen.getAllByRole('button', { name: /fechar/i });
+    expect(closeButtons.length).toBeGreaterThanOrEqual(1);
+
+    // Botão de Guia no mobile
+    expect(screen.getByTitle('Guia de Configuração')).toBeInTheDocument();
+  });
 });

@@ -45,19 +45,41 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-[#1e293b] w-full max-w-5xl h-[85vh] flex rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 dark:border-white/5 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-[#1e293b] w-full max-w-5xl h-[92vh] md:h-[85vh] flex flex-col md:flex-row rounded-2xl md:rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 dark:border-white/5 animate-in zoom-in-95 duration-300">
                 
-                {/* 1. Barra Lateral de Navegação (Esquerda) */}
-                <div className="w-64 bg-gray-50/50 dark:bg-white/5 border-r border-gray-100 dark:border-white/5 flex flex-col h-full shrink-0">
-                    {/* Header da Barra Lateral */}
-                    <div className="p-6 border-b border-gray-100 dark:border-white/5 flex items-center gap-3">
-                        <FiSettings className="text-blue-500 w-5 h-5 shrink-0" />
-                        <h2 className="text-base font-bold text-gray-800 dark:text-white tracking-tight">Configurações</h2>
+                {/* 1. Barra de Navegação (Mobile: Topo com scroll horizontal / Desktop: Lateral esquerda) */}
+                <div className="w-full md:w-64 bg-gray-50/50 dark:bg-white/5 border-b md:border-b-0 md:border-r border-gray-100 dark:border-white/5 flex flex-col shrink-0">
+                    {/* Header da Barra de Navegação */}
+                    <div className="p-3.5 md:p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 md:gap-3">
+                            <FiSettings className="text-blue-500 w-5 h-5 shrink-0" />
+                            <h2 className="text-sm md:text-base font-bold text-gray-800 dark:text-white tracking-tight">Configurações</h2>
+                        </div>
+                        {/* Ações no topo para telas mobile */}
+                        <div className="flex items-center gap-1.5 md:hidden">
+                            <button
+                                type="button"
+                                onClick={() => logic.setIsSettingsGuideOpen(true)}
+                                className="flex items-center gap-1 py-1.5 px-2.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold border border-blue-600/20"
+                                title="Guia de Configuração"
+                            >
+                                <FiBook size={13} />
+                                <span>Guia</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
+                                aria-label="Fechar configurações"
+                            >
+                                <FiX size={20} />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Lista Vertical de Abas */}
-                    <div className="flex-1 py-4 px-4 overflow-y-auto space-y-1.5 custom-scrollbar">
+                    {/* Lista de Abas: Horizontal no Mobile com scroll / Vertical no Desktop */}
+                    <div className="flex md:flex-col overflow-x-auto md:overflow-y-auto py-2.5 md:py-4 px-3 md:px-4 gap-1.5 md:gap-0 md:space-y-1.5 custom-scrollbar shrink-0">
                         <TabButton 
                             id="geral" 
                             activeTab={logic.activeTab} 
@@ -113,8 +135,8 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                         )}
                     </div>
 
-                    {/* Rodapé da Barra Lateral com o Guia */}
-                    <div className="p-4 border-t border-gray-100 dark:border-white/5">
+                    {/* Rodapé da Barra Lateral com o Guia (Visível apenas em Desktop) */}
+                    <div className="hidden md:block p-4 border-t border-gray-100 dark:border-white/5 mt-auto">
                         <button
                             type="button"
                             onClick={() => logic.setIsSettingsGuideOpen(true)}
@@ -126,24 +148,25 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                     </div>
                 </div>
 
-                {/* 2. Área de Conteúdo Principal (Direita) */}
-                <form onSubmit={logic.handleSubmit} autoComplete="off" className="flex-1 flex flex-col h-full overflow-hidden">
+                {/* 2. Área de Conteúdo Principal (Direita no Desktop / Abaixo no Mobile) */}
+                <form onSubmit={logic.handleSubmit} autoComplete="off" className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
                     {/* Header da Área de Conteúdo */}
-                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100 dark:border-white/5 bg-white dark:bg-[#1e293b]">
-                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    <div className="px-4 py-2.5 md:px-6 md:py-4 flex items-center justify-between border-b border-gray-100 dark:border-white/5 bg-white dark:bg-[#1e293b] shrink-0">
+                        <span className="text-[11px] md:text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                             Aba Ativa: {logic.activeTab === 'geral' ? 'Básico' : logic.activeTab === 'whatsapp' ? 'WhatsApp' : logic.activeTab === 'instagram' ? 'Instagram' : logic.activeTab === 'advanced' ? 'Avançado' : logic.activeTab === 'api_tokens' ? 'Tokens de API' : logic.activeTab === 'marcadores' ? 'Marcadores' : 'Mensagens Rápidas'}
                         </span>
                         <button
                             type="button"
                             onClick={onClose}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
+                            className="hidden md:flex p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
+                            aria-label="Fechar"
                         >
                             <FiX size={20} />
                         </button>
                     </div>
 
                     {/* Painel do Conteúdo */}
-                    <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b]">
+                    <div className="flex-1 p-3.5 md:p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b] min-w-0">
                         {logic.activeTab === 'geral' && (
                             <GeralTab 
                                 user={logic.user}
@@ -261,11 +284,11 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="p-6 flex justify-end gap-3 border-t border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-[#0f172a] shrink-0">
+                    <div className="p-3 md:p-6 flex items-center justify-end gap-2 md:gap-3 border-t border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-[#0f172a] shrink-0">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-5 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+                            className="px-3.5 py-2 md:px-5 md:py-2.5 text-xs md:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors cursor-pointer"
                         >
                             {['api_tokens', 'marcadores', 'mensagens_rapidas'].includes(logic.activeTab) ? 'Fechar' : 'Cancelar'}
                         </button>
@@ -273,18 +296,18 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                             <button
                                 type="submit"
                                 disabled={logic.loading}
-                                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="px-3.5 py-2 md:px-6 md:py-2.5 text-xs md:text-sm bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-1.5 md:gap-2 cursor-pointer"
                             >
                                 {logic.loading ? (
                                     <>
-                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg className="animate-spin h-4 w-4 md:h-5 md:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Salvando...
+                                        <span>Salvando...</span>
                                     </>
                                 ) : (
-                                    "Salvar Configurações"
+                                    <span>Salvar Configurações</span>
                                 )}
                             </button>
                         )}

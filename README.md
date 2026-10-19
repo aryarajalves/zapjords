@@ -1,6 +1,6 @@
 # ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.0.4 — Versão Estável)
 
-Versão estável com **Suporte Completo à Plataforma de Vendas Checkout Jords e Pagamentos em Criptomoeda (USDT, Polygon, NOWPayments, exibição rica de carteira e código de pedido)**, **Criação Automática de Convites do App Bússola Astrológica via Webhook (variável {{link_bussola}})**, **Kanban de Vendas & CRM Multi-Produtos**, **Filtros Temporais para Disparos Recorrentes**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Modularização Completa de Clean Code**.
+Versão estável com **Suporte Completo à Plataforma de Vendas Checkout Jords e Pagamentos em Criptomoeda (USDT, Polygon, NOWPayments, exibição rica de carteira e código de pedido)**, **Criação Automática de Convites do App Bússola Astrológica via Webhook (variável {{link_bussola}} e identificador explícito de endpoint backend)**, **Responsividade Mobile Completa (Modal de Configurações e Disparo de Templates 24h)**, **Kanban de Vendas & CRM Multi-Produtos**, **Filtros Temporais para Disparos Recorrentes**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Modularização Completa de Clean Code**.
 
 O **ZapVoice** é um ecossistema completo e profissional de automação e marketing de alta performance integrado à **API Oficial do WhatsApp (Meta)**. 
 
