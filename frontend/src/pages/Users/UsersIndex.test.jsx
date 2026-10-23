@@ -89,7 +89,13 @@ describe('Users Page (Users/index.jsx)', () => {
                     json: () => Promise.resolve(mockInvitationsList)
                 });
             }
-            if (url.includes('/auth/users') && options.method === 'DELETE') {
+            if (url.includes('/auth/users/bulk-delete') && options.method === 'POST') {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ message: '1 usuário(s) excluído(s)', deleted_count: 1, deleted_ids: ['u2'] })
+            });
+        }
+        if (url.includes('/auth/users') && options.method === 'DELETE') {
                 return Promise.resolve({
                     ok: true,
                     json: () => Promise.resolve({ success: true })
@@ -112,7 +118,8 @@ describe('Users Page (Users/index.jsx)', () => {
         render(<Users />);
 
         expect(screen.getByText('Gestão de Usuários')).toBeInTheDocument();
-        expect(screen.getByText('Novo Usuário')).toBeInTheDocument();
+        expect(screen.getByText('Criar Usuário')).toBeInTheDocument();
+        expect(screen.getByText('Gerar Convite')).toBeInTheDocument();
         expect(screen.getByText('Usuários Ativos')).toBeInTheDocument();
         expect(screen.getByText('Links de Convite')).toBeInTheDocument();
         expect(screen.getByText('Projetos')).toBeInTheDocument();
@@ -162,11 +169,24 @@ describe('Users Page (Users/index.jsx)', () => {
         });
     });
 
-    it('opens create user modal when clicking Novo Usuário', () => {
+    it('opens direct create user modal when clicking Criar Usuário', async () => {
         render(<Users />);
 
-        const newBtn = screen.getByText('Novo Usuário');
-        fireEvent.click(newBtn);
+        const directBtn = screen.getByText('Criar Usuário');
+        fireEvent.click(directBtn);
+
+        expect(screen.getByText('Criar Novo Usuário')).toBeInTheDocument();
+        expect(screen.getByText(/Nome do Contato \/ Usuário/i)).toBeInTheDocument();
+        expect(screen.getByText(/E-mail de Acesso/i)).toBeInTheDocument();
+        expect(screen.getByText(/WhatsApp \/ Telefone/i)).toBeInTheDocument();
+        expect(screen.getByText(/Requisitos de Senha Forte/i)).toBeInTheDocument();
+    });
+
+    it('opens invitation modal when clicking Gerar Convite', () => {
+        render(<Users />);
+
+        const inviteBtn = screen.getByText('Gerar Convite');
+        fireEvent.click(inviteBtn);
 
         expect(screen.getByText(/Convidar Novo Usuário/i)).toBeInTheDocument();
     });
@@ -222,6 +242,62 @@ describe('Users Page (Users/index.jsx)', () => {
                 expect.stringContaining('/auth/invitations/inv-1'),
                 expect.objectContaining({ method: 'DELETE' })
             );
+        });
+    });
+
+    it('allows selecting users individually, excludes super_admin, and performs bulk delete', async () => {
+        render(<Users />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Vendedor')).toBeInTheDocument();
+        });
+
+        // Seleciona o usuário Carlos Vendedor
+        const selectCarlosCheckbox = screen.getByLabelText(/Selecionar Carlos Vendedor/i);
+        fireEvent.click(selectCarlosCheckbox);
+
+        // Barra de ação em lote deve surgir
+        await waitFor(() => {
+            expect(screen.getByText(/1 usuário\(s\) selecionado\(s\)/i)).toBeInTheDocument();
+        });
+
+        // Clica no botão de exclusão em lote
+        const bulkDeleteBtn = screen.getByText(/Excluir Selecionados \(1\)/i);
+        fireEvent.click(bulkDeleteBtn);
+
+        // Modal de confirmação em lote deve abrir
+        await waitFor(() => {
+            expect(screen.getByText('Excluir Usuários Selecionados?')).toBeInTheDocument();
+            expect(screen.getByText('Sim, Excluir (1)')).toBeInTheDocument();
+        });
+
+        // Confirma a exclusão em lote
+        const confirmBulkBtn = screen.getByText('Sim, Excluir (1)');
+        fireEvent.click(confirmBulkBtn);
+
+        await waitFor(() => {
+            expect(fetchWithAuth).toHaveBeenCalledWith(
+                expect.stringContaining('/auth/users/bulk-delete'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ user_ids: ['u2'] })
+                })
+            );
+        });
+    });
+
+    it('selects all eligible users when toggling header checkbox', async () => {
+        render(<Users />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Vendedor')).toBeInTheDocument();
+        });
+
+        const headerCheckbox = screen.getByLabelText('Selecionar todos os usuários da página');
+        fireEvent.click(headerCheckbox);
+
+        await waitFor(() => {
+            expect(screen.getByText(/2 usuário\(s\) selecionado\(s\)/i)).toBeInTheDocument();
         });
     });
 });

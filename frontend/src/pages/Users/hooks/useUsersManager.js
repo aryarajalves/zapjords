@@ -11,6 +11,7 @@ export function useUsersManager() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('users'); // 'users', 'invitations', 'projects'
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDirectCreateModalOpen, setIsDirectCreateModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleteInviteModalOpen, setIsDeleteInviteModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
@@ -38,6 +39,7 @@ export function useUsersManager() {
         email: '',
         password: '',
         full_name: '',
+        phone: '',
         role: 'admin',
         is_active: true,
         client_ids: [],
@@ -159,6 +161,10 @@ export function useUsersManager() {
         });
     }, [users, searchTerm, roleFilter]);
 
+    const handleOpenDirectCreateModal = () => {
+        setIsDirectCreateModalOpen(true);
+    };
+
     const handleOpenCreateModal = () => {
         setEditingUser(null);
         setUserData({
@@ -182,6 +188,7 @@ export function useUsersManager() {
             email: user.email,
             password: '', // Senha fica vazia no edit por segurança
             full_name: user.full_name || '',
+            phone: user.phone || '',
             role: user.role,
             seller_weight: user.seller_weight || 1,
             is_active: user.is_active,
@@ -312,6 +319,8 @@ export function useUsersManager() {
         setActiveTab,
         isModalOpen,
         setIsModalOpen,
+        isDirectCreateModalOpen,
+        setIsDirectCreateModalOpen,
         isDeleteModalOpen,
         setIsDeleteModalOpen,
         isDeleteInviteModalOpen,
@@ -341,6 +350,7 @@ export function useUsersManager() {
         fetchUsers,
         fetchClients,
         fetchInvitations,
+        handleOpenDirectCreateModal,
         handleOpenCreateModal,
         handleOpenEditModal,
         toggleClientAccess,

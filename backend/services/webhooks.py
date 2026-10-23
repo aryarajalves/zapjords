@@ -287,6 +287,23 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
             except Exception as bussola_err:
                 logger.error(f"❌ [BUSSOLA_INVITE] Falha ao gerar convite Bússola no webhook #{history_id}: {bussola_err}", exc_info=True)
 
+        # --- AÇÃO DO KANBAN DE VENDAS (CRM) ---
+        if getattr(mapping, "kanban_active", False) and phone:
+            try:
+                from services.crm_service import process_webhook_kanban_trigger
+                process_webhook_kanban_trigger(
+                    db=db,
+                    client_id=client_id,
+                    mapping=mapping,
+                    phone=phone,
+                    name=variables.get("name"),
+                    email=variables.get("email"),
+                    platform=integration.platform if integration else "webhook",
+                    payload_value=float(variables.get("price") or 0.0)
+                )
+            except Exception as crm_err:
+                logger.error(f"❌ [CRM_WEBHOOK] Falha ao processar ação do Kanban no webhook #{history_id}: {crm_err}", exc_info=True)
+
         if not template_name and not funnel_id:
             logger.info(f"AUTO_SKIP | Mapeamento #{mapping.id} sem template nem funil definido — aplicando etiquetas e salvando lead...")
             

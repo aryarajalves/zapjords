@@ -2,11 +2,13 @@ import React from 'react';
 import UserFilters from './components/UserFilters';
 import UserTable from './components/UserTable';
 import UserModal from './components/UserModal';
+import { CreateUserModal } from './components/CreateUserModal';
 import InvitationTable from './components/InvitationTable';
 import ProjectManager from './components/ProjectManager';
 import UsersHeader from './components/UsersHeader';
 import UsersDeleteModals from './components/UsersDeleteModals';
 import { useUsersManager } from './hooks/useUsersManager';
+import { useUserSelection } from './hooks/useUserSelection';
 
 const Users = () => {
     const {
@@ -19,6 +21,8 @@ const Users = () => {
         setActiveTab,
         isModalOpen,
         setIsModalOpen,
+        isDirectCreateModalOpen,
+        setIsDirectCreateModalOpen,
         isDeleteModalOpen,
         setIsDeleteModalOpen,
         isDeleteInviteModalOpen,
@@ -44,8 +48,10 @@ const Users = () => {
         userData,
         setUserData,
         filteredUsers,
+        fetchUsers,
         fetchClients,
         fetchInvitations,
+        handleOpenDirectCreateModal,
         handleOpenCreateModal,
         handleOpenEditModal,
         toggleClientAccess,
@@ -56,6 +62,24 @@ const Users = () => {
         handleDeleteInvitation
     } = useUsersManager();
 
+    // Hook modular de seleção e ações em lote (Bulk Delete)
+    const {
+        selectedUserIds,
+        isBulkDeleteModalOpen,
+        setIsBulkDeleteModalOpen,
+        handleToggleSelectUser,
+        handleToggleSelectAllVisible,
+        handleSelectAllFiltered,
+        handleClearSelection,
+        confirmBulkDelete,
+        handleBulkDeleteUsers
+    } = useUserSelection({
+        filteredUsers,
+        fetchUsers
+    });
+
+    const totalEligibleUsers = filteredUsers.filter((u) => u.role !== 'super_admin').length;
+
     return (
         <div className="space-y-6">
             <UsersHeader
@@ -63,6 +87,7 @@ const Users = () => {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 onOpenCreateModal={handleOpenCreateModal}
+                onOpenDirectCreateModal={handleOpenDirectCreateModal}
             />
 
             {activeTab === 'users' ? (
@@ -87,6 +112,13 @@ const Users = () => {
                             setCurrentPage={setUserCurrentPage}
                             itemsPerPage={userItemsPerPage}
                             setItemsPerPage={setUserItemsPerPage}
+                            selectedUserIds={selectedUserIds}
+                            handleToggleSelectUser={handleToggleSelectUser}
+                            handleToggleSelectAllVisible={handleToggleSelectAllVisible}
+                            handleSelectAllFiltered={handleSelectAllFiltered}
+                            handleClearSelection={handleClearSelection}
+                            confirmBulkDelete={confirmBulkDelete}
+                            totalEligibleUsers={totalEligibleUsers}
                         />
                     )}
                 </>
@@ -130,6 +162,14 @@ const Users = () => {
                 onInviteGenerated={fetchInvitations}
             />
 
+            <CreateUserModal
+                isOpen={isDirectCreateModalOpen}
+                onClose={() => setIsDirectCreateModalOpen(false)}
+                clients={clients}
+                currentUser={currentUser}
+                onUserCreated={fetchUsers}
+            />
+
             <UsersDeleteModals
                 isDeleteModalOpen={isDeleteModalOpen}
                 onCloseDeleteUser={() => {
@@ -144,6 +184,10 @@ const Users = () => {
                     setInviteToDelete(null);
                 }}
                 onConfirmDeleteInvite={handleDeleteInvitation}
+                isBulkDeleteModalOpen={isBulkDeleteModalOpen}
+                onCloseBulkDelete={() => setIsBulkDeleteModalOpen(false)}
+                onConfirmBulkDelete={handleBulkDeleteUsers}
+                bulkDeleteCount={selectedUserIds.length}
             />
         </div>
     );

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from database import Base
 
@@ -16,4 +16,4 @@ class ApiKey(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     client = relationship("Client", backref="api_keys")
-    user = relationship("User", backref="api_keys")
+    user = relationship("User", backref=backref("api_keys", cascade="all, delete-orphan", passive_deletes=True))

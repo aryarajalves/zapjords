@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { FiMessageSquare, FiUploadCloud } from 'react-icons/fi';
 import { useAuth } from '../AuthContext';
 import { useClient } from '../contexts/ClientContext';
@@ -72,6 +72,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
         exportModal, setExportModal,
         handleExportConversation
     } = modalState;
+
+    const [isCrmModalOpen, setIsCrmModalOpen] = useState(false);
 
     // 3. Engine de dados e hooks especializados
     const engine = useChatEngine({
@@ -166,6 +168,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
                 setExcludedConvoIds={setExcludedConvoIds}
                 exportModal={exportModal}
                 setExportModal={setExportModal}
+                isCrmModalOpen={isCrmModalOpen}
+                setIsCrmModalOpen={setIsCrmModalOpen}
             />
 
             <div className="flex flex-col h-full w-full bg-[#0f172a] text-gray-100 overflow-hidden font-sans">
@@ -273,6 +277,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                                     setIsSearchMode={setIsSearchMode}
                                     isChatMaximized={isChatMaximized}
                                     setIsChatMaximized={setIsChatMaximized}
+                                    onOpenCrm={() => setIsCrmModalOpen(true)}
                                 />
 
                                 <ActiveChatBanner
@@ -373,6 +378,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             formatMessageTimestamp={formatMessageTimestamp}
                             handleDeleteNoteMsg={noteAndAi.handleDeleteNoteMsg}
                             onClose={() => setShowRightSidebar(false)}
+                            onOpenCrm={() => setIsCrmModalOpen(true)}
                         />
                     )}
                 </div>

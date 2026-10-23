@@ -289,7 +289,8 @@ def upsert_webhook_lead(db: Session, client_id: int, platform: str, parsed_data:
                 product_name=product_name_raw,
                 event_type=event_type,
                 value=deal_val,
-                lead_id=lead.id
+                lead_id=lead.id,
+                platform=lead.platform or platform
             )
         except Exception as e_crm:
             logger.warning(f"⚠️ [CRM HOOK] Erro não-bloqueante ao processar lead no CRM: {e_crm}")

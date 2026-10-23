@@ -274,6 +274,14 @@ class WebhookEventMapping(Base):
     bussola_validity_type = Column(String, default="never")
     bussola_custom_api_key = Column(String, nullable=True)
     
+    # Mover / Criar Contato no Kanban de Vendas (CRM)
+    kanban_active = Column(Boolean, default=False)
+    kanban_pipeline_id = Column(Integer, nullable=True)
+    kanban_stage_id = Column(Integer, nullable=True)
+    kanban_product_name = Column(String, nullable=True)
+    kanban_value = Column(Float, nullable=True, default=0.0)
+    kanban_lost_reason = Column(String, nullable=True)
+    
     is_active = Column(Boolean, default=True)
     cost_per_message = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

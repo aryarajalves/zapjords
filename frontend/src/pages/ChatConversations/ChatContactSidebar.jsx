@@ -50,7 +50,8 @@ export default function ChatContactSidebar({
     handleToggleStarMessage,
     formatMessageTimestamp,
     handleDeleteNoteMsg,
-    onClose
+    onClose,
+    onOpenCrm
 }) {
     const [isMaximizedOpen, setIsMaximizedOpen] = React.useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = React.useState(false);
@@ -192,7 +193,7 @@ export default function ChatContactSidebar({
             {/* Botão de Atalho para Kanban de Vendas (CRM) */}
             <button
                 type="button"
-                onClick={() => setIsCrmModalOpen(true)}
+                onClick={onOpenCrm || (() => setIsCrmModalOpen(true))}
                 data-testid="crm-add-deal-button"
                 className="w-full flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-all text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-sm cursor-pointer group"
             >

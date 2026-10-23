@@ -379,6 +379,7 @@ async def handle_external_webhook(
             "raw_status": extracted_data.get("raw_status"),
             "custom_fields": custom_vars,
             "manychat_enabled": getattr(mapping, "manychat_active", False) if mapping else False,
+            "kanban_enabled": getattr(mapping, "kanban_active", False) if mapping else False,
             "private_note_enabled": bool(getattr(mapping, "private_note", None)) if mapping else False,
             "chatwoot_label": getattr(mapping, "chatwoot_label", []) if mapping else [],
             "free_message_enabled": getattr(mapping, "send_as_free_message", False) if mapping else False,

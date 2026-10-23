@@ -22,6 +22,7 @@ import WaitEventNode from './nodes/WaitEventNode';
 import InputDataNode from './nodes/InputDataNode';
 import NewConversationNode from './nodes/NewConversationNode';
 import FolderNode from './nodes/FolderNode';
+import KanbanNode from './nodes/KanbanNode';
 
 const nodeTypes = {
     messageNode: MessageNode,
@@ -47,7 +48,8 @@ const nodeTypes = {
     waitEventNode: WaitEventNode,
     inputDataNode: InputDataNode,
     newConversationNode: NewConversationNode,
-    folderNode: FolderNode
+    folderNode: FolderNode,
+    kanbanNode: KanbanNode
 };
 
 export default nodeTypes;

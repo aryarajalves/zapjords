@@ -11,6 +11,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     full_name = Column(String, nullable=True)
+    phone = Column(String(50), nullable=True, index=True)  # WhatsApp / Telefone do usuário
     role = Column(String, default="user") # super_admin, admin, user
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -24,5 +25,3 @@ class User(Base):
     setup_completed = Column(Boolean, default=True, nullable=False)
     setup_percentage = Column(Integer, default=100, nullable=False)
     pages_status = Column(String, default="{}", nullable=False)
-
-

@@ -277,7 +277,13 @@ def create_webhook_integration(
                     bussola_auto_create_invite=getattr(mapping, 'bussola_auto_create_invite', False),
                     bussola_invite_role=getattr(mapping, 'bussola_invite_role', 'client'),
                     bussola_validity_type=getattr(mapping, 'bussola_validity_type', 'never'),
-                    bussola_custom_api_key=getattr(mapping, 'bussola_custom_api_key', None)
+                    bussola_custom_api_key=getattr(mapping, 'bussola_custom_api_key', None),
+                    kanban_active=getattr(mapping, 'kanban_active', False),
+                    kanban_pipeline_id=getattr(mapping, 'kanban_pipeline_id', None),
+                    kanban_stage_id=getattr(mapping, 'kanban_stage_id', None),
+                    kanban_product_name=getattr(mapping, 'kanban_product_name', None),
+                    kanban_value=getattr(mapping, 'kanban_value', 0.0),
+                    kanban_lost_reason=getattr(mapping, 'kanban_lost_reason', None)
                 )
                 db.add(db_mapping)
 
@@ -458,7 +464,13 @@ def update_webhook_integration(
                     bussola_auto_create_invite=getattr(mapping, 'bussola_auto_create_invite', False),
                     bussola_invite_role=getattr(mapping, 'bussola_invite_role', 'client'),
                     bussola_validity_type=getattr(mapping, 'bussola_validity_type', 'never'),
-                    bussola_custom_api_key=getattr(mapping, 'bussola_custom_api_key', None)
+                    bussola_custom_api_key=getattr(mapping, 'bussola_custom_api_key', None),
+                    kanban_active=getattr(mapping, 'kanban_active', False),
+                    kanban_pipeline_id=getattr(mapping, 'kanban_pipeline_id', None),
+                    kanban_stage_id=getattr(mapping, 'kanban_stage_id', None),
+                    kanban_product_name=getattr(mapping, 'kanban_product_name', None),
+                    kanban_value=getattr(mapping, 'kanban_value', 0.0),
+                    kanban_lost_reason=getattr(mapping, 'kanban_lost_reason', None)
                 )
                 db.add(db_mapping)
 

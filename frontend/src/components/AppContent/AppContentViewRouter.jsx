@@ -10,7 +10,7 @@ import BlockedContacts from '../BlockedContacts';
 import Users from '../../pages/Users';
 import SchedulePage from '../../pages/SchedulePage';
 import TemplateCreator from '../TemplateCreator';
-import Monitoring from '../../pages/Monitoring';
+import Infrastructure from '../../pages/Infrastructure';
 import Integrations from '../../pages/Integrations';
 import WebhookLeads from '../../pages/WebhookLeads';
 import ImportHistoryPage from '../../pages/WebhookLeads/ImportHistoryPage';
@@ -32,7 +32,7 @@ export default function AppContentViewRouter({ logic }) {
   const pagesStatus = logic.user?.pages_status;
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 pt-0">
+    <div className={logic.currentView === 'sales_kanban' ? "p-1 sm:p-2 pt-0 flex-1 flex flex-col min-h-0 h-full overflow-hidden" : "p-3.5 sm:p-6 md:p-8 pt-0"}>
       {logic.currentView === 'blocked' && (
         <PageGuard pageKey="blocked" pagesStatus={pagesStatus}>
           <BlockedContacts />
@@ -53,7 +53,7 @@ export default function AppContentViewRouter({ logic }) {
         </PageGuard>
       )}
 
-      {logic.currentView === 'monitoring' && <Monitoring />}
+      {(logic.currentView === 'monitoring' || logic.currentView === 'infrastructure') && <Infrastructure />}
 
       {logic.currentView === 'integrations' && (
         <PageGuard pageKey="integrations" pagesStatus={pagesStatus}>

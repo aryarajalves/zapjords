@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, selectinload
 
-from models import User, Client, UserInvitation, PasswordResetToken
+from models import User, Client, UserInvitation, PasswordResetToken, ApiKey, user_clients
 from core.security import verify_password, get_password_hash, needs_rehash, create_access_token, limiter, validate_password_strength
 from core.deps import get_current_user, get_db
-from core.permissions import require_super_admin
+from core.permissions import require_super_admin, require_admin
 from core.logger import logger
 from websocket_manager import manager
 from pydantic import BaseModel, Field, field_validator
@@ -26,6 +26,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=12, max_length=128, description="Senha do usuário com no mínimo 12 caracteres")
     role: str = "user"
     full_name: Optional[str] = None
+    phone: Optional[str] = None
     client_ids: Optional[List[int]] = []
     seller_weight: Optional[int] = 1
     blocked_features: Optional[List[str]] = []
@@ -181,7 +182,7 @@ from fastapi import Header
 async def register(
     user: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_super_admin)
+    current_user: User = Depends(require_admin)
 ):
     """
     Cria um novo usuário no sistema. Requer autenticação de Super Admin.
@@ -197,10 +198,12 @@ async def register(
 
         import json
         hashed_password = get_password_hash(user.password)
+        clean_phone = user.phone.strip() if user.phone else None
         new_user = User(
             email=user.email,
             hashed_password=hashed_password,
             full_name=user.full_name,
+            phone=clean_phone,
             role=user.role or "user",
             seller_weight=user.seller_weight if user.seller_weight is not None else 1,
             blocked_features=json.dumps(user.blocked_features or []),
@@ -353,6 +356,7 @@ async def list_users(
             "id": u.id,
             "email": u.email,
             "full_name": u.full_name,
+            "phone": getattr(u, "phone", None),
             "role": u.role,
             "seller_weight": u.seller_weight,
             "is_active": u.is_active,
@@ -362,6 +366,7 @@ async def list_users(
             "setup_completed": getattr(u, "setup_completed", True),
             "setup_percentage": getattr(u, "setup_percentage", 100),
             "pages_status": json.loads(getattr(u, "pages_status", "{}") or "{}"),
+            "created_at": u.created_at.isoformat() if getattr(u, "created_at", None) else None,
         })
     return out
 
@@ -390,7 +395,18 @@ async def delete_user(
             detail="Usuário não encontrado"
         )
 
+    if user_to_delete.role == "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="O Super Administrador não pode ser excluído."
+        )
+
     try:
+        # Limpeza explicita previa de tabelas dependentes
+        db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user_id).delete(synchronize_session=False)
+        db.query(ApiKey).filter(ApiKey.user_id == user_id).delete(synchronize_session=False)
+        db.execute(user_clients.delete().where(user_clients.c.user_id == user_id))
+
         db.delete(user_to_delete)
         db.commit()
 
@@ -407,9 +423,76 @@ async def delete_user(
             detail=f"Erro ao excluir usuário: {str(e)}"
         )
 
+
+class UsersBulkDeleteRequest(BaseModel):
+    user_ids: List[int]
+
+
+@router.post("/users/bulk-delete", summary="Excluir Múltiplos Usuários em Lote")
+async def bulk_delete_users(
+    payload: UsersBulkDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_super_admin)
+):
+    """
+    Exclui múltiplos usuários simultaneamente.
+    Proteção rígida: O Super Administrador e o usuário atual nunca podem ser excluídos.
+    """
+    if not payload.user_ids:
+        raise HTTPException(status_code=400, detail="Nenhum ID de usuário fornecido para exclusão.")
+
+    # Filtra apenas usuários que NÃO são Super Admin e NÃO são o próprio usuário logado
+    users_to_delete = db.query(User).filter(
+        User.id.in_(payload.user_ids),
+        User.role != "super_admin",
+        User.id != current_user.id
+    ).all()
+
+    if not users_to_delete:
+        raise HTTPException(
+            status_code=400,
+            detail="Nenhum usuário elegível para exclusão. O Super Admin não pode ser excluído."
+        )
+
+    deleted_ids = [u.id for u in users_to_delete]
+    deleted_count = len(deleted_ids)
+
+    try:
+        # Limpeza explicita previa de tabelas dependentes para todos os usuarios elegiveis
+        db.query(PasswordResetToken).filter(PasswordResetToken.user_id.in_(deleted_ids)).delete(synchronize_session=False)
+        db.query(ApiKey).filter(ApiKey.user_id.in_(deleted_ids)).delete(synchronize_session=False)
+        db.execute(user_clients.delete().where(user_clients.c.user_id.in_(deleted_ids)))
+
+        for u in users_to_delete:
+            db.delete(u)
+        db.commit()
+
+        # Dispara evento em tempo real para cada usuário removido
+        for u_id in deleted_ids:
+            await manager.broadcast({
+                "event": "user_deleted",
+                "data": {"user_id": u_id}
+            })
+
+        logger.info(f"✅ [USERS BULK DELETE] {deleted_count} usuários excluídos por {current_user.email} (IDs: {deleted_ids})")
+
+        return {
+            "message": f"{deleted_count} usuário(s) excluído(s) com sucesso.",
+            "deleted_count": deleted_count,
+            "deleted_ids": deleted_ids
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ [USERS BULK DELETE ERROR] Erro ao excluir usuários em lote: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao excluir usuários em lote: {str(e)}"
+        )
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
     password: Optional[str] = Field(None, min_length=6, max_length=128, description="Nova senha com no mínimo 6 caracteres")
     role: Optional[str] = None
 
@@ -446,6 +529,9 @@ async def update_user(
 
     if user_in.full_name is not None:
         user.full_name = user_in.full_name
+
+    if user_in.phone is not None:
+        user.phone = user_in.phone.strip() if user_in.phone else None
 
     if user_in.email is not None:
         if user_in.email != user.email:

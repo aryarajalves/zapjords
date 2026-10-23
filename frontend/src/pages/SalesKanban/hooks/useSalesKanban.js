@@ -20,6 +20,14 @@ export function useSalesKanban({ onViewChange }) {
     const [isDealModalOpen, setIsDealModalOpen] = useState(false);
     const [dealToEdit, setDealToEdit] = useState(null);
     const [initialStageForNewDeal, setInitialStageForNewDeal] = useState(null);
+
+    // Modal de Coluna / Estágio
+    const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+    const [stageToEdit, setStageToEdit] = useState(null);
+
+    // Modal de Motivo de Desistência
+    const [lostReasonModal, setLostReasonModal] = useState({ isOpen: false, deal: null, targetStageId: null });
+
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: null, id: null, title: '', message: '' });
 
     const getAuthHeaders = useCallback(() => {
@@ -85,8 +93,39 @@ export function useSalesKanban({ onViewChange }) {
     }, [selectedPipelineId, fetchBoard]);
 
     // Movimentação de Deal (Drag & Drop)
-    const handleMoveDeal = async (dealId, targetStageId) => {
+    const handleMoveDeal = async (dealId, targetStageId, optionalLostReason = null) => {
         if (!boardData) return;
+
+        // Verifica se a etapa de destino é de desistência e se ainda não há motivo fornecido
+        const targetStage = boardData.stages?.find(s => s.id === targetStageId);
+        const isLostStage = targetStage && (
+            targetStage.stage_type === 'lost' ||
+            targetStage.name.toLowerCase().includes('desistencia') ||
+            targetStage.name.toLowerCase().includes('desistência') ||
+            targetStage.name.toLowerCase().includes('perdido')
+        );
+
+        if (isLostStage && optionalLostReason === null) {
+            let foundDeal = null;
+            for (const stg of boardData.stages) {
+                const d = stg.deals?.find(item => item.id === dealId);
+                if (d) {
+                    foundDeal = d;
+                    break;
+                }
+            }
+            if (foundDeal) {
+                setLostReasonModal({
+                    isOpen: true,
+                    deal: foundDeal,
+                    targetStageId
+                });
+                return;
+            }
+        }
+
+        // Fecha modal se estava aberto
+        setLostReasonModal({ isOpen: false, deal: null, targetStageId: null });
 
         // Otimistic update no state local
         setBoardData(prev => {
@@ -95,7 +134,12 @@ export function useSalesKanban({ onViewChange }) {
             const updatedStages = prev.stages.map(stage => {
                 const filtered = stage.deals.filter(d => {
                     if (d.id === dealId) {
-                        movedDeal = { ...d, stage_id: targetStageId };
+                        movedDeal = {
+                            ...d,
+                            stage_id: targetStageId,
+                            lost_reason: optionalLostReason !== null ? optionalLostReason : d.lost_reason,
+                            status: isLostStage ? 'lost' : d.status
+                        };
                         return false;
                     }
                     return true;
@@ -116,13 +160,18 @@ export function useSalesKanban({ onViewChange }) {
         });
 
         try {
+            const bodyPayload = { stage_id: targetStageId };
+            if (optionalLostReason !== null && optionalLostReason !== undefined) {
+                bodyPayload.lost_reason = optionalLostReason;
+            }
+
             const res = await fetch(resolveUrl(`/api/crm/deals/${dealId}/move`), {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ stage_id: targetStageId })
+                body: JSON.stringify(bodyPayload)
             });
             if (!res.ok) throw new Error('Falha ao mover card');
-            const updated = await res.json();
+            await res.json();
             toast.success('Oportunidade atualizada!');
             // Re-sincronizar board com métricas
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
@@ -130,6 +179,16 @@ export function useSalesKanban({ onViewChange }) {
             console.error('Erro ao mover deal:', err);
             toast.error('Erro ao salvar movimentação da oportunidade.');
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
+        }
+    };
+
+    const handleConfirmLostReason = (lostReasonText) => {
+        if (lostReasonModal.deal && lostReasonModal.targetStageId) {
+            handleMoveDeal(
+                lostReasonModal.deal.id,
+                lostReasonModal.targetStageId,
+                lostReasonText || 'Desistência informada'
+            );
         }
     };
 
@@ -214,7 +273,7 @@ export function useSalesKanban({ onViewChange }) {
                 body: JSON.stringify(payload)
             });
             if (!res.ok) throw new Error('Falha ao salvar oportunidade');
-            toast.success(isEditing ? 'Oportunidade atualizada!' : 'Oportunidade criada!');
+            toast.success(isEditing ? 'Oportunidade atualizada!' : 'Oportunidade criada com sucesso!');
             setIsDealModalOpen(false);
             setDealToEdit(null);
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
@@ -241,6 +300,50 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
+    // Salvar / Criar Coluna (Stage)
+    const handleSaveStage = async (payload, stageId = null) => {
+        try {
+            const isEditing = Boolean(stageId);
+            const url = isEditing
+                ? resolveUrl(`/api/crm/stages/${stageId}`)
+                : resolveUrl('/api/crm/stages');
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Falha ao salvar coluna');
+            toast.success(isEditing ? 'Coluna atualizada!' : 'Nova coluna criada com sucesso!');
+            setIsStageModalOpen(false);
+            setStageToEdit(null);
+            if (selectedPipelineId) fetchBoard(selectedPipelineId);
+        } catch (err) {
+            console.error('Erro ao salvar coluna:', err);
+            toast.error('Não foi possível salvar a coluna.');
+        }
+    };
+
+    // Deletar Coluna (Stage)
+    const handleDeleteStage = async (stageId) => {
+        try {
+            const res = await fetch(resolveUrl(`/api/crm/stages/${stageId}`), {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            if (!res.ok) throw new Error('Falha ao excluir coluna');
+            toast.success('Coluna excluída com sucesso.');
+            setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' });
+            setIsStageModalOpen(false);
+            setStageToEdit(null);
+            if (selectedPipelineId) fetchBoard(selectedPipelineId);
+        } catch (err) {
+            console.error('Erro ao excluir coluna:', err);
+            toast.error('Erro ao excluir coluna.');
+        }
+    };
+
     // Ação Rápida: Abrir conversa no Chat com o contato
     const handleOpenChat = (phone) => {
         if (!phone) return;
@@ -262,7 +365,8 @@ export function useSalesKanban({ onViewChange }) {
                 const phone = (deal.contact_phone || '').toLowerCase();
                 const title = (deal.title || '').toLowerCase();
                 const email = (deal.contact_email || '').toLowerCase();
-                return name.includes(term) || phone.includes(term) || title.includes(term) || email.includes(term);
+                const channelStr = (deal.channel || '').toLowerCase();
+                return name.includes(term) || phone.includes(term) || title.includes(term) || email.includes(term) || channelStr.includes(term);
             });
             return {
                 ...stage,
@@ -293,14 +397,23 @@ export function useSalesKanban({ onViewChange }) {
         setDealToEdit,
         initialStageForNewDeal,
         setInitialStageForNewDeal,
+        isStageModalOpen,
+        setIsStageModalOpen,
+        stageToEdit,
+        setStageToEdit,
         deleteModal,
         setDeleteModal,
+        lostReasonModal,
+        setLostReasonModal,
+        handleConfirmLostReason,
         handleMoveDeal,
         handleSyncHistory,
         handleSavePipeline,
         handleDeletePipeline,
         handleSaveDeal,
         handleDeleteDeal,
+        handleSaveStage,
+        handleDeleteStage,
         handleOpenChat,
         fetchBoard
     };

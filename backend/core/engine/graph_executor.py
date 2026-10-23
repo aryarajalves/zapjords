@@ -25,6 +25,7 @@ from .nodes.check_window import handle_check_window_node
 from .nodes.wait_event import handle_wait_event_node
 from .nodes.input_data import handle_input_data_node
 from .nodes.new_conversation import handle_new_conversation_node
+from .nodes.kanban import handle_kanban_node
 
 
 logger = setup_logger("FunnelEngine.GraphExecutor")
@@ -200,6 +201,8 @@ async def execute_graph_funnel(trigger, graph_data, chatwoot, conversation_id, c
                 source_handle = res
             elif node_type in ["newConversationNode", "new_conversation"]:
                 source_handle = await handle_new_conversation_node(db, trigger, node, contact_phone, conversation_id)
+            elif node_type in ["kanbanNode", "kanban_node", "salesKanbanNode"]:
+                source_handle = await handle_kanban_node(db, trigger, node, contact_phone, apply_vars_func)
             elif node_type in ["folderNode", "folder", "groupNode", "group"]:
                 logger.info(f"📁 [GRAPH] Nó {current_node_id} ({node_type}) é organizador visual. Prosseguindo.")
                 source_handle = "default"

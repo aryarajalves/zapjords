@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from core.logger import setup_logger
-from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal
+from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct as CrmProduct
 from models.trigger import WebhookLead
 from models.chat import ChatConversation
 
@@ -347,3 +347,126 @@ def process_tag_applied_for_crm(
             db.add(new_deal)
 
     db.commit()
+
+
+def process_webhook_kanban_trigger(
+    db: Session,
+    client_id: int,
+    mapping: Any,
+    phone: str,
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    platform: Optional[str] = None,
+    payload_value: Optional[float] = 0.0
+) -> Optional[SalesDeal]:
+    """
+    Executa a ação de Kanban de Vendas para um gatilho de webhook configurado.
+    Move o contato para a coluna especificada ou cria uma oportunidade se ela ainda não existir,
+    utilizando o telefone para busca e desduplicação.
+    """
+    if not getattr(mapping, "kanban_active", False):
+        return None
+
+    if not phone:
+        return None
+
+    digits = "".join(filter(str.isdigit, str(phone)))
+    if len(digits) < 8:
+        return None
+
+    stage_id = getattr(mapping, "kanban_stage_id", None)
+    if not stage_id:
+        logger.warning(f"⚠️ [CRM_WEBHOOK] Mapeamento #{getattr(mapping, 'id', None)} possui kanban_active=True mas não tem kanban_stage_id.")
+        return None
+
+    stage = db.query(SalesPipelineStage).filter(
+        SalesPipelineStage.id == stage_id,
+        SalesPipelineStage.client_id == client_id
+    ).first()
+
+    if not stage:
+        logger.warning(f"⚠️ [CRM_WEBHOOK] Estágio {stage_id} não encontrado para client_id {client_id}.")
+        return None
+
+    actual_pipeline_id = stage.pipeline_id
+
+    # Determinar status com base no estágio
+    status = "open"
+    if stage.stage_type == "won":
+        status = "won"
+    elif stage.stage_type == "lost" or "desist" in stage.name.lower() or "perdid" in stage.name.lower():
+        status = "lost"
+
+    # Produto e valor
+    prod_name = getattr(mapping, "kanban_product_name", None)
+    cfg_val = getattr(mapping, "kanban_value", 0.0) or 0.0
+    deal_val = float(cfg_val) if float(cfg_val) > 0.0 else float(payload_value or 0.0)
+
+    # Se produto foi selecionado mas o valor está zerado, tenta obter base_price do catálogo
+    if prod_name and deal_val <= 0.0:
+        catalog_prod = db.query(CrmProduct).filter(
+            CrmProduct.client_id == client_id,
+            func.lower(CrmProduct.name) == prod_name.strip().lower()
+        ).first()
+        if catalog_prod and catalog_prod.price:
+            deal_val = float(catalog_prod.price)
+
+    lost_reason = getattr(mapping, "kanban_lost_reason", None) if status == "lost" else None
+
+    # Buscar deal existente por telefone no pipeline
+    deal = db.query(SalesDeal).filter(
+        SalesDeal.client_id == client_id,
+        SalesDeal.pipeline_id == actual_pipeline_id,
+        or_(
+            SalesDeal.contact_phone == digits,
+            SalesDeal.contact_phone.like(f"%{digits[-8:]}")
+        )
+    ).first()
+
+    clean_name = name.strip() if name and name.strip() else None
+    clean_email = email.strip() if email and email.strip() else None
+
+    if deal:
+        deal.stage_id = stage.id
+        deal.status = status
+        if clean_name:
+            deal.contact_name = clean_name
+        if clean_email:
+            deal.contact_email = clean_email
+        if prod_name:
+            deal.product_name = prod_name
+        if deal_val > 0.0:
+            deal.value = deal_val
+        if status == "lost":
+            if lost_reason:
+                deal.lost_reason = lost_reason
+        else:
+            deal.lost_reason = None
+        deal.last_interaction_at = datetime.now(timezone.utc)
+        deal.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(deal)
+        logger.info(f"✅ [CRM_WEBHOOK] Lead {digits} atualizado/movido para estágio '{stage.name}' no pipeline {actual_pipeline_id}.")
+        return deal
+    else:
+        new_deal = SalesDeal(
+            client_id=client_id,
+            pipeline_id=actual_pipeline_id,
+            stage_id=stage.id,
+            product_name=prod_name,
+            original_value=deal_val,
+            contact_phone=digits,
+            contact_name=clean_name or digits,
+            contact_email=clean_email,
+            title=f"Oportunidade - {clean_name or digits}",
+            channel=platform or "webhook",
+            value=deal_val,
+            status=status,
+            lost_reason=lost_reason if status == "lost" else None,
+            last_interaction_at=datetime.now(timezone.utc)
+        )
+        db.add(new_deal)
+        db.commit()
+        db.refresh(new_deal)
+        logger.info(f"✅ [CRM_WEBHOOK] Novo lead criado no Kanban para {digits} no estágio '{stage.name}' do pipeline {actual_pipeline_id}.")
+        return new_deal

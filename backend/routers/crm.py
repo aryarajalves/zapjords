@@ -7,7 +7,7 @@ from sqlalchemy import func
 from core.deps import get_db
 from core.permissions import require_user, require_premium
 from models.auth import User
-from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal
+from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct
 from schemas_domain import crm as schemas_crm
 from services import crm_service
 from core.logger import setup_logger
@@ -287,6 +287,11 @@ def get_pipeline_board(
             "total_value": stage_total_val
         })
 
+    board_conversion_rate = round((board_won_deals / board_total_deals) * 100, 2) if board_total_deals > 0 else 0.0
+
+    for stg in stages_data:
+        stg["percentage"] = round((stg["total_deals"] / board_total_deals) * 100, 1) if board_total_deals > 0 else 0.0
+
     pipe_response = {
         "id": pipe.id,
         "client_id": pipe.client_id,
@@ -309,7 +314,8 @@ def get_pipeline_board(
         "total_deals": board_total_deals,
         "total_value": board_total_val,
         "total_won_value": board_won_val,
-        "total_won_deals": board_won_deals
+        "total_won_deals": board_won_deals,
+        "conversion_rate": board_conversion_rate
     }
 
 
@@ -335,7 +341,7 @@ def create_stage(
     payload: schemas_crm.SalesPipelineStageCreate,
     client_id: int = Depends(get_client_id),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_premium)
+    current_user: User = Depends(require_user)
 ):
     pipe = db.query(SalesPipeline).filter(
         SalesPipeline.id == payload.pipeline_id,
@@ -369,7 +375,7 @@ def update_stage(
     payload: schemas_crm.SalesPipelineStageUpdate,
     client_id: int = Depends(get_client_id),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_premium)
+    current_user: User = Depends(require_user)
 ):
     stg = db.query(SalesPipelineStage).filter(
         SalesPipelineStage.id == stage_id,
@@ -399,7 +405,7 @@ def delete_stage(
     stage_id: int,
     client_id: int = Depends(get_client_id),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_premium)
+    current_user: User = Depends(require_user)
 ):
     stg = db.query(SalesPipelineStage).filter(
         SalesPipelineStage.id == stage_id,
@@ -445,24 +451,56 @@ def create_deal(
     if not stg:
         raise HTTPException(status_code=404, detail="Estágio não encontrado")
 
+    # Produto de interesse / Catálogo
+    product_obj = None
+    if payload.product_id:
+        product_obj = db.query(CRMProduct).filter(
+            CRMProduct.id == payload.product_id,
+            CRMProduct.client_id == client_id
+        ).first()
+
+    prod_name = payload.product_name or (product_obj.name if product_obj else None)
+    orig_val = float(payload.original_value or 0.0)
+    if orig_val <= 0.0 and product_obj:
+        orig_val = float(product_obj.price or 0.0)
+
     val = float(payload.value or 0.0)
     if val <= 0.0:
-        pipe = db.query(SalesPipeline).filter(
-            SalesPipeline.id == payload.pipeline_id,
-            SalesPipeline.client_id == client_id
-        ).first()
-        if pipe and pipe.default_value and pipe.default_value > 0.0:
-            val = float(pipe.default_value)
+        if orig_val > 0.0:
+            val = orig_val
+        else:
+            pipe = db.query(SalesPipeline).filter(
+                SalesPipeline.id == payload.pipeline_id,
+                SalesPipeline.client_id == client_id
+            ).first()
+            if pipe and pipe.default_value and pipe.default_value > 0.0:
+                val = float(pipe.default_value)
+                if orig_val <= 0.0:
+                    orig_val = val
+
+    # Canal de origem do lead / oportunidade
+    deal_channel = payload.channel.strip() if payload.channel else None
+    if not deal_channel and payload.lead_id:
+        from models.trigger import WebhookLead
+        lead = db.query(WebhookLead).filter(WebhookLead.id == payload.lead_id).first()
+        if lead and lead.platform:
+            deal_channel = lead.platform
+    if not deal_channel:
+        deal_channel = "whatsapp"
 
     deal = SalesDeal(
         client_id=client_id,
         pipeline_id=payload.pipeline_id,
         stage_id=payload.stage_id,
         lead_id=payload.lead_id,
+        product_id=product_obj.id if product_obj else payload.product_id,
+        product_name=prod_name,
+        original_value=orig_val,
         contact_phone=digits,
         contact_name=payload.contact_name or "Sem Nome",
         contact_email=payload.contact_email,
         title=payload.title or f"Oportunidade - {payload.contact_name or digits}",
+        channel=deal_channel,
         value=val,
         status=payload.status or "open",
         lost_reason=payload.lost_reason,
@@ -505,6 +543,9 @@ def move_deal(
     else:
         deal.status = "open"
 
+    if payload.lost_reason is not None:
+        deal.lost_reason = payload.lost_reason.strip() if payload.lost_reason else None
+
     deal.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(deal)
@@ -532,6 +573,12 @@ def update_deal(
         deal.contact_email = payload.contact_email
     if payload.title is not None:
         deal.title = payload.title
+    if payload.product_id is not None:
+        deal.product_id = payload.product_id if payload.product_id > 0 else None
+    if payload.product_name is not None:
+        deal.product_name = payload.product_name.strip() if payload.product_name else None
+    if payload.original_value is not None:
+        deal.original_value = float(payload.original_value)
     if payload.value is not None:
         deal.value = float(payload.value)
     if payload.status is not None:
@@ -540,6 +587,8 @@ def update_deal(
         deal.lost_reason = payload.lost_reason
     if payload.notes is not None:
         deal.notes = payload.notes
+    if payload.channel is not None:
+        deal.channel = payload.channel.strip() if payload.channel else None
     if payload.stage_id is not None:
         deal.stage_id = payload.stage_id
 
@@ -547,6 +596,132 @@ def update_deal(
     db.commit()
     db.refresh(deal)
     return deal
+
+
+@router.get("/deals/by-phone/{phone}", response_model=Optional[schemas_crm.SalesDealResponse])
+def get_deal_by_phone(
+    phone: str,
+    pipeline_id: Optional[int] = None,
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    digits = "".join(filter(str.isdigit, phone))
+    if len(digits) < 8:
+        return None
+
+    query = db.query(SalesDeal).filter(
+        SalesDeal.client_id == client_id,
+        SalesDeal.contact_phone.like(f"%{digits[-8:]}")
+    )
+    if pipeline_id:
+        query = query.filter(SalesDeal.pipeline_id == pipeline_id)
+
+    deal = query.order_by(SalesDeal.updated_at.desc(), SalesDeal.id.desc()).first()
+    return deal
+
+
+@router.post("/deals/move-contact", response_model=schemas_crm.SalesDealResponse)
+def move_or_upsert_contact_deal(
+    payload: schemas_crm.SalesDealContactMovePayload,
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    digits = "".join(filter(str.isdigit, str(payload.contact_phone)))
+    if len(digits) < 8:
+        raise HTTPException(status_code=400, detail="Número de telefone inválido")
+
+    stage = db.query(SalesPipelineStage).filter(
+        SalesPipelineStage.id == payload.stage_id,
+        SalesPipelineStage.client_id == client_id
+    ).first()
+    if not stage:
+        raise HTTPException(status_code=404, detail="Estágio de destino não encontrado")
+
+    pipeline_id = stage.pipeline_id
+
+    # Determinar status
+    status = "open"
+    if stage.stage_type == "won":
+        status = "won"
+    elif stage.stage_type == "lost" or "desist" in stage.name.lower():
+        status = "lost"
+
+    # Produto
+    product_obj = None
+    if payload.product_id:
+        product_obj = db.query(CRMProduct).filter(
+            CRMProduct.id == payload.product_id,
+            CRMProduct.client_id == client_id
+        ).first()
+
+    prod_name = payload.product_name or (product_obj.name if product_obj else None)
+    val = float(payload.value or 0.0)
+    orig_val = 0.0
+    if product_obj and product_obj.price:
+        orig_val = float(product_obj.price)
+    if val <= 0.0 and orig_val > 0.0:
+        val = orig_val
+
+    # Buscar deal existente para este contato no pipeline
+    deal = db.query(SalesDeal).filter(
+        SalesDeal.client_id == client_id,
+        SalesDeal.pipeline_id == pipeline_id,
+        SalesDeal.contact_phone.like(f"%{digits[-8:]}")
+    ).first()
+
+    if deal:
+        deal.stage_id = stage.id
+        deal.status = status
+        if payload.contact_name:
+            deal.contact_name = payload.contact_name.strip()
+        if payload.contact_email:
+            deal.contact_email = payload.contact_email.strip()
+        if prod_name:
+            deal.product_name = prod_name
+        if product_obj:
+            deal.product_id = product_obj.id
+        if orig_val > 0.0:
+            deal.original_value = orig_val
+        if val > 0.0:
+            deal.value = val
+        if status == "lost":
+            deal.lost_reason = payload.lost_reason.strip() if payload.lost_reason else None
+        else:
+            deal.lost_reason = None
+        if payload.notes:
+            deal.notes = payload.notes.strip()
+        deal.last_interaction_at = datetime.now(timezone.utc)
+        deal.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(deal)
+        logger.info(f"✅ [CRM] Lead {digits} movido para estágio '{stage.name}' no pipeline {pipeline_id}.")
+        return deal
+    else:
+        new_deal = SalesDeal(
+            client_id=client_id,
+            pipeline_id=pipeline_id,
+            stage_id=stage.id,
+            product_id=product_obj.id if product_obj else payload.product_id,
+            product_name=prod_name,
+            original_value=orig_val,
+            contact_phone=digits,
+            contact_name=payload.contact_name or "Sem Nome",
+            contact_email=payload.contact_email,
+            title=f"Oportunidade - {payload.contact_name or digits}",
+            channel="whatsapp",
+            value=val,
+            status=status,
+            lost_reason=payload.lost_reason if status == "lost" else None,
+            notes=payload.notes,
+            last_interaction_at=datetime.now(timezone.utc)
+        )
+        db.add(new_deal)
+        db.commit()
+        db.refresh(new_deal)
+        logger.info(f"✅ [CRM] Nova oportunidade criada para {digits} no estágio '{stage.name}' do pipeline {pipeline_id}.")
+        return new_deal
 
 
 @router.delete("/deals/{deal_id}")

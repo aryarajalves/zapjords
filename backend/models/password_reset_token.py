@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, ForeignKey, String, Boolean, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from database import Base
 
@@ -15,5 +15,5 @@ class PasswordResetToken(Base):
     created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relações
-    user = relationship("User", foreign_keys=[user_id], backref="reset_tokens")
+    user = relationship("User", foreign_keys=[user_id], backref=backref("reset_tokens", cascade="all, delete-orphan", passive_deletes=True))
     created_by = relationship("User", foreign_keys=[created_by_id])

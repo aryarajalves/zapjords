@@ -2,6 +2,32 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
+# --- PRODUTOS DO CRM (CATÁLOGO) ---
+
+class CRMProductBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: Optional[float] = 0.0
+    is_active: Optional[bool] = True
+
+class CRMProductCreate(CRMProductBase):
+    pass
+
+class CRMProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    is_active: Optional[bool] = None
+
+class CRMProductResponse(CRMProductBase):
+    id: int
+    client_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- ESTÁGIOS (STAGES) ---
 
 class SalesPipelineStageBase(BaseModel):
@@ -38,7 +64,11 @@ class SalesDealBase(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     title: Optional[str] = None
-    value: Optional[float] = 0.0
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    channel: Optional[str] = None  # Canal de origem (ex: kiwify, hotmart, whatsapp, instagram, etc.)
+    original_value: Optional[float] = 0.0  # Preço de tabela / valor padrão do produto
+    value: Optional[float] = 0.0  # Valor real / negociado da venda
     status: Optional[str] = "open"  # open, won, lost
     lost_reason: Optional[str] = None
     notes: Optional[str] = None
@@ -52,6 +82,10 @@ class SalesDealUpdate(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     title: Optional[str] = None
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    channel: Optional[str] = None
+    original_value: Optional[float] = None
     value: Optional[float] = None
     status: Optional[str] = None
     lost_reason: Optional[str] = None
@@ -61,6 +95,19 @@ class SalesDealUpdate(BaseModel):
 class SalesDealMove(BaseModel):
     stage_id: int
     order_index: Optional[int] = None
+    lost_reason: Optional[str] = None
+
+class SalesDealContactMovePayload(BaseModel):
+    pipeline_id: int
+    stage_id: int
+    contact_phone: str
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    value: Optional[float] = None
+    lost_reason: Optional[str] = None
+    notes: Optional[str] = None
 
 class SalesDealResponse(SalesDealBase):
     id: int
@@ -112,6 +159,7 @@ class StageWithDealsResponse(SalesPipelineStageResponse):
     deals: List[SalesDealResponse] = []
     total_deals: int = 0
     total_value: float = 0.0
+    percentage: Optional[float] = 0.0
 
 class SalesPipelineBoardResponse(BaseModel):
     pipeline: SalesPipelineResponse
@@ -120,6 +168,7 @@ class SalesPipelineBoardResponse(BaseModel):
     total_value: float = 0.0
     total_won_value: float = 0.0
     total_won_deals: int = 0
+    conversion_rate: Optional[float] = 0.0
 
 class CrmSyncHistoryResult(BaseModel):
     total_synced: int

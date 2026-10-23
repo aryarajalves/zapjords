@@ -65,6 +65,14 @@ class WebhookEventMappingBase(BaseModel):
     bussola_validity_type: Optional[str] = Field("never", description="Tipo de validade do convite (never, 24h, 48h, 72h)")
     bussola_custom_api_key: Optional[str] = Field(None, description="API Key opcional da Bússola para este gatilho")
     
+    # Mover / Criar Contato no Kanban de Vendas (CRM)
+    kanban_active: Optional[bool] = Field(False, description="Ativar mover ou criar lead no Kanban de Vendas")
+    kanban_pipeline_id: Optional[int] = Field(None, description="ID do Pipeline de Vendas")
+    kanban_stage_id: Optional[int] = Field(None, description="ID do Estágio de destino")
+    kanban_product_name: Optional[str] = Field(None, description="Nome do produto oficial")
+    kanban_value: Optional[float] = Field(0.0, description="Valor estimado ou negociado em R$")
+    kanban_lost_reason: Optional[str] = Field(None, description="Motivo da desistência caso o estágio seja de perda")
+    
     is_active: Optional[bool] = Field(True, description="Indica se o mapeamento está ativo")
 
     @field_validator('button_actions', mode='before')

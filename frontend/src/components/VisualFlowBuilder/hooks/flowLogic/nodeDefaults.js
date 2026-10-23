@@ -87,6 +87,13 @@ export const createNodeDefaultData = (type, callbacks = {}) => {
         defaultData.title = 'Nova Pasta / Seção';
         defaultData.description = '';
         defaultData.color = 'purple';
+    } else if (type === 'kanbanNode') {
+        defaultData.pipeline_id = '';
+        defaultData.stage_id = '';
+        defaultData.product_id = '';
+        defaultData.product_name = '';
+        defaultData.deal_value = '';
+        defaultData.lost_reason = '';
     }
 
     return defaultData;

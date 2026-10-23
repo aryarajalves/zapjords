@@ -1,183 +1,54 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiX, FiDollarSign, FiLayers, FiCheckCircle } from 'react-icons/fi';
+import React from 'react';
+import { FiX, FiDollarSign, FiAlertCircle } from 'react-icons/fi';
 import { BsTrello } from 'react-icons/bs';
-import { toast } from 'react-hot-toast';
-import { resolveUrl } from '../../../config';
-import { useClient } from '../../../contexts/ClientContext';
+import { useChatCrmDeal } from './hooks/useChatCrmDeal';
 
 export default function AddChatToCrmModal({ isOpen, onClose, selectedConvo }) {
-    const { activeClient } = useClient();
-    const clientId = activeClient?.id;
-
-    const [pipelines, setPipelines] = useState([]);
-    const [selectedPipelineId, setSelectedPipelineId] = useState('');
-    const [stages, setStages] = useState([]);
-    const [selectedStageId, setSelectedStageId] = useState('');
-    const [contactName, setContactName] = useState('');
-    const [contactPhone, setContactPhone] = useState('');
-    const [contactEmail, setContactEmail] = useState('');
-    const [title, setTitle] = useState('');
-    const [value, setValue] = useState('0.00');
-    const [notes, setNotes] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-
-    const getAuthHeaders = useCallback(() => {
-        const token = localStorage.getItem('token');
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : '',
-            'X-Client-ID': clientId ? String(clientId) : ''
-        };
-    }, [clientId]);
-
-    // Buscar lista de pipelines quando o modal abrir
-    useEffect(() => {
-        if (!isOpen || !clientId) return;
-
-        const loadPipelines = async () => {
-            setIsLoading(true);
-            try {
-                const res = await fetch(resolveUrl('/api/crm/pipelines'), {
-                    headers: getAuthHeaders()
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setPipelines(data);
-                    if (data.length > 0) {
-                        const defaultPipe = data.find(p => p.is_default) || data[0];
-                        setSelectedPipelineId(String(defaultPipe.id));
-                    }
-                } else {
-                    toast.error('Erro ao carregar pipelines do CRM');
-                }
-            } catch (err) {
-                console.error('Erro ao carregar pipelines:', err);
-                toast.error('Erro de conexão ao carregar CRM');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadPipelines();
-    }, [isOpen, clientId, getAuthHeaders]);
-
-    // Buscar estágios quando o pipeline for selecionado
-    useEffect(() => {
-        if (!selectedPipelineId || !clientId) {
-            setStages([]);
-            setSelectedStageId('');
-            return;
-        }
-
-        const loadStages = async () => {
-            try {
-                const res = await fetch(resolveUrl(`/api/crm/stages?pipeline_id=${selectedPipelineId}`), {
-                    headers: getAuthHeaders()
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setStages(data);
-                    if (data.length > 0) {
-                        setSelectedStageId(String(data[0].id));
-                    }
-                }
-            } catch (err) {
-                console.error('Erro ao carregar estágios:', err);
-            }
-        };
-
-        loadStages();
-    }, [selectedPipelineId, clientId, getAuthHeaders]);
-
-    // Preencher valor padrão do produto ao selecionar o pipeline
-    useEffect(() => {
-        if (!selectedPipelineId || pipelines.length === 0) return;
-        const currentPipe = pipelines.find(p => String(p.id) === String(selectedPipelineId));
-        if (currentPipe && currentPipe.default_value && Number(currentPipe.default_value) > 0) {
-            setValue(String(currentPipe.default_value));
-        }
-    }, [selectedPipelineId, pipelines]);
-
-    // Preencher dados do contato
-    useEffect(() => {
-        if (selectedConvo && isOpen) {
-            const name = selectedConvo.contact_name || '';
-            const phone = selectedConvo.phone || '';
-            setContactName(name);
-            setContactPhone(phone);
-            setContactEmail(selectedConvo.email || '');
-            setTitle(name ? `Negócio: ${name}` : `Lead: ${phone}`);
-            setValue('0.00');
-            setNotes('');
-        }
-    }, [selectedConvo, isOpen]);
+    const {
+        pipelines,
+        selectedPipelineId,
+        setSelectedPipelineId,
+        stages,
+        selectedStageId,
+        setSelectedStageId,
+        products,
+        selectedProductId,
+        handleProductChange,
+        contactName,
+        setContactName,
+        contactPhone,
+        value,
+        setValue,
+        lostReason,
+        setLostReason,
+        notes,
+        setNotes,
+        existingDeal,
+        currentStageName,
+        isTargetLost,
+        targetStageName,
+        isLoading,
+        isSaving,
+        handleSave
+    } = useChatCrmDeal({ isOpen, selectedConvo, onClose });
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const digits = contactPhone.replace(/\D/g, '');
-        if (digits.length < 8) {
-            toast.error('Número de telefone inválido');
-            return;
-        }
-        if (!selectedPipelineId || !selectedStageId) {
-            toast.error('Selecione um pipeline e uma coluna');
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            const numVal = parseFloat(value.replace(',', '.')) || 0.0;
-            const payload = {
-                pipeline_id: Number(selectedPipelineId),
-                stage_id: Number(selectedStageId),
-                contact_phone: digits,
-                contact_name: contactName.trim() || 'Sem Nome',
-                contact_email: contactEmail.trim() || null,
-                title: title.trim() || `Negócio com ${contactName || digits}`,
-                value: numVal,
-                notes: notes.trim() || null,
-                status: 'open'
-            };
-
-            const res = await fetch(resolveUrl('/api/crm/deals'), {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                toast.success('Contato adicionado ao Kanban de Vendas!');
-                onClose();
-            } else {
-                const errData = await res.json().catch(() => ({}));
-                toast.error(errData.detail || 'Erro ao adicionar oportunidade');
-            }
-        } catch (err) {
-            console.error('Erro ao salvar no CRM:', err);
-            toast.error('Erro de conexão ao salvar');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
                 {/* Cabeçalho */}
-                <div className="p-5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-gray-50/50 dark:bg-white/[0.02]">
+                <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-gray-50/50 dark:bg-white/[0.02]">
                     <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-xl bg-blue-600/10 text-blue-500 border border-blue-500/20">
                             <BsTrello size={18} />
                         </div>
                         <div>
                             <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                                Adicionar ao Kanban de Vendas
+                                {existingDeal ? 'Mover Etapa no Kanban' : 'Adicionar ao Kanban de Vendas'}
                             </h3>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Crie uma oportunidade de venda para este contato
+                                {selectedConvo?.contact_name || contactPhone}
                             </p>
                         </div>
                     </div>
@@ -190,19 +61,34 @@ export default function AddChatToCrmModal({ isOpen, onClose, selectedConvo }) {
                     </button>
                 </div>
 
+                {/* Banner de Etapa Atual */}
+                {existingDeal && currentStageName && (
+                    <div className="px-5 py-2.5 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-xs text-blue-600 dark:text-blue-400">
+                        <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-500 dark:text-gray-400">Etapa Atual:</span>
+                            <span className="px-2 py-0.5 rounded-md font-bold bg-blue-500/20 border border-blue-500/30">
+                                {currentStageName}
+                            </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-blue-500">
+                            ➔ Sugerida: {targetStageName}
+                        </span>
+                    </div>
+                )}
+
                 {/* Formulário */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+                <form onSubmit={handleSave} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
                     {isLoading ? (
                         <div className="py-8 text-center text-sm text-gray-500">
-                            Carregando funis de venda...
+                            Carregando dados do CRM...
                         </div>
                     ) : (
                         <>
-                            {/* Pipeline / Funil */}
+                            {/* Pipeline e Coluna de Destino */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                        Funil / Produto *
+                                        Pipeline de Vendas *
                                     </label>
                                     <select
                                         value={selectedPipelineId}
@@ -212,56 +98,48 @@ export default function AddChatToCrmModal({ isOpen, onClose, selectedConvo }) {
                                     >
                                         {pipelines.map(p => (
                                             <option key={p.id} value={p.id}>
-                                                {p.name} {p.product_name ? `(${p.product_name})` : ''}
+                                                {p.name}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                        Coluna / Etapa *
+                                        Coluna de Destino *
                                     </label>
                                     <select
                                         value={selectedStageId}
                                         onChange={(e) => setSelectedStageId(e.target.value)}
-                                        className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 font-medium"
                                         required
                                     >
                                         {stages.map(s => (
                                             <option key={s.id} value={s.id}>
-                                                {s.name}
+                                                {s.name} {s.stage_type === 'won' ? '🏆 (Ganho)' : s.stage_type === 'lost' ? '❌ (Perdido)' : ''}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
                             </div>
 
-                            {/* Título do Card */}
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Título da Oportunidade
-                                </label>
-                                <input
-                                    type="text"
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="Ex: Lead WhatsApp: Nome do Cliente"
-                                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                />
-                            </div>
-
-                            {/* Contato & Valor */}
+                            {/* Produto e Valor */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                        Nome do Contato
+                                        Produto (Catálogo)
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={contactName}
-                                        onChange={(e) => setContactName(e.target.value)}
+                                    <select
+                                        value={selectedProductId}
+                                        onChange={(e) => handleProductChange(e.target.value)}
                                         className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                    />
+                                    >
+                                        <option value="">Nenhum produto</option>
+                                        {products.map(prod => (
+                                            <option key={prod.id} value={prod.id}>
+                                                {prod.name} (R$ {Number(prod.price || 0).toFixed(2)})
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
@@ -276,22 +154,40 @@ export default function AddChatToCrmModal({ isOpen, onClose, selectedConvo }) {
                                             value={value}
                                             onChange={(e) => setValue(e.target.value)}
                                             placeholder="0.00"
-                                            className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                            className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 font-mono"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Notas / Observação */}
+                            {/* Campo Condicional: Motivo da Desistência */}
+                            {isTargetLost && (
+                                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 space-y-1.5 animate-in fade-in duration-200">
+                                    <label className="flex items-center gap-1.5 text-xs font-bold text-red-500">
+                                        <FiAlertCircle size={14} />
+                                        Motivo da Desistência *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={lostReason}
+                                        onChange={(e) => setLostReason(e.target.value)}
+                                        placeholder="Ex: Preço alto, optou por concorrente, sem tempo..."
+                                        className="w-full px-3 py-2 text-xs rounded-lg border border-red-500/30 bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                                        required={isTargetLost}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Notas da Oportunidade */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Notas da Negociação
+                                    Notas da Oportunidade
                                 </label>
                                 <textarea
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
-                                    rows={3}
-                                    placeholder="Detalhes, objeções, interesse do lead..."
+                                    rows={2}
+                                    placeholder="Anotações internas sobre a conversa..."
                                     className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
                                 />
                             </div>
@@ -310,9 +206,9 @@ export default function AddChatToCrmModal({ isOpen, onClose, selectedConvo }) {
                         <button
                             type="submit"
                             disabled={isSaving || isLoading}
-                            className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer"
+                            className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer font-medium"
                         >
-                            {isSaving ? 'Salvando...' : 'Adicionar ao Funil'}
+                            {isSaving ? 'Salvando...' : existingDeal ? `Mover para "${targetStageName}"` : 'Adicionar ao Kanban'}
                         </button>
                     </div>
                 </form>

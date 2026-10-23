@@ -258,9 +258,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
     """
-    Valida os requisitos de segurança da senha:
+    Valida os requisitos rígidos de segurança da senha:
       - Mínimo de 12 caracteres e máximo de 128 caracteres.
-      - Deve conter pelo menos uma letra (maiúscula ou minúscula).
+      - Deve conter pelo menos uma letra minúscula.
+      - Deve conter pelo menos uma letra maiúscula.
       - Deve conter pelo menos um número.
       - Deve conter pelo menos um caractere especial.
     Retorna (True, "") se válida ou (False, mensagem_erro) se inválida.
@@ -270,10 +271,12 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "A senha deve ter no mínimo 12 caracteres."
     if len(password) > 128:
         return False, "A senha não pode ultrapassar 128 caracteres."
-    if not re.search(r'[A-Za-z]', password):
-        return False, "A senha deve conter pelo menos uma letra."
+    if not re.search(r'[a-z]', password):
+        return False, "A senha deve conter pelo menos uma letra minúscula (a-z)."
+    if not re.search(r'[A-Z]', password):
+        return False, "A senha deve conter pelo menos uma letra maiúscula (A-Z)."
     if not re.search(r'\d', password):
-        return False, "A senha deve conter pelo menos um número."
+        return False, "A senha deve conter pelo menos um número (0-9)."
     if not re.search(r'[^A-Za-z0-9]', password):
         return False, "A senha deve conter pelo menos um caractere especial (ex: @, #, $, %, !)."
     return True, ""

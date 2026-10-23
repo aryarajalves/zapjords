@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
     FiMessageSquare, FiImage, FiMic, FiClock, FiCpu, 
     FiShuffle, FiLink, FiTag, FiUser, FiCalendar, 
-    FiGlobe, FiGift, FiTarget, FiSearch, FiSliders, FiZap, FiFileText, FiDatabase, FiGitBranch, FiFolder
+    FiGlobe, FiGift, FiTarget, FiSearch, FiSliders, FiZap, FiFileText, FiDatabase, FiGitBranch, FiFolder, FiTrello
 } from 'react-icons/fi';
 import { useAuth } from '../../../AuthContext';
 
@@ -180,6 +180,15 @@ const ContextMenu = ({ top, left, onClose, onAddNode }) => {
             colorClass: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-500 group-hover:bg-indigo-200',
             hoverBg: 'hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600',
             keywords: ['acoes de crm', 'crm', 'chatwoot', 'manychat', 'etiqueta', 'tag', 'nota privada', 'responsavel', 'atribuir']
+        },
+        {
+            type: 'kanbanNode',
+            label: 'Kanban de Vendas',
+            category: 'Integrações',
+            icon: FiTrello,
+            colorClass: 'bg-blue-100 dark:bg-blue-900/50 text-blue-500 group-hover:bg-blue-200',
+            hoverBg: 'hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600',
+            keywords: ['kanban de vendas', 'kanban', 'crm', 'etapa', 'coluna', 'funil de vendas', 'lead', 'prospect', 'venda', 'desistencia', 'oportunidade', 'mover']
         },
         {
             type: 'hotLeadsNode',

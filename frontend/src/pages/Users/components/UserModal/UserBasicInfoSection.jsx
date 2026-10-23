@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { FiLink, FiCopy, FiCheck } from 'react-icons/fi';
 
 const UserBasicInfoSection = ({
@@ -45,6 +45,21 @@ const UserBasicInfoSection = ({
             onChange={(e) => setUserData({ ...userData, email: e.target.value })}
             className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
             placeholder="exemplo@email.com"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">
+            WhatsApp / Telefone
+          </label>
+          <input
+            type="text"
+            name="new-user-phone"
+            autoComplete="off"
+            value={userData.phone || ''}
+            onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
+            className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white outline-none transition-all font-mono text-sm"
+            placeholder="Ex: 5511999998888"
           />
         </div>
 

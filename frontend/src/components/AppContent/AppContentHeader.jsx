@@ -5,6 +5,10 @@ import GuideButton from './GuideButton';
 import { SIMULATE_MESSAGING, VIEW_TITLES } from './constants';
 
 export default function AppContentHeader({ logic }) {
+  if (logic.currentView === 'sales_kanban') {
+    return null;
+  }
+
   const currentTitle = VIEW_TITLES[logic.currentView];
 
   return (

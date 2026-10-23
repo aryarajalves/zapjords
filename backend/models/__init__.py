@@ -38,7 +38,8 @@ from .quick_message import QuickMessage
 from .dispatch_log import DispatchLog
 from .verification_code import EmailVerificationCode
 from .password_reset_token import PasswordResetToken
-from .crm import SalesPipeline, SalesPipelineStage, SalesDeal
+from .crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct
+from .infrastructure import InfrastructureAlertConfig, InfrastructurePeakLog
 
 # This allows importing all models from the models package
 __all__ = [
@@ -48,6 +49,9 @@ __all__ = [
     "SalesPipeline",
     "SalesPipelineStage",
     "SalesDeal",
+    "CRMProduct",
+    "InfrastructureAlertConfig",
+    "InfrastructurePeakLog",
     "EmailVerificationCode",
     "PasswordResetToken",
     "Project",

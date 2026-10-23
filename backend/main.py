@@ -74,7 +74,9 @@ from routers import (
     quick_messages,   # Respostas e mensagens rápidas
     checkout_presell, # Páginas de pré-venda e checkout
     capture_page,     # Páginas de captura de leads
-    crm               # Kanban de Vendas e CRM Multi-Produto
+    crm,              # Kanban de Vendas e CRM Multi-Produto
+    crm_products,     # Catálogo de Produtos do CRM
+    infrastructure    # Infraestrutura & Recursos do Servidor
 )
 
 # Webhooks de entrada (sistemas externos, gestão de eventos)
@@ -335,6 +337,8 @@ app.include_router(leads_public_router, prefix="/api", tags=["Leads Public API"]
 app.include_router(checkout_presell.router)
 app.include_router(capture_page.router, prefix="/api")
 app.include_router(crm.router, prefix="/api")
+app.include_router(crm_products.router, prefix="/api")
+app.include_router(infrastructure.router, prefix="/api")
 
 # --- Fim dos Webhooks ---
 
@@ -519,4 +523,4 @@ async def serve_env_config():
 # Rota coringa do SPA (deve rodar APÓS todas as outras rotas)
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
-    return serve_spa_catchall_response(full_path)
+    return serve_spa_catchall_response(full_path)

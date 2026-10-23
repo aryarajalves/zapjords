@@ -14,6 +14,7 @@ import PrivateNoteMaximizedModal from '../Modals/PrivateNoteMaximizedModal';
 import DeletePrivateNoteConfirmModal from '../Modals/DeletePrivateNoteConfirmModal';
 import ClearChatConfirmModal from '../Modals/ClearChatConfirmModal';
 import ExportConversationModal from '../Modals/ExportConversationModal';
+import AddChatToCrmModal from '../Modals/AddChatToCrmModal';
 
 export default function ChatModals({
     engine,
@@ -36,7 +37,9 @@ export default function ChatModals({
     excludedConvoIds = [],
     setExcludedConvoIds,
     exportModal,
-    setExportModal
+    setExportModal,
+    isCrmModalOpen,
+    setIsCrmModalOpen
 }) {
     const effectiveSelectedCount = selectAllPages
         ? Math.max(0, engine.totalConvos - (excludedConvoIds?.length || 0))
@@ -280,6 +283,12 @@ export default function ChatModals({
                 fileName={exportModal?.fileName}
                 errorMessage={exportModal?.errorMessage}
                 onClose={() => setExportModal(prev => ({ ...prev, isOpen: false }))}
+            />
+
+            <AddChatToCrmModal
+                isOpen={isCrmModalOpen}
+                onClose={() => setIsCrmModalOpen && setIsCrmModalOpen(false)}
+                selectedConvo={selectedConvo}
             />
         </>
     );

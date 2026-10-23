@@ -5,6 +5,6 @@ from database import Base
 user_clients = Table(
     "user_clients",
     Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
-    Column("client_id", Integer, ForeignKey("clients.id"), primary_key=True)
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("client_id", Integer, ForeignKey("clients.id", ondelete="CASCADE"), primary_key=True)
 )

@@ -63,8 +63,8 @@ pytz                          # Suporte a fusos horários
 pandas                   # Manipulação de dados em tabelas (usado para gerar relatórios/exportações)
 openpyxl                 # Leitura e escrita de arquivos Excel (.xlsx)
 reportlab==4.2.2         # Geração e diagramação de PDFs para leitura astrológica (Bússola Quiz)
-pypdf==6.19.0            # Extração de texto de documentos PDF para Webhook de Memória da IA
-Pillow==12.3.0           # Processamento e geração da Capa Visual 1200x630 (Bússola Quiz - Imagem)
+pypdf==6.21.1            # Extração de texto de documentos PDF para Webhook de Memória da IA
+Pillow==13.0.0           # Processamento e geração da Capa Visual 1200x630 (Bússola Quiz - Imagem)
 
 # === MONITORAMENTO DO SISTEMA ===
 psutil==5.9.8            # Coleta métricas do sistema (CPU, memória, disco) — usado no monitor do WebSocket
@@ -73,7 +73,7 @@ psutil==5.9.8            # Coleta métricas do sistema (CPU, memória, disco) �
 annotated-doc==0.0.4     # Suporte a tipos anotados
 annotated-types==0.7.0   # Tipos extras para anotações Python
 anyio==4.14.2            # Compatibilidade entre asyncio e trio (base do FastAPI assíncrono) - Corrigido contra CVE-2026-63374 e CVE-2026-64847
-certifi==2026.1.4        # Certificados SSL atualizados para conexões HTTPS
+certifi==2026.10.19        # Certificados SSL atualizados para conexões HTTPS
 click==8.4.2             # Criação de comandos CLI (dependência do uvicorn)
 Deprecated==1.3.1        # Marca funções como depreciadas (dependência interna)
 exceptiongroup==1.3.1    # Agrupa múltiplas exceções (dependência do anyio)

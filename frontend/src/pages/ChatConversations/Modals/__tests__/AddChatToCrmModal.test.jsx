@@ -20,16 +20,22 @@ vi.mock('react-hot-toast', () => ({
 const mockPipelines = [
     {
         id: 1,
-        name: 'Funil Principal',
-        product_name: 'Produto Top',
-        default_value: 497.0,
+        name: 'Pipeline Geral de Vendas',
+        product_name: 'Mentoria Elite',
+        default_value: 5000.0,
         is_default: true
     }
 ];
 
 const mockStages = [
-    { id: 10, name: 'Etapa 1: Contato Inicial', pipeline_id: 1 },
-    { id: 11, name: 'Etapa 2: Proposta Enviada', pipeline_id: 1 }
+    { id: 10, name: 'Prospect', pipeline_id: 1, stage_type: 'initial' },
+    { id: 11, name: 'Lead', pipeline_id: 1, stage_type: 'in_progress' },
+    { id: 12, name: 'Desistência', pipeline_id: 1, stage_type: 'lost' }
+];
+
+const mockProducts = [
+    { id: 101, name: 'Mentoria Elite', price: 5000.0, is_active: true },
+    { id: 102, name: 'Curso Gravado', price: 997.0, is_active: true }
 ];
 
 describe('AddChatToCrmModal Unit Tests', () => {
@@ -43,13 +49,25 @@ describe('AddChatToCrmModal Unit Tests', () => {
                     json: () => Promise.resolve(mockPipelines)
                 });
             }
+            if (strUrl.includes('/api/crm/products')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve(mockProducts)
+                });
+            }
             if (strUrl.includes('/api/crm/stages')) {
                 return Promise.resolve({
                     ok: true,
                     json: () => Promise.resolve(mockStages)
                 });
             }
-            if (strUrl.includes('/api/crm/deals')) {
+            if (strUrl.includes('/api/crm/deals/by-phone')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve(null)
+                });
+            }
+            if (strUrl.includes('/api/crm/deals/move-contact')) {
                 return Promise.resolve({
                     ok: true,
                     json: () => Promise.resolve({ id: 999, status: 'open' })
@@ -73,24 +91,68 @@ describe('AddChatToCrmModal Unit Tests', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('renderiza o modal com os dados do contato preenchidos', async () => {
+    it('renderiza o modal de adicionar quando não há deal existente', async () => {
         render(
             <AddChatToCrmModal
                 isOpen={true}
                 onClose={vi.fn()}
-                selectedConvo={{ contact_name: 'Maria Santos', phone: '5511988887777', email: 'maria@email.com' }}
+                selectedConvo={{ contact_name: 'Maria Santos', phone: '5511988887777' }}
             />
         );
 
         expect(screen.getByText('Adicionar ao Kanban de Vendas')).toBeInTheDocument();
 
         await waitFor(() => {
-            expect(screen.getByDisplayValue('Maria Santos')).toBeInTheDocument();
-            expect(screen.getByDisplayValue('Etapa 1: Contato Inicial')).toBeInTheDocument();
+            expect(screen.getByText('Pipeline Geral de Vendas')).toBeInTheDocument();
+            expect(screen.getByText('Prospect')).toBeInTheDocument();
         });
     });
 
-    it('submete com sucesso e chama toast.success', async () => {
+    it('renderiza banner de etapa atual e sugere próxima etapa quando já tem deal', async () => {
+        global.fetch = vi.fn().mockImplementation((url) => {
+            const strUrl = String(url);
+            if (strUrl.includes('/api/crm/pipelines')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(mockPipelines) });
+            }
+            if (strUrl.includes('/api/crm/products')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(mockProducts) });
+            }
+            if (strUrl.includes('/api/crm/stages')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStages) });
+            }
+            if (strUrl.includes('/api/crm/deals/by-phone')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({
+                        id: 55,
+                        pipeline_id: 1,
+                        stage_id: 10, // Prospect
+                        product_name: 'Mentoria Elite',
+                        value: 5000.0,
+                        status: 'open'
+                    })
+                });
+            }
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        });
+
+        render(
+            <AddChatToCrmModal
+                isOpen={true}
+                onClose={vi.fn()}
+                selectedConvo={{ contact_name: 'Carlos Lima', phone: '5511977776666' }}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Mover Etapa no Kanban')).toBeInTheDocument();
+            expect(screen.getByText('Etapa Atual:')).toBeInTheDocument();
+            // Sugerida: Lead (próxima etapa após Prospect)
+            expect(screen.getByText(/Sugerida:\s*Lead/i)).toBeInTheDocument();
+        });
+    });
+
+    it('submete movimentação chamando move-contact e exibe toast de sucesso', async () => {
         const onCloseMock = vi.fn();
         render(
             <AddChatToCrmModal
@@ -101,39 +163,21 @@ describe('AddChatToCrmModal Unit Tests', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByDisplayValue('João Silva')).toBeInTheDocument();
-            expect(screen.getByDisplayValue('Etapa 1: Contato Inicial')).toBeInTheDocument();
+            expect(screen.getByText('Prospect')).toBeInTheDocument();
         });
 
-        const submitBtn = screen.getByText('Adicionar ao Funil');
+        const submitBtn = screen.getByRole('button', { name: /Adicionar ao Kanban/i });
         fireEvent.click(submitBtn);
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining('/api/crm/deals'),
+                expect.stringContaining('/api/crm/deals/move-contact'),
                 expect.objectContaining({
                     method: 'POST'
                 })
             );
-            expect(toast.success).toHaveBeenCalledWith('Contato adicionado ao Kanban de Vendas!');
+            expect(toast.success).toHaveBeenCalled();
             expect(onCloseMock).toHaveBeenCalled();
         });
     });
-
-    it('preenche o campo de valor automaticamente quando o pipeline possui default_value', async () => {
-        render(
-            <AddChatToCrmModal
-                isOpen={true}
-                onClose={vi.fn()}
-                selectedConvo={{ contact_name: 'Lead Novo', phone: '5511999992222' }}
-            />
-        );
-
-        await waitFor(() => {
-            const valueInput = screen.getByPlaceholderText('0.00');
-            expect(valueInput).toBeInTheDocument();
-            expect(valueInput.value).toBe('497');
-        });
-    });
 });
-

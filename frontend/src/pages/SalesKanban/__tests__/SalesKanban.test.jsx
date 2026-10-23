@@ -54,6 +54,7 @@ const mockBoard = {
             color: 'blue',
             stage_type: 'initial',
             total_deals: 1,
+            percentage: 33.3,
             total_value: 500.0,
             deals: [
                 {
@@ -63,6 +64,7 @@ const mockBoard = {
                     client_id: 1,
                     contact_name: 'Carlos Oliveira',
                     contact_phone: '5511999998888',
+                    channel: 'kiwify',
                     title: 'Oportunidade Curso',
                     value: 500.0,
                     status: 'open',
@@ -79,6 +81,7 @@ const mockBoard = {
             color: 'emerald',
             stage_type: 'won',
             total_deals: 1,
+            percentage: 33.3,
             total_value: 1000.0,
             deals: [
                 {
@@ -88,18 +91,48 @@ const mockBoard = {
                     client_id: 1,
                     contact_name: 'Mariana Silva',
                     contact_phone: '5511977776666',
+                    channel: 'whatsapp',
                     title: 'Compra Confirmada',
                     value: 1000.0,
                     status: 'won',
                     notes: 'Pago via Pix'
                 }
             ]
+        },
+        {
+            id: 12,
+            pipeline_id: 1,
+            client_id: 1,
+            name: 'Desistencia',
+            order_index: 2,
+            color: 'rose',
+            stage_type: 'lost',
+            total_deals: 1,
+            percentage: 33.3,
+            total_value: 0.0,
+            deals: [
+                {
+                    id: 103,
+                    pipeline_id: 1,
+                    stage_id: 12,
+                    client_id: 1,
+                    contact_name: 'Lucas Ferreira',
+                    contact_phone: '5511966665555',
+                    channel: 'whatsapp',
+                    title: 'Oportunidade Curso',
+                    value: 0.0,
+                    status: 'lost',
+                    lost_reason: 'Preço alto / Sem orçamento',
+                    notes: 'Desistiu'
+                }
+            ]
         }
     ],
-    total_deals: 2,
+    total_deals: 3,
     total_value: 1500.0,
     total_won_value: 1000.0,
-    total_won_deals: 1
+    total_won_deals: 1,
+    conversion_rate: 33.33
 };
 
 describe('SalesKanban Component Tests', () => {
@@ -111,6 +144,12 @@ describe('SalesKanban Component Tests', () => {
                 return Promise.resolve({
                     ok: true,
                     json: () => Promise.resolve(mockPipelines)
+                });
+            }
+            if (strUrl.includes('/api/crm/products')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve([])
                 });
             }
             if (strUrl.includes('/board')) {
@@ -138,7 +177,7 @@ describe('SalesKanban Component Tests', () => {
         expect(screen.getByText('Vendas Fechadas (Ganho)')).toBeInTheDocument();
     });
 
-    it('renderiza as colunas e os cards de oportunidade', async () => {
+    it('renderiza as colunas e os cards de oportunidade com seus canais de origem', async () => {
         render(<SalesKanban onViewChange={vi.fn()} />);
 
         await waitFor(() => {
@@ -146,12 +185,14 @@ describe('SalesKanban Component Tests', () => {
             expect(screen.getByText('Fechado (Ganho)')).toBeInTheDocument();
         });
 
-        // Verifica os cards de lead
+        // Verifica os cards de lead e seus canais
         expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        expect(screen.getByText('Kiwify')).toBeInTheDocument();
         expect(screen.getByText('Mariana Silva')).toBeInTheDocument();
+        expect(screen.getAllByText('WhatsApp').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('abre o modal de criar oportunidade ao clicar no botão correspondente', async () => {
+    it('abre o modal de criar oportunidade com campo de Canal de Origem', async () => {
         render(<SalesKanban onViewChange={vi.fn()} />);
 
         await waitFor(() => {
@@ -163,6 +204,7 @@ describe('SalesKanban Component Tests', () => {
 
         expect(screen.getByRole('heading', { name: 'Nova Oportunidade' })).toBeInTheDocument();
         expect(screen.getByPlaceholderText('Ex: João da Silva')).toBeInTheDocument();
+        expect(screen.getByText('Canal de Origem')).toBeInTheDocument();
     });
 
     it('abre o modal de novo funil ao clicar em "Novo Pipeline"', async () => {
@@ -184,7 +226,23 @@ describe('SalesKanban Component Tests', () => {
         expect(defaultValueInput.value).toBe('297.00');
     });
 
-    it('filtra cards através da barra de pesquisa', async () => {
+    it('abre o modal de criar nova coluna ao clicar no botão "+ Nova Coluna"', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('+ Nova Coluna')).toBeInTheDocument();
+        });
+
+        const newStageBtn = screen.getByText('+ Nova Coluna');
+        fireEvent.click(newStageBtn);
+
+        expect(screen.getByText('Nova Coluna do CRM')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Ex: Proposta Enviada/)).toBeInTheDocument();
+        expect(screen.getByText('Cor da Coluna')).toBeInTheDocument();
+        expect(screen.getByText('Comportamento da Etapa')).toBeInTheDocument();
+    });
+
+    it('filtra cards através da barra de pesquisa por nome ou canal', async () => {
         render(<SalesKanban onViewChange={vi.fn()} />);
 
         await waitFor(() => {
@@ -192,10 +250,53 @@ describe('SalesKanban Component Tests', () => {
         });
 
         const searchInput = screen.getByPlaceholderText('Buscar por nome, telefone ou e-mail...');
-        fireEvent.change(searchInput, { target: { value: 'Mariana' } });
+        fireEvent.change(searchInput, { target: { value: 'Kiwify' } });
 
-        // Mariana deve estar visível, Carlos deve sumir pelo filtro
-        expect(screen.getByText('Mariana Silva')).toBeInTheDocument();
-        expect(screen.queryByText('Carlos Oliveira')).not.toBeInTheDocument();
+        // Carlos (canal Kiwify) deve estar visível, Mariana deve sumir
+        expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        expect(screen.queryByText('Mariana Silva')).not.toBeInTheDocument();
+    });
+
+    it('exibe o motivo da desistência no card e o campo de motivo no modal de oportunidade', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Lucas Ferreira')).toBeInTheDocument();
+        });
+
+        // Motivo exibido no card
+        expect(screen.getByText('Motivo da Desistência:')).toBeInTheDocument();
+        expect(screen.getByText('Preço alto / Sem orçamento')).toBeInTheDocument();
+
+        // Abre modal de nova oportunidade e seleciona Desistencia
+        const newDealBtn = screen.getByText('Nova Oportunidade');
+        fireEvent.click(newDealBtn);
+
+        const stageSelect = screen.getByDisplayValue('Novo Lead');
+        fireEvent.change(stageSelect, { target: { value: '12' } });
+
+        expect(screen.getByText('Motivo da Desistência do Lead')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Descreva o motivo da desistência do lead...')).toBeInTheDocument();
+    });
+
+    it('exibe o card de Taxa de Conversão, a barra de Distribuição do Funil e porcentagens nas colunas', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        // Valida card de conversão
+        expect(screen.getByText('Taxa de Conversão')).toBeInTheDocument();
+        expect(screen.getByText(/33[.,]33%/)).toBeInTheDocument();
+        expect(screen.getByText('1 de 3 convertidos')).toBeInTheDocument();
+
+        // Valida seção de distribuição do funil
+        expect(screen.getByText('Distribuição do Funil')).toBeInTheDocument();
+        expect(screen.getByText('3 leads totais')).toBeInTheDocument();
+
+        // Valida badges de porcentagem nas colunas (ex: 1 (33.3%))
+        const columnBadges = screen.getAllByText('1 (33.3%)');
+        expect(columnBadges.length).toBeGreaterThan(0);
     });
 });

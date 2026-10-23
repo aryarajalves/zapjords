@@ -96,9 +96,26 @@ Este documento centraliza as definições de comportamento do sistema e os requi
 - **Origem Automática dos Cards (Deals)**:
   - **Webhooks de Plataformas (Kiwify, Hotmart, Eduzz, etc.)**: Eventos de vendas que trazem o nome do produto criam/atualizam automaticamente o deal no pipeline correspondente (ex: Carrinho Abandonado na coluna inicial, Compra Aprovada na coluna de Ganho/Venda Fechada).
   - **Etiquetas Vinculadas (`associated_tags`)**: Cada pipeline pode ter uma lista de etiquetas associadas. Ao aplicar uma dessas etiquetas no contato (seja no Chat ou via Funil), o contato é inserido automaticamente no pipeline do produto.
-  - **Ação Rápida no Chat (Opção B3)**: No cabeçalho da conversa no Chat local, o operador pode clicar em "Adicionar ao Kanban" para criar um deal informando produto, estágio e valor estimado em R$.
+  - **Ação Rápida no Chat (Opção B3)**: No cabeçalho da conversa ativa no Chat local (botão dedicado com ícone do Kanban `FiTrello`) e na barra lateral de contato, o operador pode clicar para gerenciar a oportunidade:
+    - Se o contato já possui um deal ativo no pipeline (`GET /api/crm/deals/by-phone/{phone}`), o modal exibe a **Etapa Atual** em um badge informativo e pré-seleciona a **Próxima Etapa** em ordem sequencial do pipeline, permitindo também mover livremente para qualquer outra coluna.
+    - Permite selecionar o produto oficial do catálogo (`crm_products`) e preenche o valor em R$ automaticamente (com campo aberto para valor real com desconto).
+    - Se a etapa selecionada for do tipo `lost` (Desistência/Perdido), exibe obrigatoriamente o campo de **Motivo da Desistência** (`lost_reason`) com alerta visual.
+    - Ao salvar (`POST /api/crm/deals/move-contact`), a oportunidade é atualizada/criada com os status adequados (`won`, `lost`, `open`), produto, valor e notas.
   - **Sincronização Retroativa de Histórico**: Ao criar o pipeline ou clicar em "Sincronizar Histórico", o sistema busca leads passados daquele produto no banco (`WebhookLead`) e organiza nos estágios correspondentes.
 - **Ações Rápidas no Card**: Cada card permite abrir a conversa no Chat local do WhatsApp com 1 clique, ou disparar templates/funis sem sair do Kanban.
+- **Identificação do Canal de Origem no Card (`channel`)**: Cada contato no Kanban exibe um badge visual indicando de onde veio o lead (Kiwify, Hotmart, Eduzz, Checkout Jords, Bússola Quiz, YayForms, Elementor, WhatsApp, Instagram, etc.). O canal é herdado automaticamente do webhook ou pode ser definido/editado livremente no modal de oportunidade.
+- **Criação e Gestão Dinâmica de Colunas / Estágios (`sales_pipeline_stages`)**: O operador pode criar novas colunas personalizadas no CRM via botão "+ Nova Coluna" (no cabeçalho ou ao final da fila horizontal), configurando nome, paleta de cores (Azul, Âmbar, Esmeralda, Rosa, Roxo, Ardósia, Índigo, Ciano), tipo de estágio (Em Andamento, Inicial, Ganho, Perdido) e gatilho automático opcional de webhook. Ao excluir uma coluna, seus cards são preservados e migrados automaticamente para outra etapa do pipeline.
+- **Colunas Padrão do Pipeline**: Por padrão, pipelines recém-criados são inicializados com as colunas: `Prospect`, `Lead`, `Oportunidade`, `Venda` (tipo 'won') e `Desistência` (tipo 'lost').
+- **Motivo de Desistência Obrigatório no Card e Modal (`lost_reason`)**: Ao mover qualquer lead para a etapa de Desistência (via drag & drop ou seleção no modal), o sistema abre modal centralizado exigindo o motivo da desistência. O motivo é exibido com badge de destaque no card e no modal de edição do lead.
+- **Catálogo de Produtos e Precificação Base (`crm_products`)**: Módulo dedicado para cadastrar os produtos da empresa com nome e valor oficial em R$. No card do Kanban, o nome do lead e o valor do produto aparecem de imediato no topo. Ao selecionar o produto no modal do lead, o valor base é preenchido automaticamente, mantendo campo para valor real negociado com desconto.
+- **Taxa de Conversão e Métricas do Funil**:
+  - **Card de Taxa de Conversão (%)**: O cabeçalho exibe card dinâmico com a taxa de conversão geral `(total_won_deals / total_deals) * 100`, arredondada para até 2 casas decimais, acompanhada da relação `X de Y convertidos`.
+  - **Barra de Progresso do Funil (Pipeline Funnel)**: Barra visual horizontal dividida proporcionalmente pelas fatias de cada etapa do funil (com cores correspondentes) e legendas inferiores exibindo a porcentagem e total de leads em cada estágio.
+  - **Porcentagem em Cada Coluna**: Os cabeçalhos de cada coluna exibem a contagem e a proporção percentual sobre o total do pipeline (ex: `255 (97.3%)` no badge e `Total da Etapa (97.3%): R$ X,XX`).
+- **Otimização de Altura Vertical e Modo Foco no Kanban**:
+  - **Eliminação de Títulos Redundantes**: O container superior (`AppContentHeader`) é omitido exclusivamente na visão do Kanban para evitar duplicidade de título e margens vazias.
+  - **Extensão Total até o Rodapé da Janela**: O layout do Kanban passa a preencher 100% da altura da janela (`h-full min-h-0`), sem travas artificiais de altura fixa, permitindo que as colunas desçam até a base da tela.
+  - **Alternância de Visualização ("Recolher Métricas / Ver Métricas")**: Botão no cabeçalho permite alternar o Modo Foco. Ao recolher as métricas numéricas, mais de 120px de espaço vertical são liberados imediatamente, permitindo que a visualização dos cards seja contínua e minimize a rolagem interna nas colunas. A preferência é memorizada no navegador (`kanban_show_metrics`).
 
 ---
 
@@ -118,7 +135,17 @@ Abaixo, detalho cada tela identificada no sistema e as dúvidas que precisamos s
 
 ### 2. Editor de Funis (`VisualFlowBuilder`)
 - **Propósito**: Construir réguas de automação visualmente.
-- **Funcionalidades**: Drag-and-drop de blocos de Mensagem, Áudio, Imagem, Vídeo e Delays.
+- **Funcionalidades**: Drag-and-drop de blocos de Mensagem, Áudio, Imagem, Vídeo, Delays e Nós de Integração/CRM.
+- **Nó "Kanban de Vendas" (`kanbanNode`)**:
+  - Localizado na categoria **"INTEGRAÇÕES"** do menu de adicionar nós.
+  - Permite direcionar o contato automaticamente para uma etapa específica do CRM / Kanban durante a execução do funil.
+  - **Campos configuráveis**:
+    - **Pipeline de Vendas**: Seleção do pipeline desejado.
+    - **Coluna de Destino**: Seleção dinâmica das etapas/colunas do pipeline.
+    - **Produto de Interesse (Opcional)**: Seleciona um produto do catálogo oficial, preenchendo o valor base automaticamente.
+    - **Valor Estimado (R$)**: Permite definir ou ajustar o valor da oportunidade em reais.
+    - **Motivo da Desistência (`lost_reason`)**: Exibido dinamicamente apenas quando a coluna de destino selecionada for do tipo `lost` (ex: Desistência / Perdido).
+  - **Comportamento no Motor de Execução**: Se o contato já possuir um deal no pipeline, move o lead para a nova coluna, atualiza status (`open`, `won` ou `lost`), atualiza o valor se informado e registra o motivo de desistência se for etapa de perda. Caso o deal ainda não exista, cria uma nova oportunidade automaticamente no pipeline e estágio especificados.
 - **Dúvidas UI/UX**:
     - [x] O editor deve ter um modo "Auto-Layout" para organizar os blocos sozinhos ou o usuário deve ter controle total da posição?
         - **Resposta**: Controle manual. O formato atual está funcionando bem.
@@ -231,6 +258,80 @@ Abaixo estão as perguntas sobre mecânicas de fundo que ainda não estão docum
 - [x] [NOVO] **Geração Automática de Convite/Cadastro via Webhook (Área de Membros/Plataforma Externa):** Na aba de Gatilhos das Integrações de Webhook (seção Avançado), deve haver uma opção para gerar convite de acesso do comprador automaticamente via API externa?
     - **Resposta**: Sim. Configuração global da URL base da API e Token (`sk_live_...`) em **Configurações > Plataforma**. No gatilho de cada evento da integração (ex: Compra Aprovada), o usuário ativa o switch de criação automática, define a função/role (`aluno`), prazo do link (`duration_hours`) e lista de cursos (`course_access`). Ao receber o webhook aprovado, o ZapVoice chama `POST /api/v1/invites`, obtém o link e injeta na variável dinâmica `{{link_cadastro}}`, disponibilizando-a para envio imediato no WhatsApp do comprador via template ou funil.
 
+
+### 11. Gestão de Usuários: Criação Direta e Regras Rígidas de Senha
+- **Ações no Header de Gestão de Usuários**:
+  - `Criar Usuário` (Botão principal em destaque): Abre modal para cadastro direto de novos usuários ativos no sistema.
+  - `Gerar Convite` (Botão secundário translúcido): Mantém o fluxo anterior de geração de links de convite e e-mails com prazo de expiração.
+- **Criação Direta sem Código por E-mail**:
+  - O cadastro realizado pelo administrador via modal não exige envio de código de confirmação por e-mail; o usuário é criado imediatamente ativo no banco.
+  - **Campos Obrigatórios**: Nome do Contato (`full_name`), E-mail de acesso (`email`), WhatsApp / Telefone (`phone`) e Senha de Acesso (`password`).
+- **Validação Rígida de Senha Forte (5 Requisitos)**:
+  - 1. Mínimo de 12 caracteres (máximo de 128).
+  - 2. Pelo menos 1 letra minúscula (`[a-z]`).
+  - 3. Pelo menos 1 letra maiúscula (`[A-Z]`).
+  - 4. Pelo menos 1 número (`[0-9]`).
+  - 5. Pelo menos 1 caractere especial (`[^A-Za-z0-9]`, ex: `!`, `@`, `#`, `$`, `%`, etc.).
+  - A interface valida dinamicamente os 5 requisitos em tempo real e desabilita a submissão até que todos estejam cumpridos. O backend reforça a mesma validação no `core/security.py` retornando HTTP 400 descritivo caso qualquer requisito seja violado.
+- **Seleção Múltipla e Exclusão em Lote (Bulk Delete)**:
+  - Permite selecionar usuários individualmente linha por linha ou selecionar todos os usuários da página/busca através do checkbox mestre no cabeçalho da tabela.
+  - **Blindagem do Super Admin**: Usuários com o papel `super_admin` são protegidos contra seleção e exclusão, exibindo o ícone de escudo (`FiShield`) na coluna de seleção sem permitir marcação.
+  - Tanto o endpoint individual (`DELETE /auth/users/{user_id}`) quanto o endpoint em lote (`POST /auth/users/bulk-delete`) barram e ignoram qualquer tentativa de exclusão de contas com cargo `super_admin`.
+  - A ação de exclusão em massa exige confirmação via popup modal com backdrop escuro (`ConfirmModal`) indicando a quantidade de usuários selecionados.
+
+### 12. Infraestrutura & Monitoramento de Servidor (Super Admin)
+- **Acesso Restrito**:
+  - A aba `Infraestrutura` na barra lateral e todos os endpoints `/api/infra/*` são restritos exclusivamente a usuários com papel `super_admin` (`require_super_admin`).
+- **Recursos do Servidor (RAM & CPU)**:
+  - Medição em tempo real de hardware da máquina VPS / Container (`psutil`), apresentando Memória RAM Usada, Total, Livre, Percentual e Consumo de Processo da Aplicação API (RSS).
+  - Apresenta carga de processador (CPU %) e quantidade de núcleos virtuais (`vCPUs`).
+- **Conexões do Banco de Dados (PostgreSQL)**:
+  - Acompanhamento do pool de conexões do SQLAlchemy (`QueuePool`) e conexões ativas no PostgreSQL (`pg_stat_activity`).
+  - Capacidade estruturada em Conexões em Uso, Pool Base, Buffer Overflow e Total Máximo de Conexões Simultâneas.
+- **Histórico e Picos em Horário de Brasília (UTC-3)**:
+  - Todos os registros de maiores picos de RAM, CPU e conexões de banco das últimas 24h, bem como a tabela de histórico por hora, são obrigatoriamente persistidos e exibidos no Horário Oficial de Brasília (UTC-3).
+- **Alertas Automáticos via Webhook**:
+  - Permite configurar limites de alerta independentes para Conexões (%), RAM (%) e CPU (%).
+  - **Cooldown Anti-Spam**: Intervalo mínimo obrigatório (default: 15 minutos) entre notificações consecutivas para evitar inundação de mensagens durante picos prolongados.
+  - **Notificação de Normalização**: Envia aviso quando o tráfego e recursos retornarem aos patamares seguros.
+  - **Validação de Webhook**: Botão de teste imediato que valida a URL externa com payload estruturado e feedback visual por toast.
+
+### 13. Kanban de Vendas / CRM: Colunas Padrão e Motivo da Desistência
+- **5 Colunas Padrão do Pipeline**:
+  - 1. **Prospect** (`initial`, ordem 0, cor Azul): Contatos frios ou leads recém-importados/gerados.
+  - 2. **Lead** (`in_progress`, ordem 1, cor Ciano): Contatos que demonstraram interesse ou abandonaram checkout/carrinho.
+  - 3. **Oportunidade** (`in_progress`, ordem 2, cor Âmbar): Leads com intenção clara de compra, propostas enviadas ou Pix/Boleto gerados.
+  - 4. **Venda** (`won`, ordem 3, cor Esmeralda): Negociações concluídas com sucesso e compras aprovadas.
+  - 5. **Desistencia** (`lost`, ordem 4, cor Rosa/Vermelho): Oportunidades perdidas ou leads que desistiram da negociação.
+- **Campo de Motivo da Desistência (`lost_reason`)**:
+  - Sempre que um lead estiver ou for movido para a etapa de **Desistência** (via Drag & Drop ou formulário de oportunidade), o sistema exige/solicita o motivo da perda.
+  - **Opções Rápidas & Digitação Livre**: Interface com chips rápidos ("Preço alto / Sem orçamento", "Sem interesse no momento", "Comprou de concorrente", "Não responde / Sumiu", etc.) e campo aberto para anotações detalhadas.
+  - **Visualização Rápida no Card**: Quando preenchido, o motivo da desistência é destacado diretamente no corpo do card dentro do Kanban com badge avermelhado sutil.
+
+### 14. Catálogo de Produtos e Precificação no Kanban de Vendas
+- **Gerenciador de Produtos (`crm_products`)**:
+  - Disponível através do botão "Produtos" no cabeçalho do Kanban.
+  - O operador cadastra os produtos da empresa com Nome, Descrição e Preço Padrão/Tabela (R$).
+  - Acesso e modificações são 100% isolados pelo cliente ativo (`client_id`).
+- **Preenchimento Automático e Preço Real com Desconto (`original_value` vs `value`)**:
+  - No formulário do Lead/Oportunidade (`DealModal`), a seleção do Produto preenche automaticamente o Preço de Tabela (`original_value`) e o Valor Real Vendido (`value`).
+  - O campo "Valor Real da Venda" é editável livremente pelo operador para registrar vendas com desconto ou condições especiais.
+  - Se houver desconto (`value < original_value`), o sistema calcula e exibe em tempo real o desconto aplicado em R$ e percentual.
+- **Card do Kanban Redesenhado e Focado**:
+  - O card exibe em destaque imediato o **Nome da Pessoa** no topo e o **Preço do Produto** logo abaixo em badge verde.
+  - Se vendido com desconto, exibe o valor de tabela riscado e o badge "Desconto".
+  - Ao clicar no card inteiro, abre o modal detalhado com todas as informações completas do lead (Nome, WhatsApp, E-mail, Produto, Preço de Tabela, Preço Real, Canal de Origem, Estágio, Status, Motivo da Desistência e Anotações).
+
+### 15. Integração de Webhooks com o CRM / Kanban de Vendas
+- **Ativação Opcional por Gatilho**:
+  - Na subaba "Avançado" de cada mapeamento de evento do webhook, o usuário pode habilitar o "Kanban de Vendas (CRM)".
+  - Permite configurar: Pipeline de Vendas, Coluna/Estágio de Destino, Produto (Catálogo CRM), Valor Estimado em R$ e Motivo da Desistência (quando o estágio for de perda/desistência).
+- **Deduplicação Inteligente por Telefone**:
+  - Ao disparar o webhook para um contato (`contact_phone`), o sistema busca se o lead já possui uma oportunidade (`SalesDeal`) cadastrada no Pipeline correspondente pelo telefone.
+  - **Se já existir**: Atualiza imediatamente a oportunidade para o estágio configurado, ajusta o status da oportunidade (`won` se estágio de vitória, `lost` se estágio de desistência, ou `open` se estágio em andamento), atualiza produto e valor se informados, e grava o motivo da desistência (`lost_reason`) se aplicável.
+  - **Se não existir**: Cria um novo Deal com o Nome do Contato, Telefone, E-mail, Origem da Plataforma do Webhook, Produto, Valor e Estágio selecionados.
+- **Suporte a Reenvio e Testes**:
+  - Tanto no recebimento ao vivo de webhooks quanto no reprocessamento pelo Histórico de Disparos ou Testes de Webhook, a automação do Kanban é acionada respeitando o isolamento multi-tenant (`client_id`).
 
 ## 📋 Histórico de Decisões
 As perguntas iniciais sobre regras de negócio foram todas respondidas e integradas às seções acima. O sistema segue o modelo de isolamento total entre clientes e automação robusta com retentativas configuradas.

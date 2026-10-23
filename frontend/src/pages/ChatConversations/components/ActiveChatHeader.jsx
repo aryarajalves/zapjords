@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiX, FiCheckCircle, FiSidebar, FiSlash, FiLayers, FiFileText, FiRefreshCw, FiSearch, FiArchive, FiTag, FiMaximize2, FiMinimize2, FiArrowLeft } from 'react-icons/fi';
+import { FiX, FiCheckCircle, FiSidebar, FiSlash, FiLayers, FiFileText, FiRefreshCw, FiSearch, FiArchive, FiTag, FiMaximize2, FiMinimize2, FiArrowLeft, FiTrello } from 'react-icons/fi';
 import { BsPinAngle, BsPinAngleFill, BsExclamationCircle, BsExclamationCircleFill, BsStars } from 'react-icons/bs';
 import { getFirstName } from '../../../utils/nameFormatter';
 import ConversationLabelsList from './ConversationLabelsList';
@@ -22,7 +22,8 @@ export default function ActiveChatHeader({
     isSearchMode,
     setIsSearchMode,
     isChatMaximized,
-    setIsChatMaximized
+    setIsChatMaximized,
+    onOpenCrm
 }) {
     if (!selectedConvo) return null;
 
@@ -131,6 +132,16 @@ export default function ActiveChatHeader({
                         <FiLayers size={16} />
                     </button>
                 )}
+
+                <button
+                    type="button"
+                    onClick={() => onOpenCrm && onOpenCrm()}
+                    title="Kanban de Vendas (Mover de Etapa)"
+                    data-testid="chat-header-kanban-btn"
+                    className="hidden sm:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800/30 transition-all cursor-pointer items-center justify-center"
+                >
+                    <FiTrello size={16} />
+                </button>
 
                 <button
                     onClick={() => {

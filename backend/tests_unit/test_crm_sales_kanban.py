@@ -41,13 +41,13 @@ def test_default_pipeline_creation_and_stages():
     assert len(pipelines) == 1
     default_pipe = pipelines[0]
     assert default_pipe["name"] == "Pipeline Geral de Vendas"
-    assert default_pipe["stages_count"] == 6
+    assert default_pipe["stages_count"] == 5
 
-    # Verificar board do pipeline
+    # Verificar board do pipeline com as 5 colunas padrão
     board = get_pipeline_board(pipeline_id=default_pipe["id"], client_id=1, db=db, current_user=user)
-    assert len(board["stages"]) == 6
-    assert board["stages"][0]["name"] == "Carrinho Abandonado"
-    assert board["stages"][4]["name"] == "Venda Concluída"
+    assert len(board["stages"]) == 5
+    expected_stages = ["Prospect", "Lead", "Oportunidade", "Venda", "Desistencia"]
+    assert [s["name"] for s in board["stages"]] == expected_stages
     assert board["total_deals"] == 0
 
     db.close()
@@ -66,7 +66,7 @@ def test_create_custom_product_pipeline():
     assert new_pipe["name"] == "Mentoria High Ticket"
     assert new_pipe["product_name"] == "Mentoria Elite"
     assert new_pipe["associated_tags"] == "mentoria, vip, black"
-    assert new_pipe["stages_count"] == 6
+    assert new_pipe["stages_count"] == 5
 
     db.close()
 
@@ -251,5 +251,188 @@ def test_pipeline_default_value_propagation():
     ).first()
     assert tag_deal is not None
     assert tag_deal.value == 997.00
+
+    db.close()
+
+
+def test_deal_channel_creation_and_update():
+    from routers.crm import update_deal
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).all()
+    stage = stages[0]
+
+    # 1. Criar deal com canal 'kiwify'
+    deal_payload = schemas_crm.SalesDealCreate(
+        pipeline_id=pipe.id,
+        stage_id=stage.id,
+        contact_phone="5511999997777",
+        contact_name="Lead Kiwify",
+        channel="kiwify",
+        value=197.00
+    )
+    deal = create_deal(payload=deal_payload, client_id=1, db=db, current_user=user)
+    assert deal.channel == "kiwify"
+
+    # 2. Atualizar canal do deal para 'hotmart'
+    update_payload = schemas_crm.SalesDealUpdate(
+        channel="hotmart"
+    )
+    updated = update_deal(deal_id=deal.id, payload=update_payload, client_id=1, db=db, current_user=user)
+    assert updated.channel == "hotmart"
+
+    # 3. Criar deal sem informar canal -> deve assumir fallback 'whatsapp'
+    deal_payload_fallback = schemas_crm.SalesDealCreate(
+        pipeline_id=pipe.id,
+        stage_id=stage.id,
+        contact_phone="5511999998888",
+        contact_name="Lead WhatsApp",
+        value=97.00
+    )
+    deal_fallback = create_deal(payload=deal_payload_fallback, client_id=1, db=db, current_user=user)
+    assert deal_fallback.channel == "whatsapp"
+
+    db.close()
+
+
+def test_stage_creation_update_and_deletion():
+    from routers.crm import create_stage, update_stage, delete_stage
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    initial_stages_count = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).count()
+
+    # 1. Criar nova coluna customizada no CRM
+    stage_payload = schemas_crm.SalesPipelineStageCreate(
+        pipeline_id=pipe.id,
+        name="Demonstração Agendada",
+        color="indigo",
+        stage_type="in_progress"
+    )
+    new_stage = create_stage(payload=stage_payload, client_id=1, db=db, current_user=user)
+    assert new_stage.id is not None
+    assert new_stage.name == "Demonstração Agendada"
+    assert new_stage.color == "indigo"
+
+    # 2. Atualizar coluna
+    stage_update = schemas_crm.SalesPipelineStageUpdate(
+        name="Demo Concluída",
+        color="cyan"
+    )
+    updated_stage = update_stage(stage_id=new_stage.id, payload=stage_update, client_id=1, db=db, current_user=user)
+    assert updated_stage.name == "Demo Concluída"
+    assert updated_stage.color == "cyan"
+
+    # 3. Adicionar deal nessa coluna
+    deal_payload = schemas_crm.SalesDealCreate(
+        pipeline_id=pipe.id,
+        stage_id=new_stage.id,
+        contact_phone="5511966665555",
+        contact_name="Lead Demo",
+        channel="bussola_quiz",
+        value=500.00
+    )
+    deal = create_deal(payload=deal_payload, client_id=1, db=db, current_user=user)
+    assert deal.stage_id == new_stage.id
+
+    # 4. Excluir a coluna -> deal deve ser migrado automaticamente para outro estágio do pipeline
+    del_res = delete_stage(stage_id=new_stage.id, client_id=1, db=db, current_user=user)
+    assert "sucesso" in del_res["message"]
+
+    db.refresh(deal)
+    assert deal.stage_id != new_stage.id
+    assert db.query(SalesPipelineStage).filter(SalesPipelineStage.id == new_stage.id).first() is None
+
+    db.close()
+
+
+def test_deal_move_to_desistencia_with_reason():
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).order_by(SalesPipelineStage.order_index.asc()).all()
+    initial_stage = stages[0]
+    desistencia_stage = next(s for s in stages if s.stage_type == "lost")
+
+    deal = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id,
+            stage_id=initial_stage.id,
+            contact_phone="5511999998888",
+            contact_name="Lead Desistente",
+            value=300.00
+        ),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+
+    move_payload = schemas_crm.SalesDealMove(
+        stage_id=desistencia_stage.id,
+        lost_reason="Achou o preço muito alto"
+    )
+    moved = move_deal(deal_id=deal.id, payload=move_payload, client_id=1, db=db, current_user=user)
+    assert moved.stage_id == desistencia_stage.id
+    assert moved.status == "lost"
+    assert moved.lost_reason == "Achou o preço muito alto"
+
+    db.close()
+
+
+def test_pipeline_board_conversion_rate_and_stage_percentages():
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).order_by(SalesPipelineStage.order_index.asc()).all()
+    lead_stage = stages[1]
+    won_stage = next(s for s in stages if s.stage_type == 'won')
+
+    for i in range(8):
+        create_deal(
+            payload=schemas_crm.SalesDealCreate(
+                pipeline_id=pipe.id,
+                stage_id=lead_stage.id,
+                contact_phone=f'551199999000{i}',
+                contact_name=f'Lead {i}',
+                value=100.00
+            ),
+            client_id=1,
+            db=db,
+            current_user=user
+        )
+
+    for j in range(2):
+        create_deal(
+            payload=schemas_crm.SalesDealCreate(
+                pipeline_id=pipe.id,
+                stage_id=won_stage.id,
+                contact_phone=f'551198888000{j}',
+                contact_name=f'Comprador {j}',
+                value=500.00,
+                status='won'
+            ),
+            client_id=1,
+            db=db,
+            current_user=user
+        )
+
+    board = get_pipeline_board(pipeline_id=pipe.id, client_id=1, db=db, current_user=user)
+    assert board['total_deals'] == 10
+    assert board['total_won_deals'] == 2
+    assert board['conversion_rate'] == 20.0
+
+    lead_board_stage = next(s for s in board['stages'] if s['id'] == lead_stage.id)
+    won_board_stage = next(s for s in board['stages'] if s['id'] == won_stage.id)
+
+    assert lead_board_stage['total_deals'] == 8
+    assert lead_board_stage['percentage'] == 80.0
+
+    assert won_board_stage['total_deals'] == 2
+    assert won_board_stage['percentage'] == 20.0
 
     db.close()

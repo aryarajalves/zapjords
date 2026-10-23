@@ -30,6 +30,12 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 23/10/2026 | Catálogo de Produtos do CRM e Vínculo com Desconto em Deals | `crm_products`, `sales_deals` | Tabela `crm_products` criada (`name`, `price`, `description`, `is_active`) e colunas `product_id`, `product_name`, `original_value` adicionadas em `sales_deals` | `backend/add_crm_products_table.py` |
+| 23/10/2026 | Suporte a ON DELETE CASCADE em FKs de Usuário e Limpeza em Lote | `user_clients`, `password_reset_tokens`, `api_keys` | Constraints atualizadas com ON DELETE CASCADE e cascade/passive_deletes no ORM | `backend/add_cascade_to_user_clients.py` |
+| 23/10/2026 | Estágios Padrão do Kanban de Vendas (Prospect, Lead, Oportunidade, Venda, Desistencia) | sales_pipeline_stages | Padronização das 5 colunas com reordenação e migração de deals existentes | backend/scripts/database/update_kanban_default_stages.py |
+| 23/10/2026 | Tabelas de Configuração de Alertas e Picos de Infraestrutura & Servidor | infrastructure_alert_configs, infrastructure_peak_logs | Tabelas novas completas com limites de pool/RAM/CPU, webhook_url, cooldown e histórico de picos horários | ackend/scripts/database/create_infrastructure_tables.py |
+| 22/10/2026 | WhatsApp / Telefone do Usuário na Gestão de Usuários | users | phone (VARCHAR(50), indexado) | ackend/scripts/database/add_phone_to_users.py |
+| 22/10/2026 | Canal de Origem no Contato do CRM (Kanban de Vendas) | sales_deals | channel (VARCHAR(100), indexado) | ackend/scripts/database/add_channel_to_sales_deals.py |
 | 08/10/2026 | Criação das Tabelas do Kanban de Vendas / CRM Multi-Produto | `sales_pipelines`, `sales_pipeline_stages`, `sales_deals` | Tabelas novas completas com relacionamentos, índices e chaves estrangeiras | `backend/scripts/database/create_sales_kanban_tables.py` |
 | 08/10/2026 | Filtro de Público Alvo por Interação e Data de Criação em Disparos Recorrentes | `recurring_triggers` | `interaction_filter_days` (INTEGER), `created_filter_days` (INTEGER) | `backend/scripts/database/add_recurring_audience_filters.py` |
 | 01/10/2026 | Criação Automática de Acesso/Convite na Plataforma | `webhook_event_mappings` | `auto_create_invite` (BOOLEAN), `invite_role` (VARCHAR), `invite_duration_hours` (INTEGER), `invite_course_access` (JSONB) | `backend/scripts/database/add_platform_invite_columns.py` |
@@ -104,6 +110,7 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 | 09/07/2026 | Índice Composto para Paginação de Chat | `chat_messages` | Índice `idx_chat_messages_convo_time` nas colunas `(conversation_id, timestamp)` | `backend/add_composite_chat_index.py` |
 | 21/07/2026 | Página de Captura e Checkout Presell | `checkout_configs`, `checkout_leads` | Tabelas completas de configuração e leads capturados | `backend/create_checkout_presell_tables.py` |
 | 21/07/2026 | Título da Aba do Navegador no Checkout | `checkout_configs` | `page_tab_title` | `sync_postgres_schema.py` |
+| 23/10/2026 | Ações de Kanban de Vendas em Gatilhos de Webhook | `webhook_event_mappings` | `kanban_active`, `kanban_pipeline_id`, `kanban_stage_id`, `kanban_product_name`, `kanban_value`, `kanban_lost_reason` | `backend/scripts/database/add_kanban_to_webhook_mappings.py` |
 
 
 

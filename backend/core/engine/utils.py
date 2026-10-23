@@ -22,7 +22,8 @@ NODE_TYPE_LABELS = {
     "inputNode": "Entrada",
     "actionNode": "Ação",
     "updateContactNode": "Atualizar Contato no Chatwoot",
-    "httpRequestNode": "Requisição HTTP"
+    "httpRequestNode": "Requisição HTTP",
+    "kanbanNode": "Kanban de Vendas"
 }
 
 def normalize_text(text: str) -> str:

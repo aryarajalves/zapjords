@@ -33,6 +33,7 @@ vi.mock('react-icons/fi', () => ({
   FiDatabase: () => <span data-testid="icon-database" />,
   FiGitBranch: () => <span data-testid="icon-gitbranch" />,
   FiFolder: () => <span data-testid="icon-folder" />,
+  FiTrello: () => <span data-testid="icon-trello" />,
 }));
 
 const defaultProps = {

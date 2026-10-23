@@ -92,7 +92,7 @@ export default function AppContent() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <main className={`flex-1 ${logic.currentView === 'sales_kanban' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto overflow-x-hidden'}`}>
           {!logic.activeClient ? (
             <NoActiveClientScreen />
           ) : (

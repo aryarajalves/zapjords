@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useSalesKanban } from './hooks/useSalesKanban';
 import { useDragScroll } from './hooks/useDragScroll';
+import { useCrmProducts } from './hooks/useCrmProducts';
 import { KanbanHeader } from './components/KanbanHeader';
 import { KanbanColumn } from './components/KanbanColumn';
 import { PipelineModal } from './components/PipelineModal';
+import { StageModal } from './components/StageModal';
 import { DealModal } from './components/DealModal';
+import { ProductManagerModal } from './components/ProductManagerModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { LostReasonModal } from './components/LostReasonModal';
 
 export default function SalesKanban({ onViewChange }) {
     const { isDragging, dragScrollProps } = useDragScroll();
+    const { products, createProduct, updateProduct, deleteProduct } = useCrmProducts();
+    const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const {
         pipelines,
         selectedPipelineId,
@@ -29,14 +36,23 @@ export default function SalesKanban({ onViewChange }) {
         setDealToEdit,
         initialStageForNewDeal,
         setInitialStageForNewDeal,
+        isStageModalOpen,
+        setIsStageModalOpen,
+        stageToEdit,
+        setStageToEdit,
         deleteModal,
         setDeleteModal,
+        lostReasonModal,
+        setLostReasonModal,
+        handleConfirmLostReason,
         handleMoveDeal,
         handleSyncHistory,
         handleSavePipeline,
         handleDeletePipeline,
         handleSaveDeal,
         handleDeleteDeal,
+        handleSaveStage,
+        handleDeleteStage,
         handleOpenChat
     } = useSalesKanban({ onViewChange });
 
@@ -61,6 +77,27 @@ export default function SalesKanban({ onViewChange }) {
         setIsDealModalOpen(true);
     };
 
+    const openNewStage = () => {
+        setStageToEdit(null);
+        setIsStageModalOpen(true);
+    };
+
+    const openEditStage = (stage) => {
+        setStageToEdit(stage);
+        setIsStageModalOpen(true);
+    };
+
+    const confirmDeleteStage = (stageId, stageName) => {
+        setIsStageModalOpen(false);
+        setDeleteModal({
+            isOpen: true,
+            type: 'stage',
+            id: stageId,
+            title: 'Excluir Coluna?',
+            message: `Tem certeza que deseja excluir a coluna "${stageName}"? Se houver oportunidades nela, serão movidas automaticamente para a etapa anterior.`
+        });
+    };
+
     const confirmDeleteDeal = (dealId, contactName) => {
         setIsDealModalOpen(false);
         setDeleteModal({
@@ -77,6 +114,8 @@ export default function SalesKanban({ onViewChange }) {
             await handleDeleteDeal(deleteModal.id);
         } else if (deleteModal.type === 'pipeline') {
             await handleDeletePipeline(deleteModal.id);
+        } else if (deleteModal.type === 'stage') {
+            await handleDeleteStage(deleteModal.id);
         }
     };
 
@@ -92,8 +131,8 @@ export default function SalesKanban({ onViewChange }) {
     }
 
     return (
-        <div className="flex-1 p-4 md:p-8 flex flex-col h-[calc(100vh-2rem)] overflow-hidden">
-            {/* Header com Seletor e Métricas */}
+        <div className="flex-1 p-2 sm:p-3 flex flex-col h-full min-h-0 overflow-hidden">
+            {/* Header com Seletor, Ações e Métricas */}
             <KanbanHeader
                 pipelines={pipelines}
                 selectedPipelineId={selectedPipelineId}
@@ -104,6 +143,9 @@ export default function SalesKanban({ onViewChange }) {
                 onOpenNewPipeline={openNewPipeline}
                 onOpenEditPipeline={openEditPipeline}
                 onOpenNewDeal={openNewDeal}
+                onOpenNewStage={openNewStage}
+                onOpenProducts={() => setIsProductModalOpen(true)}
+                productsCount={products.length}
                 onSyncHistory={handleSyncHistory}
                 isSyncing={isSyncing}
             />
@@ -112,11 +154,11 @@ export default function SalesKanban({ onViewChange }) {
             <div
                 {...dragScrollProps}
                 data-testid="kanban-drag-scroll-container"
-                className={`flex-1 overflow-x-auto overflow-y-hidden pb-4 custom-scrollbar transition-colors ${
+                className={`flex-1 overflow-x-auto overflow-y-hidden pb-1 custom-scrollbar transition-colors ${
                     isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
                 }`}
             >
-                <div className="flex items-stretch gap-4 min-w-max h-full pb-2">
+                <div className="flex items-stretch gap-3.5 min-w-max h-full">
                     {filteredStages.map(stage => (
                         <KanbanColumn
                             key={stage.id}
@@ -126,8 +168,26 @@ export default function SalesKanban({ onViewChange }) {
                             onEditDeal={openEditDeal}
                             onDeleteDeal={confirmDeleteDeal}
                             onOpenChat={handleOpenChat}
+                            onEditStage={openEditStage}
                         />
                     ))}
+
+                    {/* Botão Card para Criar Nova Coluna ao Final */}
+                    <button
+                        type="button"
+                        onClick={openNewStage}
+                        className="w-72 md:w-80 shrink-0 flex flex-col items-center justify-center h-full max-h-full min-h-0 bg-slate-950/20 hover:bg-blue-600/5 backdrop-blur-md rounded-2xl border-2 border-dashed border-white/10 hover:border-blue-500/40 transition-all duration-200 group cursor-pointer p-6 text-center"
+                    >
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 group-hover:bg-blue-500/10 text-slate-400 group-hover:text-blue-400 border border-white/10 group-hover:border-blue-500/30 flex items-center justify-center mb-3 transition-all">
+                            <FiPlus size={22} />
+                        </div>
+                        <h4 className="text-sm font-black text-white group-hover:text-blue-300 transition-colors">
+                            Nova Coluna
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
+                            Clique para adicionar uma nova etapa ao funil deste produto.
+                        </p>
+                    </button>
 
                     {filteredStages.length === 0 && (
                         <div className="w-full flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-slate-900/30 border border-white/5 rounded-3xl">
@@ -149,6 +209,15 @@ export default function SalesKanban({ onViewChange }) {
                 pipelineToEdit={pipelineToEdit}
             />
 
+            <StageModal
+                isOpen={isStageModalOpen}
+                onClose={() => setIsStageModalOpen(false)}
+                onSave={handleSaveStage}
+                onDelete={confirmDeleteStage}
+                stageToEdit={stageToEdit}
+                pipelineId={selectedPipelineId}
+            />
+
             <DealModal
                 isOpen={isDealModalOpen}
                 onClose={() => setIsDealModalOpen(false)}
@@ -159,6 +228,17 @@ export default function SalesKanban({ onViewChange }) {
                 pipelineId={selectedPipelineId}
                 initialStageId={initialStageForNewDeal}
                 defaultDealValue={boardData?.pipeline?.default_value}
+                products={products}
+                onOpenChat={handleOpenChat}
+            />
+
+            <ProductManagerModal
+                isOpen={isProductModalOpen}
+                onClose={() => setIsProductModalOpen(false)}
+                products={products}
+                onCreateProduct={createProduct}
+                onUpdateProduct={updateProduct}
+                onDeleteProduct={deleteProduct}
             />
 
             <DeleteConfirmModal
@@ -168,6 +248,13 @@ export default function SalesKanban({ onViewChange }) {
                 onConfirm={handleConfirmDelete}
                 onCancel={() => setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' })}
                 isProcessing={false}
+            />
+
+            <LostReasonModal
+                isOpen={lostReasonModal.isOpen}
+                deal={lostReasonModal.deal}
+                onClose={() => setLostReasonModal({ isOpen: false, deal: null, targetStageId: null })}
+                onConfirm={handleConfirmLostReason}
             />
         </div>
     );

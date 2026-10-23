@@ -281,6 +281,23 @@ async def execute_webhook_resend_logic(
             else:
                 asyncio.create_task(sync_to_manychat_and_update_history(integration.client_id, mc_name, mc_phone, mc_tag, parsed_data.get("email"), history.id, custom_field_name=getattr(mapping, "manychat_custom_field", None) or "telefone_whatsapp"))
 
+        # Sincronização / Ação do Kanban de Vendas
+        if getattr(mapping, "kanban_active", False) and phone:
+            try:
+                from services.crm_service import process_webhook_kanban_trigger
+                process_webhook_kanban_trigger(
+                    db=db,
+                    client_id=integration.client_id,
+                    mapping=mapping,
+                    phone=phone,
+                    name=name,
+                    email=parsed_data.get("email"),
+                    platform=integration.platform,
+                    payload_value=float(parsed_data.get("price") or 0.0)
+                )
+            except Exception as k_err:
+                logger.error(f"RESEND_KANBAN | Erro ao processar Kanban: {k_err}")
+
         # 2. Ignorar se não houver template nem funil definido
         if not template_name and not funnel_id:
             logger.info(f"RESEND_SKIP | Mapeamento #{mapping.id} sem template nem funil — disparo não criado.")

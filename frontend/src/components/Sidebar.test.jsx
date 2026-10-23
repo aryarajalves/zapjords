@@ -26,6 +26,7 @@ vi.mock('react-icons/fi', () => ({
   FiMessageSquare: () => <span />,
   FiTrello: () => <span />,
   FiX: () => <span />,
+  FiServer: () => <span />,
 }));
 
 vi.mock('./ClientSelector', () => ({
@@ -103,7 +104,8 @@ describe('Sidebar', () => {
     expect(screen.getByText('Disparo em Massa')).toBeInTheDocument();
     expect(screen.getByText('Meus Funis')).toBeInTheDocument();
     expect(screen.getByText('Histórico')).toBeInTheDocument();
-    expect(screen.getByText('Monitoramento')).toBeInTheDocument();
+    expect(screen.getByText('Infraestrutura')).toBeInTheDocument();
+    expect(screen.queryByText('Monitoramento')).not.toBeInTheDocument();
   });
 
   it('exibe a categoria "Criação de Páginas" apenas com Leads Quentes e sem Página de Captura nem Checkout Prepopulado', () => {
