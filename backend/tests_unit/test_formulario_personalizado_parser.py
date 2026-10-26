@@ -113,3 +113,90 @@ def test_parse_formulario_personalizado_direct_function():
     assert res["phone"] == "5511999998888"
     assert res["email"] == "joao@exemplo.com"
     assert res["event_type"] == "formulario"
+
+
+BOOKING_REMINDER_MORNING_PAYLOAD = {
+    "event": "booking_reminder_morning",
+    "form_id": 1,
+    "form_slug": "9g00wTk7",
+    "form_title": "Formulario Inicial",
+    "response_id": 13,
+    "contact_name": "Hinata",
+    "contact_email": "aryarajcrypto@gmail.com",
+    "contact_phone": "+55 85988146141",
+    "dispatched_at": "2026-10-25T20:26:58.410314+00:00",
+    "reminder_type": "morning",
+    "scheduled_for": "30/10/2026 09:00",
+    "reminder_label": "Lembrete do dia da reunião (09:00)",
+    "manual_dispatch": True,
+    "formatted_datetime": "30/10/26 19:00",
+    "scheduled_datetime": "2026-10-30T19:00:00-03:00"
+}
+
+
+def test_parse_formulario_personalizado_booking_reminder_morning():
+    """Valida o payload de lembrete de agendamento matinal (booking_reminder_morning)."""
+    result = parse_webhook_payload("formulario_personalizado", BOOKING_REMINDER_MORNING_PAYLOAD)
+
+    assert result["event_type"] == "booking_reminder_morning"
+    assert result["raw_status"].lower() == "lembrete reunião (manhã)".lower()
+    assert result["name"] == "Hinata"
+    assert result["first_name"] == "Hinata"
+    assert "85988146141" in result["phone"]
+    assert result["email"] == "aryarajcrypto@gmail.com"
+    assert result["product_name"] == "Formulario Inicial"
+    assert result["event_time"] == "2026-10-25T20:26:58.410314+00:00"
+
+    vars_dict = result.get("variables", {})
+    assert vars_dict.get("formatted_datetime") == "30/10/26 19:00"
+    assert vars_dict.get("data_reuniao") == "30/10/26 19:00"
+    assert vars_dict.get("scheduled_for") == "30/10/2026 09:00"
+    assert vars_dict.get("reminder_label") == "Lembrete do dia da reunião (09:00)"
+    assert vars_dict.get("reminder_type") == "morning"
+    assert vars_dict.get("response_id") == "13"
+    assert vars_dict.get("form_id") == "1"
+    assert vars_dict.get("form_slug") == "9g00wTk7"
+    assert vars_dict.get("manual_dispatch") == "Sim"
+
+
+BOOKING_REMINDER_BEFORE_MEETING_PAYLOAD = {
+    "event": "booking_reminder_before_meeting",
+    "form_id": 1,
+    "form_slug": "9g00wTk7",
+    "form_title": "Formulario Inicial",
+    "response_id": 13,
+    "contact_name": "Hinata",
+    "contact_email": "aryarajcrypto@gmail.com",
+    "contact_phone": "+55 85988146141",
+    "dispatched_at": "2026-10-25T20:25:16.768765+00:00",
+    "reminder_type": "before_meeting",
+    "scheduled_for": "30/10/2026 18:30",
+    "minutes_before": 30,
+    "reminder_label": "Lembrete 30 minutos antes da reunião",
+    "manual_dispatch": True,
+    "formatted_datetime": "30/10/26 19:00",
+    "scheduled_datetime": "2026-10-30T19:00:00-03:00"
+}
+
+
+def test_parse_formulario_personalizado_booking_reminder_before_meeting():
+    """Valida o payload de lembrete de agendamento minutos antes (booking_reminder_before_meeting)."""
+    result = parse_webhook_payload("formulario_personalizado", BOOKING_REMINDER_BEFORE_MEETING_PAYLOAD)
+
+    assert result["event_type"] == "booking_reminder_before_meeting"
+    assert result["raw_status"].lower() == "lembrete reunião (antes da reunião)".lower()
+    assert result["name"] == "Hinata"
+    assert result["first_name"] == "Hinata"
+    assert "85988146141" in result["phone"]
+    assert result["email"] == "aryarajcrypto@gmail.com"
+    assert result["product_name"] == "Formulario Inicial"
+    assert result["event_time"] == "2026-10-25T20:25:16.768765+00:00"
+
+    vars_dict = result.get("variables", {})
+    assert vars_dict.get("minutes_before") == "30"
+    assert vars_dict.get("formatted_datetime") == "30/10/26 19:00"
+    assert vars_dict.get("scheduled_for") == "30/10/2026 18:30"
+    assert vars_dict.get("reminder_label") == "Lembrete 30 minutos antes da reunião"
+    assert vars_dict.get("reminder_type") == "before_meeting"
+    assert vars_dict.get("response_id") == "13"
+

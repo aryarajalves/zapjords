@@ -179,6 +179,23 @@ Abaixo, detalho cada tela identificada no sistema e as dúvidas que precisamos s
         - **Nome do Arquivo**: `Leitura_Bussola_{Primeiro_Nome}.pdf` (ou `Leitura_Bussola.pdf` como fallback).
         - **Entrega no WhatsApp**: O PDF gerado é enviado para o storage (MinIO/S3), injetando as variáveis `bussola_pdf_url` e `bussola_pdf_filename`. Pode ser anexado automaticamente ao cabeçalho tipo Documento (`Header Document`) dos templates da Meta selecionando a opção nativa "PDF Automático da Leitura (Bússola Quiz)".
         - **Visualizador de Renderização de PDF**: O painel do gatilho e a coluna de prévia contam com botão "Visualizar PDF", abrindo um modal interativo com campos de simulação editáveis (Nome, Data e Mensagem), visualização em tempo real do PDF renderizado em A4 e botão de download.
+- **Integração Formulário Personalizado (Formulários Online e Agendamento - origem: `formulario_personalizado`)**:
+    - Suporta 3 tipos de eventos principais configuráveis para disparo de templates de WhatsApp independentes:
+        - `formulario` (ou `form_submission`): envio inicial e preenchimento de formulário com perguntas/respostas (`answers`).
+        - `booking_reminder_morning`: lembrete disparado na manhã do dia da reunião agendada (ex: às 09:00).
+        - `booking_reminder_before_meeting`: lembrete disparado minutos antes da reunião agendada (ex: 30 minutos antes).
+    - Para os lembretes de agendamento, extrai diretamente os campos da raiz do payload:
+        - `contact_name` -> `name` e `first_name`
+        - `contact_phone` -> `phone` e `whatsapp` (com normalização de DDD e DDI)
+        - `contact_email` -> `email`
+    - Variáveis de agendamento injetadas dinamicamente para os templates:
+        - `{{formatted_datetime}}` e `{{data_reuniao}}`: Data e horário formatados da reunião agendada (ex: "30/10/26 19:00")
+        - `{{scheduled_for}}`: Horário programado para o envio do lembrete (ex: "30/10/2026 09:00" ou "18:30")
+        - `{{reminder_label}}`: Rótulo descritivo do lembrete (ex: "Lembrete 30 minutos antes da reunião")
+        - `{{minutes_before}}`: Quantidade de minutos antes da reunião (ex: "30")
+        - `{{scheduled_datetime}}`: Data e hora da reunião no formato ISO
+        - `{{form_id}}`, `{{form_slug}}`, `{{form_title}}`, `{{response_id}}`: Metadados do formulário e resposta
+
 - **Integração YayForms (Formulários Online - origem: `yayforms`)**:
     - O payload enviado pelo YayForms suporta o status/evento principal `formulario` (com compatibilidade e fallback para `form_submission`).
     - O sistema detecta automaticamente o nome do formulário/evento através de campos de cabeçalho (ex: "RETIRO CORAÇÃO CIGANO 2026") ou `formTitle`/`title`, mapeando-o como `product_name`.

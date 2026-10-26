@@ -70,19 +70,35 @@ def parse_formulario_personalizado(payload: dict, result: dict) -> None:
     form_title = str(payload.get("form_title") or "").strip()
     is_test = payload.get("is_test")
     created_at = payload.get("created_at")
+    dispatched_at = payload.get("dispatched_at")
 
-    if created_at:
-        result["event_time"] = created_at
+    event_time = created_at or dispatched_at
+    if event_time:
+        result["event_time"] = str(event_time)
 
     # 2. Status e Tipo do Evento
-    result["event_type"] = "formulario"
-    result["raw_status"] = "Formulário"
+    raw_event = str(payload.get("event") or "").strip().lower()
+    if raw_event == "booking_reminder_morning":
+        result["event_type"] = "booking_reminder_morning"
+        result["raw_status"] = "Lembrete Reunião (Manhã)"
+    elif raw_event == "booking_reminder_before_meeting":
+        result["event_type"] = "booking_reminder_before_meeting"
+        result["raw_status"] = "Lembrete Reunião (Antes da Reunião)"
+    elif raw_event in ["form_submission", "formulario", "submission"]:
+        result["event_type"] = "formulario"
+        result["raw_status"] = "Formulário"
+    elif raw_event:
+        result["event_type"] = raw_event
+        result["raw_status"] = raw_event.replace("_", " ").title()
+    else:
+        result["event_type"] = "formulario"
+        result["raw_status"] = "Formulário"
 
     # 3. Nome do Produto (adota o título do formulário)
     product_name = form_title or (f"Formulário - {form_slug}" if form_slug else "Formulário Personalizado")
     result["product_name"] = product_name
 
-    # 4. Processamento das respostas (answers)
+    # 4. Processamento das respostas (answers) e campos diretos
     answers_raw = payload.get("answers")
     if isinstance(answers_raw, list):
         answers_list = answers_raw
@@ -95,6 +111,21 @@ def parse_formulario_personalizado(payload: dict, result: dict) -> None:
     extracted_phone: Optional[str] = None
     extracted_email: Optional[str] = None
     extracted_city: Optional[str] = None
+
+    # Captura direta de contato na raiz do payload (comum em lembretes de agendamento)
+    contact_name = payload.get("contact_name") or payload.get("name") or payload.get("nome")
+    contact_phone = (
+        payload.get("contact_phone") or payload.get("phone") or payload.get("whatsapp") or
+        payload.get("telefone") or payload.get("celular")
+    )
+    contact_email = payload.get("contact_email") or payload.get("email")
+
+    if contact_name:
+        extracted_name = str(contact_name).strip()
+    if contact_phone:
+        extracted_phone = str(contact_phone).strip()
+    if contact_email:
+        extracted_email = str(contact_email).strip().lower()
 
     variables: Dict[str, str] = {}
     custom_fields: Dict[str, str] = {}
@@ -111,6 +142,46 @@ def parse_formulario_personalizado(payload: dict, result: dict) -> None:
         custom_fields["form_title"] = form_title
     if is_test is not None:
         variables["is_test"] = "Sim" if is_test else "Não"
+
+    # Injeta metadados de agendamento e lembretes (booking)
+    response_id = str(payload.get("response_id") or "").strip()
+    reminder_type = str(payload.get("reminder_type") or "").strip()
+    reminder_label = str(payload.get("reminder_label") or "").strip()
+    scheduled_for = str(payload.get("scheduled_for") or "").strip()
+    formatted_datetime = str(payload.get("formatted_datetime") or "").strip()
+    scheduled_datetime = str(payload.get("scheduled_datetime") or "").strip()
+    minutes_before = payload.get("minutes_before")
+    manual_dispatch = payload.get("manual_dispatch")
+
+    if response_id:
+        variables["response_id"] = response_id
+        custom_fields["response_id"] = response_id
+    if reminder_type:
+        variables["reminder_type"] = reminder_type
+        custom_fields["reminder_type"] = reminder_type
+    if reminder_label:
+        variables["reminder_label"] = reminder_label
+        custom_fields["reminder_label"] = reminder_label
+    if scheduled_for:
+        variables["scheduled_for"] = scheduled_for
+        custom_fields["scheduled_for"] = scheduled_for
+    if formatted_datetime:
+        variables["formatted_datetime"] = formatted_datetime
+        custom_fields["formatted_datetime"] = formatted_datetime
+        variables["data_reuniao"] = formatted_datetime
+        custom_fields["data_reuniao"] = formatted_datetime
+    if scheduled_datetime:
+        variables["scheduled_datetime"] = scheduled_datetime
+        custom_fields["scheduled_datetime"] = scheduled_datetime
+    if minutes_before is not None and str(minutes_before).strip():
+        variables["minutes_before"] = str(minutes_before).strip()
+        custom_fields["minutes_before"] = str(minutes_before).strip()
+    if manual_dispatch is not None:
+        variables["manual_dispatch"] = "Sim" if manual_dispatch else "Não"
+        custom_fields["manual_dispatch"] = "Sim" if manual_dispatch else "Não"
+    if dispatched_at:
+        variables["dispatched_at"] = str(dispatched_at).strip()
+        custom_fields["dispatched_at"] = str(dispatched_at).strip()
 
     # Palavras-chave semânticas
     PHONE_KEYWORDS = ["whatsapp", "whats", "zap", "celular", "telefone", "phone", "tel", "mobile", "contato"]

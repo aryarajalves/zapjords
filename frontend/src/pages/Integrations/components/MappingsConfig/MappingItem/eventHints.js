@@ -11,4 +11,6 @@ export const EVENT_HINTS = {
   alteracao_vencimento: '📅 Disparado pela Hotmart quando a data de cobrança de uma assinatura é alterada (evento UPDATE_SUBSCRIPTION_CHARGE_DATE).',
   troca_de_plano: '🔄 Disparado pela Hotmart quando o assinante muda de plano (evento SWITCH_PLAN).',
   formulario: '📝 Disparado quando um formulário (YayForms ou Formulário Personalizado) é respondido e enviado pelo lead. Extrai nome, WhatsApp, e-mail, cidade e variáveis dinâmicas de todas as respostas.',
+  booking_reminder_morning: '🌅 Disparado na manhã do dia agendado para a reunião (ex: 09:00). Extrai {{formatted_datetime}}, {{scheduled_for}}, {{reminder_label}}, nome e WhatsApp do contato para lembrete matinal.',
+  booking_reminder_before_meeting: '⏰ Disparado minutos antes da reunião agendada (ex: 30 minutos antes). Extrai {{minutes_before}}, {{formatted_datetime}}, {{reminder_label}}, nome e WhatsApp do contato para aviso final.',
 };
