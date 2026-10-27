@@ -470,3 +470,71 @@ def process_webhook_kanban_trigger(
         db.refresh(new_deal)
         logger.info(f"✅ [CRM_WEBHOOK] Novo lead criado no Kanban para {digits} no estágio '{stage.name}' do pipeline {actual_pipeline_id}.")
         return new_deal
+
+
+def bulk_delete_deals(db: Session, client_id: int, deal_ids: List[int]) -> int:
+    """Exclui múltiplos deals do cliente de forma atômica."""
+    if not deal_ids:
+        return 0
+    deleted = db.query(SalesDeal).filter(
+        SalesDeal.client_id == client_id,
+        SalesDeal.id.in_(deal_ids)
+    ).delete(synchronize_session=False)
+    db.commit()
+    logger.info(f"🗑️ [CRM] {deleted} oportunidades excluídas em massa para client_id {client_id}.")
+    return deleted
+
+
+def bulk_update_deals(
+    db: Session,
+    client_id: int,
+    deal_ids: List[int],
+    update_product: bool = False,
+    product_id: Optional[int] = None,
+    product_name: Optional[str] = None,
+    update_value: bool = False,
+    value: Optional[float] = None
+) -> int:
+    """Atualiza produto e/ou preço de múltiplos deals do cliente."""
+    if not deal_ids:
+        return 0
+
+    deals = db.query(SalesDeal).filter(
+        SalesDeal.client_id == client_id,
+        SalesDeal.id.in_(deal_ids)
+    ).all()
+
+    if not deals:
+        return 0
+
+    # Se selecionou produto de catálogo, buscar dados oficiais
+    catalog_product = None
+    if update_product and product_id and product_id > 0:
+        catalog_product = db.query(CrmProduct).filter(
+            CrmProduct.id == product_id,
+            CrmProduct.client_id == client_id
+        ).first()
+
+    prod_name_to_set = None
+    if update_product:
+        if catalog_product:
+            prod_name_to_set = catalog_product.name
+        elif product_name:
+            prod_name_to_set = product_name.strip()
+        else:
+            prod_name_to_set = None
+
+    now = datetime.now(timezone.utc)
+    for deal in deals:
+        if update_product:
+            deal.product_id = catalog_product.id if catalog_product else (product_id if product_id and product_id > 0 else None)
+            deal.product_name = prod_name_to_set
+            if catalog_product and catalog_product.price is not None:
+                deal.original_value = float(catalog_product.price)
+        if update_value:
+            deal.value = float(value or 0.0)
+        deal.updated_at = now
+
+    db.commit()
+    logger.info(f"✏️ [CRM] {len(deals)} oportunidades atualizadas em massa para client_id {client_id} (update_product={update_product}, update_value={update_value}).")
+    return len(deals)

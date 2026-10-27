@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { useSalesKanban } from './hooks/useSalesKanban';
 import { useDragScroll } from './hooks/useDragScroll';
 import { useCrmProducts } from './hooks/useCrmProducts';
+import { useBulkDeals } from './hooks/useBulkDeals';
+import { useClient } from '../../contexts/ClientContext';
 import { KanbanHeader } from './components/KanbanHeader';
 import { KanbanColumn } from './components/KanbanColumn';
+import { BulkActionsBar } from './components/BulkActionsBar';
+import { BulkEditDealsModal } from './components/BulkEditDealsModal';
 import { PipelineModal } from './components/PipelineModal';
 import { StageModal } from './components/StageModal';
 import { DealModal } from './components/DealModal';
@@ -53,8 +57,41 @@ export default function SalesKanban({ onViewChange }) {
         handleDeleteDeal,
         handleSaveStage,
         handleDeleteStage,
-        handleOpenChat
+        handleOpenChat,
+        fetchBoard
     } = useSalesKanban({ onViewChange });
+
+    const { activeClient } = useClient();
+    const clientId = activeClient?.id;
+
+    const {
+        selectedDealIds,
+        isBulkEditModalOpen,
+        setIsBulkEditModalOpen,
+        isProcessingBulk,
+        toggleSelectDeal,
+        selectAllDeals,
+        toggleSelectStage,
+        clearSelectedDeals,
+        openBulkDeleteConfirm,
+        handleBulkDeleteDeals,
+        handleBulkUpdateDeals
+    } = useBulkDeals({
+        clientId,
+        selectedPipelineId,
+        onRefreshBoard: fetchBoard,
+        setDeleteModal
+    });
+
+    const allVisibleDealIds = useMemo(() => {
+        const ids = [];
+        (filteredStages || []).forEach(st => {
+            if (st.deals) {
+                st.deals.forEach(d => ids.push(d.id));
+            }
+        });
+        return ids;
+    }, [filteredStages]);
 
     const openNewPipeline = () => {
         setPipelineToEdit(null);
@@ -110,7 +147,9 @@ export default function SalesKanban({ onViewChange }) {
     };
 
     const handleConfirmDelete = async () => {
-        if (deleteModal.type === 'deal') {
+        if (deleteModal.type === 'bulk_deals') {
+            await handleBulkDeleteDeals();
+        } else if (deleteModal.type === 'deal') {
             await handleDeleteDeal(deleteModal.id);
         } else if (deleteModal.type === 'pipeline') {
             await handleDeletePipeline(deleteModal.id);
@@ -150,6 +189,18 @@ export default function SalesKanban({ onViewChange }) {
                 isSyncing={isSyncing}
             />
 
+            {/* Barra de Ações em Massa */}
+            <BulkActionsBar
+                selectedCount={selectedDealIds.length}
+                totalDeals={allVisibleDealIds.length}
+                stages={filteredStages}
+                onSelectAll={() => selectAllDeals(allVisibleDealIds)}
+                onClearSelection={clearSelectedDeals}
+                onSelectStage={toggleSelectStage}
+                onOpenBulkEdit={() => setIsBulkEditModalOpen(true)}
+                onOpenBulkDelete={openBulkDeleteConfirm}
+            />
+
             {/* Quadro Kanban com Colunas Horizontais e Scroll por Arraste com Mouse */}
             <div
                 {...dragScrollProps}
@@ -169,6 +220,9 @@ export default function SalesKanban({ onViewChange }) {
                             onDeleteDeal={confirmDeleteDeal}
                             onOpenChat={handleOpenChat}
                             onEditStage={openEditStage}
+                            selectedDealIds={selectedDealIds}
+                            onToggleSelectDeal={toggleSelectDeal}
+                            onToggleSelectStage={toggleSelectStage}
                         />
                     ))}
 
@@ -241,13 +295,21 @@ export default function SalesKanban({ onViewChange }) {
                 onDeleteProduct={deleteProduct}
             />
 
+            <BulkEditDealsModal
+                isOpen={isBulkEditModalOpen}
+                onClose={() => setIsBulkEditModalOpen(false)}
+                onSave={handleBulkUpdateDeals}
+                selectedCount={selectedDealIds.length}
+                products={products}
+            />
+
             <DeleteConfirmModal
                 isOpen={deleteModal.isOpen}
                 title={deleteModal.title}
                 message={deleteModal.message}
                 onConfirm={handleConfirmDelete}
                 onCancel={() => setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' })}
-                isProcessing={false}
+                isProcessing={isProcessingBulk}
             />
 
             <LostReasonModal

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FiPlus, FiEdit2 } from 'react-icons/fi';
 import { KanbanCard } from './KanbanCard';
 
@@ -60,10 +60,26 @@ export function KanbanColumn({
     onEditDeal,
     onDeleteDeal,
     onOpenChat,
-    onEditStage
+    onEditStage,
+    selectedDealIds = [],
+    onToggleSelectDeal,
+    onToggleSelectStage
 }) {
     const [isDragOver, setIsDragOver] = useState(false);
     const colorStyle = COLOR_MAP[stage.color] || COLOR_MAP.blue;
+
+    const checkboxRef = useRef(null);
+    const stageDealIds = useMemo(() => (stage.deals || []).map(d => d.id), [stage.deals]);
+    const stageDealsCount = stageDealIds.length;
+    const selectedCountInStage = stageDealIds.filter(id => selectedDealIds.includes(id)).length;
+    const isAllSelectedInStage = stageDealsCount > 0 && selectedCountInStage === stageDealsCount;
+    const isPartiallySelectedInStage = selectedCountInStage > 0 && selectedCountInStage < stageDealsCount;
+
+    useEffect(() => {
+        if (checkboxRef.current) {
+            checkboxRef.current.indeterminate = isPartiallySelectedInStage;
+        }
+    }, [isPartiallySelectedInStage]);
 
     const handleDragOver = (e) => {
         e.preventDefault();
@@ -102,6 +118,21 @@ export function KanbanColumn({
             <div className={`py-2 px-3.5 border-b border-white/5 rounded-t-2xl ${colorStyle.bg}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-2 min-w-0">
+                        {onToggleSelectStage && stageDealsCount > 0 && (
+                            <input
+                                type="checkbox"
+                                ref={checkboxRef}
+                                checked={isAllSelectedInStage}
+                                onChange={() => onToggleSelectStage(stageDealIds)}
+                                className="w-3.5 h-3.5 rounded border-white/20 bg-slate-800 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0 transition-all accent-blue-500 hover:border-blue-400"
+                                title={
+                                    isAllSelectedInStage
+                                        ? `Desmarcar todos os ${stageDealsCount} leads de ${stage.name}`
+                                        : `Selecionar todos os ${stageDealsCount} leads de ${stage.name}`
+                                }
+                                aria-label={`Selecionar todos os leads da coluna ${stage.name}`}
+                            />
+                        )}
                         <span className={`w-2.5 h-2.5 rounded-full ${colorStyle.border} bg-current ${colorStyle.text}`} />
                         <h3 className="text-xs font-black text-white uppercase tracking-wider truncate">
                             {stage.name}
@@ -150,6 +181,8 @@ export function KanbanColumn({
                                 onEdit={onEditDeal}
                                 onDelete={onDeleteDeal}
                                 onOpenChat={onOpenChat}
+                                isSelected={selectedDealIds.includes(deal.id)}
+                                onToggleSelect={onToggleSelectDeal}
                             />
                         ))}
                         {/* Espaçador de segurança sutil */}

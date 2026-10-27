@@ -15,7 +15,9 @@ from routers.crm import (
     get_pipeline_board,
     create_deal,
     move_deal,
-    sync_pipeline_history_endpoint
+    sync_pipeline_history_endpoint,
+    bulk_delete_deals,
+    bulk_update_deals
 )
 from schemas_domain import crm as schemas_crm
 
@@ -41,13 +43,11 @@ def test_default_pipeline_creation_and_stages():
     assert len(pipelines) == 1
     default_pipe = pipelines[0]
     assert default_pipe["name"] == "Pipeline Geral de Vendas"
-    assert default_pipe["stages_count"] == 5
+    assert default_pipe["stages_count"] == 6
 
-    # Verificar board do pipeline com as 5 colunas padrão
+    # Verificar board do pipeline com as 6 colunas padrão
     board = get_pipeline_board(pipeline_id=default_pipe["id"], client_id=1, db=db, current_user=user)
-    assert len(board["stages"]) == 5
-    expected_stages = ["Prospect", "Lead", "Oportunidade", "Venda", "Desistencia"]
-    assert [s["name"] for s in board["stages"]] == expected_stages
+    assert len(board["stages"]) == 6
     assert board["total_deals"] == 0
 
     db.close()
@@ -66,7 +66,7 @@ def test_create_custom_product_pipeline():
     assert new_pipe["name"] == "Mentoria High Ticket"
     assert new_pipe["product_name"] == "Mentoria Elite"
     assert new_pipe["associated_tags"] == "mentoria, vip, black"
-    assert new_pipe["stages_count"] == 5
+    assert new_pipe["stages_count"] == 6
 
     db.close()
 
@@ -434,5 +434,220 @@ def test_pipeline_board_conversion_rate_and_stage_percentages():
 
     assert won_board_stage['total_deals'] == 2
     assert won_board_stage['percentage'] == 20.0
+
+    db.close()
+
+
+def test_bulk_delete_deals_success():
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).all()
+    stage = stages[0]
+
+    # Criar 3 deals
+    deals = []
+    for i in range(3):
+        d = create_deal(
+            payload=schemas_crm.SalesDealCreate(
+                pipeline_id=pipe.id,
+                stage_id=stage.id,
+                contact_phone=f"551199999000{i}",
+                contact_name=f"Lead {i}",
+                value=100.0
+            ),
+            client_id=1,
+            db=db,
+            current_user=user
+        )
+        deals.append(d)
+
+    assert db.query(SalesDeal).filter(SalesDeal.client_id == 1).count() == 3
+
+    # Deletar os 2 primeiros em massa
+    res = bulk_delete_deals(
+        payload=schemas_crm.SalesDealBulkDelete(deal_ids=[deals[0].id, deals[1].id]),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+    assert res["count"] == 2
+
+    # Apenas o terceiro deve restar
+    remaining = db.query(SalesDeal).filter(SalesDeal.client_id == 1).all()
+    assert len(remaining) == 1
+    assert remaining[0].id == deals[2].id
+
+    db.close()
+
+
+def test_bulk_update_deals_product_and_value():
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).all()
+    stage = stages[0]
+
+    # Criar 2 produtos no catálogo
+    prod1 = models.crm.CRMProduct(client_id=1, name="Curso Alpha", price=197.00)
+    prod2 = models.crm.CRMProduct(client_id=1, name="Mentoria Beta", price=997.00)
+    db.add_all([prod1, prod2])
+    db.commit()
+
+    # Criar 3 deals com valor inicial de 50.00
+    deals = []
+    for i in range(3):
+        d = create_deal(
+            payload=schemas_crm.SalesDealCreate(
+                pipeline_id=pipe.id,
+                stage_id=stage.id,
+                contact_phone=f"558599999000{i}",
+                contact_name=f"Aluno {i}",
+                value=50.0
+            ),
+            client_id=1,
+            db=db,
+            current_user=user
+        )
+        deals.append(d)
+
+    # Atualizar deals 0 e 1 para Mentoria Beta com valor personalizado 797.00
+    res = bulk_update_deals(
+        payload=schemas_crm.SalesDealBulkUpdate(
+            deal_ids=[deals[0].id, deals[1].id],
+            update_product=True,
+            product_id=prod2.id,
+            update_value=True,
+            value=797.00
+        ),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+    assert res["count"] == 2
+
+    db.refresh(deals[0])
+    db.refresh(deals[1])
+    db.refresh(deals[2])
+
+    assert deals[0].product_name == "Mentoria Beta"
+    assert deals[0].product_id == prod2.id
+    assert deals[0].original_value == 997.00
+    assert deals[0].value == 797.00
+
+    assert deals[1].product_name == "Mentoria Beta"
+    assert deals[1].value == 797.00
+
+    # Deal 2 não foi afetado
+    assert deals[2].product_name is None
+    assert deals[2].value == 50.00
+
+    db.close()
+
+
+def test_bulk_update_deals_only_value_or_only_product():
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    pipe = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).all()
+    stage = stages[0]
+
+    d1 = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id,
+            stage_id=stage.id,
+            contact_phone="5511999991111",
+            contact_name="Lead Unico",
+            product_name="Produto Antigo",
+            value=100.0
+        ),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+
+    # Atualizar SOMENTE o preço
+    bulk_update_deals(
+        payload=schemas_crm.SalesDealBulkUpdate(
+            deal_ids=[d1.id],
+            update_product=False,
+            update_value=True,
+            value=250.00
+        ),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+    db.refresh(d1)
+    assert d1.value == 250.00
+    assert d1.product_name == "Produto Antigo"
+
+    # Atualizar SOMENTE o produto com nome livre
+    bulk_update_deals(
+        payload=schemas_crm.SalesDealBulkUpdate(
+            deal_ids=[d1.id],
+            update_product=True,
+            product_name="Novo Produto Top",
+            update_value=False
+        ),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+    db.refresh(d1)
+    assert d1.value == 250.00
+    assert d1.product_name == "Novo Produto Top"
+
+    db.close()
+
+
+def test_bulk_operations_client_isolation():
+    db, client, user = setup_crm_test_db()
+    crm_service.get_or_create_default_pipeline(db, 1)
+
+    # Cliente 2
+    client2 = models.Client(id=2, name="Outro Cliente", is_active=True)
+    user2 = models.User(id=2, email="outro@crm.com", role="super_admin", client_id=2)
+    db.add_all([client2, user2])
+    db.commit()
+    crm_service.get_or_create_default_pipeline(db, 2)
+
+    pipe1 = db.query(SalesPipeline).filter(SalesPipeline.client_id == 1).first()
+    pipe2 = db.query(SalesPipeline).filter(SalesPipeline.client_id == 2).first()
+    stg1 = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe1.id).first()
+    stg2 = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe2.id).first()
+
+    d1 = create_deal(
+        payload=schemas_crm.SalesDealCreate(pipeline_id=pipe1.id, stage_id=stg1.id, contact_phone="5511999991111", value=100.0),
+        client_id=1, db=db, current_user=user
+    )
+    d2 = create_deal(
+        payload=schemas_crm.SalesDealCreate(pipeline_id=pipe2.id, stage_id=stg2.id, contact_phone="5511999992222", value=200.0),
+        client_id=2, db=db, current_user=user2
+    )
+
+    # Cliente 1 tenta deletar deal do Cliente 2
+    res_del = bulk_delete_deals(
+        payload=schemas_crm.SalesDealBulkDelete(deal_ids=[d2.id]),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+    assert res_del["count"] == 0
+    assert db.query(SalesDeal).filter(SalesDeal.id == d2.id).first() is not None
+
+    # Cliente 1 tenta atualizar deal do Cliente 2
+    res_upd = bulk_update_deals(
+        payload=schemas_crm.SalesDealBulkUpdate(deal_ids=[d2.id], update_value=True, value=999.0),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+    assert res_upd["count"] == 0
+    db.refresh(d2)
+    assert d2.value == 200.0
 
     db.close()

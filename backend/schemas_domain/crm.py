@@ -109,6 +109,17 @@ class SalesDealContactMovePayload(BaseModel):
     lost_reason: Optional[str] = None
     notes: Optional[str] = None
 
+class SalesDealBulkDelete(BaseModel):
+    deal_ids: List[int]
+
+class SalesDealBulkUpdate(BaseModel):
+    deal_ids: List[int]
+    update_product: Optional[bool] = False
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    update_value: Optional[bool] = False
+    value: Optional[float] = None
+
 class SalesDealResponse(SalesDealBase):
     id: int
     client_id: int

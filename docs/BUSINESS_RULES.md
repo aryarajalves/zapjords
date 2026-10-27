@@ -117,6 +117,15 @@ Este documento centraliza as definições de comportamento do sistema e os requi
   - **Extensão Total até o Rodapé da Janela**: O layout do Kanban passa a preencher 100% da altura da janela (`h-full min-h-0`), sem travas artificiais de altura fixa, permitindo que as colunas desçam até a base da tela.
   - **Alternância de Visualização ("Recolher Métricas / Ver Métricas")**: Botão no cabeçalho permite alternar o Modo Foco. Ao recolher as métricas numéricas, mais de 120px de espaço vertical são liberados imediatamente, permitindo que a visualização dos cards seja contínua e minimize a rolagem interna nas colunas. A preferência é memorizada no navegador (`kanban_show_metrics`).
 
+- **Remoção Individual e em Massa de Oportunidades no Kanban**:
+  - **Remoção Individual Direta**: Cada card do Kanban conta com um botão direto de lixeira no rodapé (ao lado do atalho de chat). Ao clicar, abre obrigatoriamente popup de confirmação centralizado (`DeleteConfirmModal`) para evitar exclusões acidentais.
+  - **Seleção Múltipla e Remoção em Massa**: Cada card possui um checkbox no topo. Ao marcar 1 ou mais cards, uma barra de ações em massa flutuante (`BulkActionsBar`) é exibida com a contagem de selecionados, atalhos de "Selecionar Todos" / "Desmarcar Todos" e botão "Remover Selecionados". A exclusão em massa executa via `POST /api/crm/deals/bulk-delete`, garantindo isolamento por cliente (`client_id`) e confirmação centralizada.
+- **Edição em Massa de Produto e Preço no Kanban (`BulkEditDealsModal`)**:
+  - **Operação Controlada**: A barra de ações em massa disponibiliza o botão "Editar Produto e Preço". O modal permite atualizar de forma combinada ou independente:
+    - **Produto de Interesse**: Permite selecionar um produto do catálogo oficial (`crm_products`), digitar produto avulso ou manter o produto original de cada lead.
+    - **Preço / Valor Real (R$)**: Permite definir um novo valor numérico para todas as oportunidades selecionadas, com botão de 1 clique para sincronizar com o preço oficial de tabela do produto escolhido.
+  - A API (`POST /api/crm/deals/bulk-update`) altera estritamente os campos marcados pelo usuário (`update_product`, `update_value`), preservando etapas, dados do lead e notas originais.
+
 ---
 
 ## 🖥️ Detalhamento das Telas e UX

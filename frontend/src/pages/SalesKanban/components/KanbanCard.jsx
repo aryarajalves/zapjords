@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare } from 'react-icons/fi';
+import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp, FaInstagram, FaGoogle } from 'react-icons/fa';
 
 // Mapeamento visual dos canais de origem
@@ -99,7 +99,14 @@ function getChannelConfig(rawChannel) {
     };
 }
 
-export function KanbanCard({ deal, onEdit, onDelete, onOpenChat }) {
+export function KanbanCard({
+    deal,
+    onEdit,
+    onDelete,
+    onOpenChat,
+    isSelected = false,
+    onToggleSelect
+}) {
     const formatCurrency = (val) => {
         return Number(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
@@ -125,17 +132,37 @@ export function KanbanCard({ deal, onEdit, onDelete, onOpenChat }) {
             onDragStart={handleDragStart}
             onClick={() => onEdit(deal)}
             title="Clique para ver todas as informações do lead"
-            className="group bg-slate-900/90 hover:bg-slate-850 border border-white/10 hover:border-blue-500/50 rounded-2xl p-3.5 space-y-2.5 transition-all duration-150 shadow-md hover:shadow-xl hover:shadow-blue-500/5 cursor-pointer relative"
+            className={`group bg-slate-900/90 hover:bg-slate-850 border rounded-2xl p-3.5 space-y-2.5 transition-all duration-150 shadow-md hover:shadow-xl cursor-pointer relative ${
+                isSelected
+                    ? 'border-blue-500/80 bg-blue-950/25 shadow-blue-500/10 ring-1 ring-blue-500/40'
+                    : 'border-white/10 hover:border-blue-500/50 hover:shadow-blue-500/5'
+            }`}
         >
-            {/* Topo do Card: Nome da Pessoa em Destaque */}
+            {/* Topo do Card: Seleção e Nome da Pessoa em Destaque */}
             <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-black text-white truncate group-hover:text-blue-300 transition-colors">
-                        {deal.contact_name || 'Sem Nome'}
-                    </h4>
-                    {deal.title && deal.title !== `Oportunidade - ${deal.contact_name}` && (
-                        <p className="text-[10px] text-slate-400 truncate mt-0.5">{deal.title}</p>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {onToggleSelect && (
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onToggleSelect(deal.id);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 rounded border-white/20 bg-slate-800 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0 transition-all accent-blue-500 hover:border-blue-400"
+                            title="Selecionar lead para ações em massa"
+                            aria-label={`Selecionar lead ${deal.contact_name || deal.contact_phone}`}
+                        />
                     )}
+                    <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-black text-white truncate group-hover:text-blue-300 transition-colors">
+                            {deal.contact_name || 'Sem Nome'}
+                        </h4>
+                        {deal.title && deal.title !== `Oportunidade - ${deal.contact_name}` && (
+                            <p className="text-[10px] text-slate-400 truncate mt-0.5">{deal.title}</p>
+                        )}
+                    </div>
                 </div>
 
                 {/* Status Ganho/Perdido */}
@@ -208,17 +235,34 @@ export function KanbanCard({ deal, onEdit, onDelete, onOpenChat }) {
                     <span>{deal.contact_phone}</span>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenChat(deal.contact_phone);
-                    }}
-                    className="p-1.5 hover:bg-emerald-500/15 text-slate-400 hover:text-emerald-400 border border-transparent hover:border-emerald-500/30 rounded-lg transition-all cursor-pointer"
-                    title="Conversar no WhatsApp"
-                >
-                    <FiMessageSquare size={13} />
-                </button>
+                <div className="flex items-center gap-1">
+                    {onDelete && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(deal.id, deal.contact_name || deal.contact_phone);
+                            }}
+                            className="p-1.5 hover:bg-rose-500/15 text-slate-500 hover:text-rose-400 border border-transparent hover:border-rose-500/30 rounded-lg transition-all cursor-pointer opacity-70 hover:opacity-100"
+                            title="Remover contato do Kanban"
+                            aria-label={`Remover lead ${deal.contact_name || deal.contact_phone}`}
+                        >
+                            <FiTrash2 size={13} />
+                        </button>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenChat(deal.contact_phone);
+                        }}
+                        className="p-1.5 hover:bg-emerald-500/15 text-slate-400 hover:text-emerald-400 border border-transparent hover:border-emerald-500/30 rounded-lg transition-all cursor-pointer"
+                        title="Conversar no WhatsApp"
+                    >
+                        <FiMessageSquare size={13} />
+                    </button>
+                </div>
             </div>
         </div>
     );

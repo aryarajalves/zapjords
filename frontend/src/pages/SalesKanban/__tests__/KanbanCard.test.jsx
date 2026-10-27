@@ -98,4 +98,61 @@ describe('KanbanCard Component', () => {
         expect(handleOpenChat).toHaveBeenCalledWith('5511999998888');
         expect(handleEdit).not.toHaveBeenCalled();
     });
+
+    it('dispara onDelete ao clicar no botão de lixeira sem abrir o card de edição', () => {
+        const handleEdit = vi.fn();
+        const handleDelete = vi.fn();
+        render(
+            <KanbanCard
+                deal={mockDeal}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onOpenChat={vi.fn()}
+            />
+        );
+
+        const deleteBtn = screen.getByTitle('Remover contato do Kanban');
+        fireEvent.click(deleteBtn);
+
+        expect(handleDelete).toHaveBeenCalledWith(101, 'Lucas Silva');
+        expect(handleEdit).not.toHaveBeenCalled();
+    });
+
+    it('dispara onToggleSelect ao clicar no checkbox de seleção sem abrir o card de edição', () => {
+        const handleEdit = vi.fn();
+        const handleToggleSelect = vi.fn();
+        render(
+            <KanbanCard
+                deal={mockDeal}
+                onEdit={handleEdit}
+                onDelete={vi.fn()}
+                onOpenChat={vi.fn()}
+                isSelected={false}
+                onToggleSelect={handleToggleSelect}
+            />
+        );
+
+        const checkbox = screen.getByTitle('Selecionar lead para ações em massa');
+        fireEvent.click(checkbox);
+
+        expect(handleToggleSelect).toHaveBeenCalledWith(101);
+        expect(handleEdit).not.toHaveBeenCalled();
+    });
+
+    it('aplica estilo de destaque e anel neon quando isSelected=true', () => {
+        render(
+            <KanbanCard
+                deal={mockDeal}
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+                onOpenChat={vi.fn()}
+                isSelected={true}
+                onToggleSelect={vi.fn()}
+            />
+        );
+
+        const card = screen.getByTitle('Clique para ver todas as informações do lead');
+        expect(card.className).toContain('border-blue-500/80');
+        expect(card.className).toContain('ring-1 ring-blue-500/40');
+    });
 });

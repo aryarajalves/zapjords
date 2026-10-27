@@ -741,3 +741,36 @@ def delete_deal(
     db.delete(deal)
     db.commit()
     return {"message": "Oportunidade excluída com sucesso"}
+
+
+@router.post("/deals/bulk-delete")
+def bulk_delete_deals(
+    payload: schemas_crm.SalesDealBulkDelete,
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Exclui múltiplos deals selecionados de uma vez."""
+    deleted_count = crm_service.bulk_delete_deals(db, client_id, payload.deal_ids)
+    return {"message": f"{deleted_count} oportunidades excluídas com sucesso", "count": deleted_count}
+
+
+@router.post("/deals/bulk-update")
+def bulk_update_deals(
+    payload: schemas_crm.SalesDealBulkUpdate,
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Atualiza produto e/ou preço dos deals selecionados em massa."""
+    updated_count = crm_service.bulk_update_deals(
+        db=db,
+        client_id=client_id,
+        deal_ids=payload.deal_ids,
+        update_product=payload.update_product or False,
+        product_id=payload.product_id,
+        product_name=payload.product_name,
+        update_value=payload.update_value or False,
+        value=payload.value
+    )
+    return {"message": f"{updated_count} oportunidades atualizadas com sucesso", "count": updated_count}

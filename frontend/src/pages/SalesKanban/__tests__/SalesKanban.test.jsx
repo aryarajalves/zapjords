@@ -158,6 +158,18 @@ describe('SalesKanban Component Tests', () => {
                     json: () => Promise.resolve(mockBoard)
                 });
             }
+            if (strUrl.includes('/api/crm/deals/bulk-delete')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ message: '2 contatos removidos do Kanban.', count: 2 })
+                });
+            }
+            if (strUrl.includes('/api/crm/deals/bulk-update')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ message: '2 contatos atualizados com sucesso!', count: 2 })
+                });
+            }
             return Promise.resolve({
                 ok: true,
                 json: () => Promise.resolve({})
@@ -298,5 +310,180 @@ describe('SalesKanban Component Tests', () => {
         // Valida badges de porcentagem nas colunas (ex: 1 (33.3%))
         const columnBadges = screen.getAllByText('1 (33.3%)');
         expect(columnBadges.length).toBeGreaterThan(0);
+    });
+
+    it('permite selecionar cards individuais e exibe a barra de ações em massa', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        // Inicialmente a barra não deve estar presente
+        expect(screen.queryByTestId('kanban-bulk-actions-bar')).not.toBeInTheDocument();
+
+        // Clica no checkbox do primeiro lead
+        const checkboxes = screen.getAllByTitle('Selecionar lead para ações em massa');
+        fireEvent.click(checkboxes[0]);
+
+        // Barra de ações em massa deve aparecer com contagem
+        expect(screen.getByTestId('kanban-bulk-actions-bar')).toBeInTheDocument();
+        expect(screen.getByText('1 lead selecionado')).toBeInTheDocument();
+        expect(screen.getByText('Editar Produto e Preço')).toBeInTheDocument();
+        expect(screen.getByText('Remover Selecionados')).toBeInTheDocument();
+
+        // Clica no checkbox do segundo lead
+        fireEvent.click(checkboxes[1]);
+        expect(screen.getByText('2 leads selecionados')).toBeInTheDocument();
+    });
+
+    it('abre o modal de confirmação de exclusão individual ao clicar na lixeira do card', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        const deleteButtons = screen.getAllByTitle('Remover contato do Kanban');
+        fireEvent.click(deleteButtons[0]);
+
+        // Modal de confirmação deve abrir centralizado
+        expect(screen.getByText('Excluir Oportunidade?')).toBeInTheDocument();
+        expect(screen.getByText(/Tem certeza que deseja excluir o lead "Carlos Oliveira"/)).toBeInTheDocument();
+        expect(screen.getByText('Sim, Excluir')).toBeInTheDocument();
+    });
+
+    it('abre o modal de confirmação em massa e executa a exclusão ao confirmar', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        const checkboxes = screen.getAllByTitle('Selecionar lead para ações em massa');
+        fireEvent.click(checkboxes[0]);
+        fireEvent.click(checkboxes[1]);
+
+        const bulkDeleteBtn = screen.getByText('Remover Selecionados');
+        fireEvent.click(bulkDeleteBtn);
+
+        // Modal de confirmação em massa deve abrir
+        expect(screen.getByText('Remover 2 Contatos?')).toBeInTheDocument();
+        expect(screen.getByText(/Tem certeza que deseja remover os 2 contatos selecionados deste Kanban\?/)).toBeInTheDocument();
+
+        const confirmBtn = screen.getByText('Sim, Excluir');
+        fireEvent.click(confirmBtn);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/api/crm/deals/bulk-delete'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ deal_ids: [101, 102] })
+                })
+            );
+        });
+    });
+
+    it('abre o modal de edição em massa e permite atualizar produto e preço dos selecionados', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        const checkboxes = screen.getAllByTitle('Selecionar lead para ações em massa');
+        fireEvent.click(checkboxes[0]);
+
+        const bulkEditBtn = screen.getByText('Editar Produto e Preço');
+        fireEvent.click(bulkEditBtn);
+
+        // Modal de edição em massa aberto
+        expect(screen.getByText('Editar Contatos em Massa')).toBeInTheDocument();
+        expect(screen.getByText(/Aplicar alterações para/)).toBeInTheDocument();
+
+        // Ativa produto
+        const productCheckbox = screen.getByLabelText(/Alterar Produto de Interesse/);
+        fireEvent.click(productCheckbox);
+
+        // Ativa preço
+        const priceCheckbox = screen.getByLabelText(/Alterar Preço \/ Valor da Venda/);
+        fireEvent.click(priceCheckbox);
+
+        const priceInput = screen.getByPlaceholderText('0.00');
+        fireEvent.change(priceInput, { target: { value: '750.00' } });
+
+        const submitBtn = screen.getByText(/Aplicar aos 1 Leads/);
+        fireEvent.click(submitBtn);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/api/crm/deals/bulk-update'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: expect.stringContaining('"update_value":true')
+                })
+            );
+        });
+    });
+
+    it('permite selecionar todos os leads de uma única coluna pelo checkbox do cabeçalho da coluna', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        // Checkbox da coluna 'Novo Lead'
+        const colNovoLeadCheckbox = screen.getByLabelText('Selecionar todos os leads da coluna Novo Lead');
+        expect(colNovoLeadCheckbox).toBeInTheDocument();
+        expect(colNovoLeadCheckbox.checked).toBe(false);
+
+        // Marca todos da coluna Novo Lead
+        fireEvent.click(colNovoLeadCheckbox);
+
+        expect(screen.getByTestId('kanban-bulk-actions-bar')).toBeInTheDocument();
+        expect(screen.getByText('1 lead selecionado')).toBeInTheDocument();
+        expect(colNovoLeadCheckbox.checked).toBe(true);
+
+        // Marca também a coluna 'Fechado (Ganho)'
+        const colWonCheckbox = screen.getByLabelText('Selecionar todos os leads da coluna Fechado (Ganho)');
+        fireEvent.click(colWonCheckbox);
+
+        expect(screen.getByText('2 leads selecionados')).toBeInTheDocument();
+        expect(colWonCheckbox.checked).toBe(true);
+
+        // Desmarca a coluna 'Novo Lead'
+        fireEvent.click(colNovoLeadCheckbox);
+
+        expect(screen.getByText('1 lead selecionado')).toBeInTheDocument();
+        expect(colNovoLeadCheckbox.checked).toBe(false);
+        expect(colWonCheckbox.checked).toBe(true);
+    });
+
+    it('mantém o botão global de Selecionar Todos os leads do quadro e Desmarcar Todos', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        // Clica na coluna Novo Lead para abrir a barra
+        const colNovoLeadCheckbox = screen.getByLabelText('Selecionar todos os leads da coluna Novo Lead');
+        fireEvent.click(colNovoLeadCheckbox);
+
+        expect(screen.getByText('1 lead selecionado')).toBeInTheDocument();
+
+        // Clica no botão global Selecionar Todos (3)
+        const selectAllGlobalBtn = screen.getByText('Selecionar Todos (3)');
+        fireEvent.click(selectAllGlobalBtn);
+
+        expect(screen.getByText('3 leads selecionados')).toBeInTheDocument();
+
+        // Clica em Desmarcar Todos
+        const deselectAllBtn = screen.getByText('Desmarcar Todos');
+        fireEvent.click(deselectAllBtn);
+
+        expect(screen.queryByTestId('kanban-bulk-actions-bar')).not.toBeInTheDocument();
     });
 });
