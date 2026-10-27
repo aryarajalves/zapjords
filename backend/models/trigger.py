@@ -66,6 +66,7 @@ class ScheduledTrigger(Base):
     label_added = Column(Boolean, default=False)
     publish_external_event = Column(Boolean, default=False)
     chatwoot_label = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    contact_labels = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     idempotency_key = Column(String, nullable=True, index=True, unique=True)
 
     event_type = Column(String, nullable=True)
@@ -439,6 +440,7 @@ class RecurringTrigger(Base):
     next_run_at = Column(DateTime(timezone=True), index=True, nullable=True)
     button_actions = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     interaction_filter_days = Column(Integer, nullable=True)
+    contact_labels = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     created_filter_days = Column(Integer, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())

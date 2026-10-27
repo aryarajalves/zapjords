@@ -1,9 +1,40 @@
-import React from 'react';
-import { FiSlash, FiFileText, FiImage, FiVideo, FiUpload, FiCheckCircle, FiX } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiSlash, FiFileText, FiImage, FiVideo, FiUpload, FiCheckCircle, FiX, FiMove, FiInfo } from 'react-icons/fi';
+import ImageCropModal from './ImageCropModal';
 
 const HeaderSection = ({ logic }) => {
     const { formData, setFormData, fileInputRef, handleMediaUpload, mediaUploading, mediaCache, setMediaCache } = logic;
     const currentMedia = mediaCache[formData.header_type] || { url: '', fileName: '', previewUrl: null };
+
+    const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+    const [cropImageSrc, setCropImageSrc] = useState(null);
+    const [cropFileName, setCropFileName] = useState('');
+
+    const handleFileSelected = (file) => {
+        if (!file) return;
+
+        if (formData.header_type === 'IMAGE' && file.type.startsWith('image/')) {
+            const tempUrl = URL.createObjectURL(file);
+            setCropImageSrc(tempUrl);
+            setCropFileName(file.name);
+            setIsCropModalOpen(true);
+        } else {
+            handleMediaUpload(file);
+        }
+    };
+
+    const handleCropComplete = (croppedFile, previewUrl) => {
+        handleMediaUpload(croppedFile);
+    };
+
+    const handleOpenReCrop = (e) => {
+        e.stopPropagation();
+        if (currentMedia.previewUrl) {
+            setCropImageSrc(currentMedia.previewUrl);
+            setCropFileName(currentMedia.fileName || 'imagem_cabecalho.jpg');
+            setIsCropModalOpen(true);
+        }
+    };
 
     return (
         <div className="bg-gray-50/50 dark:bg-gray-900/20 p-4 sm:p-6 rounded-2xl border border-gray-100 dark:border-gray-700">
@@ -51,7 +82,7 @@ const HeaderSection = ({ logic }) => {
             )}
 
             {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formData.header_type) && (
-                <div className="mt-4">
+                <div className="mt-4 space-y-2">
                     <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5 tracking-wider">Arquivo de Exemplo</label>
                     <input
                         ref={fileInputRef}
@@ -62,7 +93,7 @@ const HeaderSection = ({ logic }) => {
                             formData.header_type === 'VIDEO' ? 'video/mp4,video/3gpp' :
                             '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
                         }
-                        onChange={(e) => handleMediaUpload(e.target.files?.[0])}
+                        onChange={(e) => handleFileSelected(e.target.files?.[0])}
                     />
                     <div
                         onClick={() => !mediaUploading && fileInputRef.current?.click()}
@@ -93,6 +124,17 @@ const HeaderSection = ({ logic }) => {
                                     <p className="text-sm text-green-600 dark:text-green-400 font-medium truncate">{currentMedia.fileName || 'Arquivo enviado'}</p>
                                     <p className="text-[10px] text-gray-400 truncate">{formData.header_media_url}</p>
                                 </div>
+                                {formData.header_type === 'IMAGE' && currentMedia.previewUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenReCrop}
+                                        title="Ajustar enquadramento e mover mídia"
+                                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[11px] font-bold transition-all shrink-0 cursor-pointer"
+                                    >
+                                        <FiMove size={13} />
+                                        <span>Mover Mídia</span>
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={(e) => { 
@@ -100,7 +142,7 @@ const HeaderSection = ({ logic }) => {
                                         setFormData(prev => ({ ...prev, header_media_url: '' }));
                                         setMediaCache(prev => ({ ...prev, [formData.header_type]: { url: '', fileName: '', previewUrl: null } }));
                                     }}
-                                    className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                                    className="text-gray-400 hover:text-red-500 transition-colors shrink-0 p-1"
                                 >
                                     <FiX size={16} />
                                 </button>
@@ -119,11 +161,31 @@ const HeaderSection = ({ logic }) => {
                             </>
                         )}
                     </div>
+
+                    {/* Dica de Resolução Recomendada Meta */}
+                    {formData.header_type === 'IMAGE' && (
+                        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-slate-900/40 border border-white/5 text-[11px] text-slate-400 leading-relaxed">
+                            <FiInfo size={14} className="text-blue-400 shrink-0 mt-0.5" />
+                            <div>
+                                <strong className="text-slate-300">Resolução Ideal (Formato Cheio):</strong> Proporção horizontal <strong className="text-blue-400">1.91:1</strong> (<strong className="text-white">1200 x 628 px</strong> ou <strong className="text-white">1920 x 1080 px</strong>). Imagens quadradas ou verticais sofrem corte central pelo WhatsApp. Ao selecionar a imagem, você pode <strong>mover e enquadrar</strong> a área desejada.
+                            </div>
+                        </div>
+                    )}
+
                     <p className="text-[10px] text-gray-500 mt-1 italic">
                         * O arquivo será enviado para a Meta para aprovação do template.
                     </p>
                 </div>
             )}
+
+            {/* Modal de Enquadramento e Reposicionamento */}
+            <ImageCropModal
+                isOpen={isCropModalOpen}
+                onClose={() => setIsCropModalOpen(false)}
+                imageSrc={cropImageSrc}
+                fileName={cropFileName}
+                onCropComplete={handleCropComplete}
+            />
         </div>
     );
 };

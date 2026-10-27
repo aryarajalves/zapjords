@@ -228,7 +228,10 @@ export function useSalesKanban({ onViewChange }) {
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
-            if (!res.ok) throw new Error('Falha ao salvar pipeline');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || (isEditing ? 'Falha ao atualizar pipeline' : 'Falha ao criar pipeline'));
+            }
             const saved = await res.json();
             toast.success(isEditing ? 'Pipeline atualizado!' : 'Novo Pipeline de Vendas criado com sucesso!');
             setIsPipelineModalOpen(false);
@@ -237,7 +240,7 @@ export function useSalesKanban({ onViewChange }) {
             setSelectedPipelineId(saved.id);
         } catch (err) {
             console.error('Erro ao salvar pipeline:', err);
-            toast.error('Não foi possível salvar o pipeline de produto.');
+            toast.error(err.message || 'Não foi possível salvar o pipeline de produto.');
         }
     };
 
@@ -248,13 +251,16 @@ export function useSalesKanban({ onViewChange }) {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-            if (!res.ok) throw new Error('Falha ao excluir pipeline');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Falha ao excluir pipeline');
+            }
             toast.success('Pipeline excluído com sucesso.');
             setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' });
             await fetchPipelines();
         } catch (err) {
             console.error('Erro ao excluir pipeline:', err);
-            toast.error('Erro ao excluir pipeline.');
+            toast.error(err.message || 'Erro ao excluir pipeline.');
         }
     };
 
@@ -272,14 +278,17 @@ export function useSalesKanban({ onViewChange }) {
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
-            if (!res.ok) throw new Error('Falha ao salvar oportunidade');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Falha ao salvar oportunidade');
+            }
             toast.success(isEditing ? 'Oportunidade atualizada!' : 'Oportunidade criada com sucesso!');
             setIsDealModalOpen(false);
             setDealToEdit(null);
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
         } catch (err) {
             console.error('Erro ao salvar deal:', err);
-            toast.error('Não foi possível salvar a oportunidade.');
+            toast.error(err.message || 'Não foi possível salvar a oportunidade.');
         }
     };
 
@@ -314,14 +323,17 @@ export function useSalesKanban({ onViewChange }) {
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
-            if (!res.ok) throw new Error('Falha ao salvar coluna');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Falha ao salvar coluna');
+            }
             toast.success(isEditing ? 'Coluna atualizada!' : 'Nova coluna criada com sucesso!');
             setIsStageModalOpen(false);
             setStageToEdit(null);
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
         } catch (err) {
             console.error('Erro ao salvar coluna:', err);
-            toast.error('Não foi possível salvar a coluna.');
+            toast.error(err.message || 'Não foi possível salvar a coluna.');
         }
     };
 

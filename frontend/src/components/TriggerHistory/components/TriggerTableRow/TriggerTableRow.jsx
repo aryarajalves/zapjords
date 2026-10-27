@@ -23,9 +23,10 @@ const TriggerTableRow = ({
   onManualInteraction,
   handleTogglePin,
   folders,
-  moveTriggerToFolder
+  moveTriggerToFolder,
+  onConfigureButtonActions
 }) => {
-  const triggerWithActions = { ...trigger, onManualInteraction };
+  const triggerWithActions = { ...trigger, onManualInteraction, onConfigureButtonActions };
 
   const hasInteractionTracking = Boolean(
     triggerWithActions.interaction_funnel_id ||

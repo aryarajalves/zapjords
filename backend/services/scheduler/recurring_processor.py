@@ -362,6 +362,7 @@ async def process_recurring_triggers(db, now_utc):
                 is_bulk=True,
                 is_recurring=True,
                 recurring_trigger_id=rt.id,
+                contact_labels=getattr(rt, "contact_labels", None),
                 button_actions=rt.button_actions,
                 scheduled_time=scheduled_time_utc,
                 failure_reason=failure_reason
@@ -388,6 +389,7 @@ async def process_recurring_triggers(db, now_utc):
                 is_bulk=True,
                 is_recurring=True,
                 recurring_trigger_id=rt.id,
+                contact_labels=getattr(rt, "contact_labels", None),
                 button_actions=rt.button_actions,
                 scheduled_time=now_utc
             )

@@ -3,7 +3,7 @@ import { FiLayout, FiRefreshCw } from 'react-icons/fi';
 import Filters from './Filters';
 import TemplateItem from './TemplateItem';
 
-const TemplateList = ({ logic }) => {
+const TemplateList = ({ logic, isHidden = false }) => {
     const { templates, fetchingTemplates, fetchTemplates, templateCategoryFilter, templateStatusFilter, templateSearch } = logic;
 
     const [activeTab, setActiveTab] = React.useState('actives');
@@ -16,7 +16,7 @@ const TemplateList = ({ logic }) => {
     );
 
     return (
-        <div className="w-full space-y-4 sm:space-y-6">
+        <div className={`w-full space-y-4 sm:space-y-6 ${isHidden ? 'hidden' : 'block'}`}>
             <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">

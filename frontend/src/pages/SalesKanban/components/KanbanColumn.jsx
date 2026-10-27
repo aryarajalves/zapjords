@@ -168,6 +168,13 @@ export function KanbanColumn({
                     <span>Total da Etapa ({stage.percentage !== undefined ? stage.percentage : 0}%):</span>
                     <span className="text-white font-mono">{formatCurrency(stage.total_value)}</span>
                 </div>
+
+                {stage.forward_to_pipeline_id && (
+                    <div className="flex items-center gap-1 mt-1 pt-1 border-t border-white/5 text-[9px] font-bold text-emerald-400">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>Avança automaticamente para outro funil</span>
+                    </div>
+                )}
             </div>
 
             {/* Lista de Cards da Coluna */}

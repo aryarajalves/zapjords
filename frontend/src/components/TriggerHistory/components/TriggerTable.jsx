@@ -6,7 +6,7 @@ const TriggerTable = ({
     handleSelectOne, handleViewContacts, fetchChildren, fetchErrors,
     handleViewPipeline, handleEditParams, handleStartNow, handleCancel,
     handleRetry, handleDelete, handleSyncStats, user, confirmBulkDelete, onManualInteraction,
-    handleTogglePin, showOnlyPinned, folders, moveTriggerToFolder
+    handleTogglePin, showOnlyPinned, folders, moveTriggerToFolder, onConfigureButtonActions
 }) => {
     const raw = Array.isArray(triggers) ? triggers : [];
     // Fixados sobem ao topo; se showOnlyPinned, mostra só os fixados
@@ -76,6 +76,7 @@ const TriggerTable = ({
                             handleTogglePin={handleTogglePin}
                             folders={folders}
                             moveTriggerToFolder={moveTriggerToFolder}
+                            onConfigureButtonActions={onConfigureButtonActions}
                         />
 
                     ))}

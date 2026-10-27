@@ -104,6 +104,13 @@ def update_schema():
                 logger.info(f"✅ Sincronização concluída! {changes_made} colunas adicionadas.")
             else:
                 logger.info("✨ Esquema do banco de dados já está atualizado.")
+
+            # 2. Migração de dados de estágios do Kanban (garantir padrão Prospect, Lead, Oportunidade, Venda, Desistencia)
+            try:
+                from scripts.database.update_kanban_default_stages import migrate_kanban_stages
+                migrate_kanban_stages()
+            except Exception as e_stg:
+                logger.warning(f"⚠️ Aviso na sincronização de estágios do Kanban: {e_stg}")
                 
     except TimeoutError as te:
         logger.error(f"⏳ {te}")

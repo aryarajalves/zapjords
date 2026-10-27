@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from sqlalchemy.orm.attributes import flag_modified
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 import uuid
 import models, schemas
 from core.deps import get_current_user, get_db, get_validated_client_id
+from core.logger import logger
 from rabbitmq_client import rabbitmq
 from services.triggers_service import (
     reconcile_trigger_stats_logic, 
@@ -386,3 +388,137 @@ async def trigger_manual_interaction(
         
     await rabbitmq.publish_event("trigger_updated", {"trigger_id": trigger_id, "status": trigger.status, "client_id": client_id})
     return {"status": "success", "triggered_count": triggered_count}
+
+
+class UpdateTriggerButtonActionsPayload(BaseModel):
+    button_actions: Optional[Dict[str, Any]] = None
+
+
+@router.get("/{trigger_id}/button-actions-info", summary="Obter dados e opções para configurar botões do disparo")
+async def get_trigger_button_actions_info(
+    trigger_id: int,
+    client_id: int = Depends(get_validated_client_id),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    trigger = db.query(models.ScheduledTrigger).filter_by(id=trigger_id, client_id=client_id).first()
+    if not trigger:
+        raise HTTPException(status_code=404, detail="Disparo não encontrado.")
+
+    # 1. Resolver ações atuais e nomes de funis
+    current_actions = {}
+    if trigger.button_actions and isinstance(trigger.button_actions, dict):
+        for btn_text, act in trigger.button_actions.items():
+            if isinstance(act, dict):
+                act_copy = act.copy()
+                fid = act.get("funnel_id")
+                if fid:
+                    fn = db.query(models.Funnel).filter_by(id=fid, client_id=client_id).first()
+                    act_copy["funnel_name"] = fn.name if fn else f"Funil #{fid}"
+                current_actions[btn_text] = act_copy
+            else:
+                current_actions[btn_text] = act
+
+    # 2. Descobrir botões do template
+    discovered_buttons = []
+    if trigger.template_name:
+        clean_name = trigger.template_name.split('|')[0].strip()
+        tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
+            models.WhatsAppTemplateCache.client_id == client_id,
+            models.WhatsAppTemplateCache.name == clean_name
+        ).first()
+
+        if tpl_cache and tpl_cache.components and isinstance(tpl_cache.components, list):
+            for comp in tpl_cache.components:
+                if isinstance(comp, dict) and comp.get("type") == "BUTTONS":
+                    for b in comp.get("buttons", []):
+                        if isinstance(b, dict) and b.get("type") not in ("URL", "PHONE"):
+                            txt = b.get("text")
+                            if txt and txt.strip() and txt.strip() not in discovered_buttons:
+                                discovered_buttons.append(txt.strip())
+
+    # Se já haviam botões salvos nas ações atuais, garantir que apareçam na lista de botões
+    for btn_name in current_actions.keys():
+        if btn_name and btn_name.strip() not in discovered_buttons:
+            discovered_buttons.append(btn_name.strip())
+
+    # 3. Lista de funis disponíveis do cliente
+    funnels_query = db.query(models.Funnel).filter_by(client_id=client_id).order_by(models.Funnel.name.asc()).all()
+    available_funnels = [
+        {"id": f.id, "name": f.name, "tag": f.tag, "is_pinned": bool(getattr(f, "is_pinned", False))}
+        for f in funnels_query
+    ]
+
+    return {
+        "trigger_id": trigger.id,
+        "template_name": trigger.template_name,
+        "discovered_buttons": discovered_buttons,
+        "template_buttons": discovered_buttons,
+        "current_button_actions": current_actions,
+        "button_actions": current_actions,
+        "funnels": available_funnels
+    }
+
+
+@router.patch("/{trigger_id}/button-actions", summary="Atualizar ações dos botões do disparo")
+async def update_trigger_button_actions(
+    trigger_id: int,
+    payload: UpdateTriggerButtonActionsPayload,
+    client_id: int = Depends(get_validated_client_id),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    trigger = db.query(models.ScheduledTrigger).filter_by(id=trigger_id, client_id=client_id).first()
+    if not trigger:
+        raise HTTPException(status_code=404, detail="Disparo não encontrado.")
+
+    clean_actions = {}
+    if payload.button_actions and isinstance(payload.button_actions, dict):
+        for btn_key, act in payload.button_actions.items():
+            if not btn_key or not isinstance(act, dict):
+                continue
+            act_type = act.get("type", "none")
+            fid = act.get("funnel_id")
+            if fid:
+                try:
+                    fid = int(fid)
+                except (ValueError, TypeError):
+                    fid = None
+            clean_actions[btn_key.strip()] = {
+                "type": act_type,
+                "funnel_id": fid,
+                "activate_agent": bool(act.get("activate_agent", False))
+            }
+
+    trigger.button_actions = clean_actions if clean_actions else None
+    flag_modified(trigger, "button_actions")
+    db.commit()
+    db.refresh(trigger)
+
+    resolved_actions = {}
+    if trigger.button_actions:
+        for btn_text, action in trigger.button_actions.items():
+            act_copy = action.copy()
+            fid = action.get("funnel_id")
+            if fid:
+                fn = db.query(models.Funnel).filter_by(id=fid, client_id=client_id).first()
+                act_copy["funnel_name"] = fn.name if fn else f"Funil #{fid}"
+            resolved_actions[btn_text] = act_copy
+
+    try:
+        await rabbitmq.publish_event("trigger_updated", {
+            "trigger_id": trigger_id,
+            "client_id": client_id,
+            "button_actions": resolved_actions
+        })
+    except Exception as e_pub:
+        logger.warning(f"⚠️ Erro ao publicar trigger_updated: {e_pub}")
+
+    logger.info(f"🔘 [TRIGGER_BUTTONS_UPDATED] Trigger {trigger_id} atualizou button_actions: {list(clean_actions.keys())}")
+
+    return {
+        "message": "Ações dos botões atualizadas com sucesso",
+        "trigger_id": trigger_id,
+        "button_actions": resolved_actions
+    }
+

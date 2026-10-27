@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiTag, FiBox, FiDollarSign } from 'react-icons/fi';
+import { FiX, FiTag, FiBox, FiDollarSign, FiTrash2 } from 'react-icons/fi';
 
-export function PipelineModal({ isOpen, onClose, onSave, pipelineToEdit }) {
+export function PipelineModal({ isOpen, onClose, onSave, onDelete, pipelineToEdit, products = [] }) {
     const [name, setName] = useState('');
     const [productName, setProductName] = useState('');
     const [associatedTags, setAssociatedTags] = useState('');
@@ -85,19 +85,43 @@ export function PipelineModal({ isOpen, onClose, onSave, pipelineToEdit }) {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                            <FiBox className="text-blue-400" />
-                            Nome do Produto no Webhook (Plataformas)
+                        <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                                <FiBox className="text-blue-400" />
+                                Produto Vinculado (Catálogo)
+                            </span>
+                            {(!products || products.length === 0) && (
+                                <span className="text-[10px] text-amber-400/80">
+                                    Nenhum produto cadastrado
+                                </span>
+                            )}
                         </label>
-                        <input
-                            type="text"
+                        <select
                             value={productName}
-                            onChange={(e) => setProductName(e.target.value)}
-                            placeholder="Ex: Mentoria Elite 2026 (como vem na Hotmart/Kiwify)"
-                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-medium"
-                        />
+                            onChange={(e) => {
+                                const selectedName = e.target.value;
+                                setProductName(selectedName);
+                                const found = (products || []).find(p => p.name === selectedName);
+                                if (found && (defaultValue === '0.00' || defaultValue === '0' || !defaultValue)) {
+                                    setDefaultValue(String(found.price || '0.00'));
+                                }
+                            }}
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-bold cursor-pointer"
+                        >
+                            <option value="">Selecione um produto cadastrado (ou deixe sem vínculo)...</option>
+                            {productName && !products?.some(p => p.name === productName) && (
+                                <option value={productName} className="bg-slate-900 text-white">
+                                    {productName} (Atual)
+                                </option>
+                            )}
+                            {(Array.isArray(products) ? products : []).map(p => (
+                                <option key={p.id} value={p.name} className="bg-slate-900 text-white">
+                                    {p.name} {p.price ? `- R$ ${Number(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
+                                </option>
+                            ))}
+                        </select>
                         <p className="text-[10px] text-slate-500 mt-1">
-                            Quando chegar um webhook com este produto, o lead entrará automaticamente neste pipeline.
+                            Ao selecionar um produto do catálogo, os leads e oportunidades dele serão direcionados a este pipeline.
                         </p>
                     </div>
 
@@ -155,21 +179,34 @@ export function PipelineModal({ isOpen, onClose, onSave, pipelineToEdit }) {
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all cursor-pointer"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSaving || !name.trim()}
-                            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
-                        >
-                            {isSaving ? 'Salvando...' : 'Salvar Pipeline'}
-                        </button>
+                    <div className="flex items-center justify-between gap-3 pt-4 border-t border-white/5">
+                        {pipelineToEdit && onDelete ? (
+                            <button
+                                type="button"
+                                onClick={() => onDelete(pipelineToEdit.id, pipelineToEdit.name)}
+                                className="px-3.5 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                                <FiTrash2 size={14} />
+                                <span>Excluir Pipeline</span>
+                            </button>
+                        ) : <div />}
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSaving || !name.trim()}
+                                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
+                            >
+                                {isSaving ? 'Salvando...' : 'Salvar Pipeline'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

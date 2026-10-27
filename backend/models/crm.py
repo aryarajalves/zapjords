@@ -18,7 +18,13 @@ class SalesPipeline(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    stages = relationship("SalesPipelineStage", back_populates="pipeline", cascade="all, delete-orphan", order_by="SalesPipelineStage.order_index")
+    stages = relationship(
+        "SalesPipelineStage",
+        back_populates="pipeline",
+        cascade="all, delete-orphan",
+        order_by="SalesPipelineStage.order_index",
+        foreign_keys="SalesPipelineStage.pipeline_id"
+    )
     deals = relationship("SalesDeal", back_populates="pipeline", cascade="all, delete-orphan")
 
 
@@ -33,11 +39,13 @@ class SalesPipelineStage(Base):
     color = Column(String(50), default="blue")  # blue, amber, emerald, rose, purple, slate, sky, indigo, cyan
     stage_type = Column(String(50), default="in_progress")  # initial, in_progress, won, lost
     webhook_event_trigger = Column(String(100), nullable=True)  # carrinho_abandonado, compra_aprovada, etc.
+    forward_to_pipeline_id = Column(Integer, ForeignKey("sales_pipelines.id", ondelete="SET NULL"), nullable=True)
+    forward_to_stage_id = Column(Integer, ForeignKey("sales_pipeline_stages.id", ondelete="SET NULL"), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    pipeline = relationship("SalesPipeline", back_populates="stages")
+    pipeline = relationship("SalesPipeline", back_populates="stages", foreign_keys=[pipeline_id])
     deals = relationship("SalesDeal", back_populates="stage", cascade="all, delete-orphan")
 
 

@@ -186,6 +186,7 @@ async def register_bulk_send(
             cost_per_unit=payload.get("cost_per_unit", 0.0),
             total_cost=0.0,
             scheduled_time=datetime.now(timezone.utc),
+            contact_labels=payload.get("contact_labels"),
             button_actions=payload.get("button_actions")
         )
         db.add(trigger)
@@ -284,6 +285,7 @@ async def reserve_bulk_send(
         private_message_delay=payload.get("private_message_delay", 5),
         private_message_concurrency=payload.get("private_message_concurrency", 1),
         scheduled_time=datetime.now(timezone.utc),
+        contact_labels=payload.get("contact_labels"),
         max_dispatch_time=max_dispatch_time,
         button_actions=payload.get("button_actions")
     )
@@ -351,6 +353,7 @@ async def schedule_bulk_send(
         private_message_delay=payload.get("private_message_delay", 5),
         private_message_concurrency=payload.get("private_message_concurrency", 1),
         chatwoot_label=payload.get("chatwoot_label"),
+        contact_labels=payload.get("contact_labels"),
         button_actions=payload.get("button_actions"),
         is_dynamic_label=payload.get("is_dynamic_label", False),
         dynamic_label_name=payload.get("dynamic_label_name"),

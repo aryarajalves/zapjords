@@ -76,6 +76,10 @@ Este documento centraliza as definições de comportamento do sistema e os requi
 ### 13. Distinção entre Segmentação Local (Leads) e Atendimento (Chat)
 - **Segmentação Local (ZapVoice)**: Atua exclusivamente sobre o banco de contatos e leads do ZapVoice (`WebhookLead`). É utilizada para adicionar/remover tags de segmentação de contatos (usadas para filtros, listas e disparos em massa) ou gerenciar a Blacklist local (bloquear/desbloquear número). **Não altera marcadores/etiquetas da conversa no Chat.**
 - **Atendimento (Chat Local)**: Opção específica para o módulo de Atendimento/Chat. É a responsável por adicionar e remover etiquetas/marcadores diretamente na conversa do contato (`ChatConversation.labels`), além de permitir atualizar nome, notas privadas e responsável da conversa no Chat local.
+- **Etiquetas do Contato em Disparo em Massa (`contact_labels`)**:
+  - No módulo de Disparo em Massa, o usuário tem a opção de definir etiquetas para serem atribuídas **diretamente no contato** (`WebhookLead.tags` e entidade de contato do Chatwoot) que recebeu o disparo.
+  - **Isolamento de Escopo Estrito**: As etiquetas do contato são aplicadas exclusivamente ao cadastro do lead/contato. Elas **NUNCA** são aplicadas na conversa (`ChatConversation.labels` ou marcadores de conversa), preservando o histórico de atendimento do chat e garantindo segmentação correta na base de contatos e pipelines do CRM.
+  - **Limite de Caracteres**: Cada etiqueta inserida respeita o teto máximo de 25 caracteres.
 
 ### 14. Política de Cobrança e Franquia da Meta Cloud API (Vigência 01/10/2026)
 - **Franquia de 1.000 Mensagens Gratuitas de Serviço**: Cada cliente/número possui uma cota mensal de 1.000 mensagens de serviço (atendimento SAC/chat livre) gratuitas. A contagem zera no primeiro dia de cada mês.
@@ -105,6 +109,8 @@ Este documento centraliza as definições de comportamento do sistema e os requi
 - **Ações Rápidas no Card**: Cada card permite abrir a conversa no Chat local do WhatsApp com 1 clique, ou disparar templates/funis sem sair do Kanban.
 - **Identificação do Canal de Origem no Card (`channel`)**: Cada contato no Kanban exibe um badge visual indicando de onde veio o lead (Kiwify, Hotmart, Eduzz, Checkout Jords, Bússola Quiz, YayForms, Elementor, WhatsApp, Instagram, etc.). O canal é herdado automaticamente do webhook ou pode ser definido/editado livremente no modal de oportunidade.
 - **Criação e Gestão Dinâmica de Colunas / Estágios (`sales_pipeline_stages`)**: O operador pode criar novas colunas personalizadas no CRM via botão "+ Nova Coluna" (no cabeçalho ou ao final da fila horizontal), configurando nome, paleta de cores (Azul, Âmbar, Esmeralda, Rosa, Roxo, Ardósia, Índigo, Ciano), tipo de estágio (Em Andamento, Inicial, Ganho, Perdido) e gatilho automático opcional de webhook. Ao excluir uma coluna, seus cards são preservados e migrados automaticamente para outra etapa do pipeline.
+- **Exclusão de Pipelines de Venda**: O operador pode excluir pipelines tanto através do ícone de lixeira no cabeçalho ao lado do seletor quanto pelo botão dedicado "Excluir Pipeline" no rodapé do modal de edição. A ação exige confirmação em modal centralizado com backdrop preto e proteção contra clique acidental. Ao excluir, as colunas e oportunidades vinculadas são removidas em cascata, e caso o pipeline removido fosse o padrão (`is_default`), o sistema elege automaticamente outro pipeline existente como padrão.
+- **Vínculo de Produtos no Pipeline via Dropdown**: No modal de criação e edição de pipeline (`PipelineModal`), o campo de produto é um seletor dropdown conectado diretamente ao catálogo de produtos da empresa (`CRMProduct`), substituindo a digitação manual de texto. Ao escolher um produto cadastrado, o sistema sugere automaticamente o preço de tabela como Valor Padrão de Venda.
 - **Colunas Padrão do Pipeline**: Por padrão, pipelines recém-criados são inicializados com as colunas: `Prospect`, `Lead`, `Oportunidade`, `Venda` (tipo 'won') e `Desistência` (tipo 'lost').
 - **Motivo de Desistência Obrigatório no Card e Modal (`lost_reason`)**: Ao mover qualquer lead para a etapa de Desistência (via drag & drop ou seleção no modal), o sistema abre modal centralizado exigindo o motivo da desistência. O motivo é exibido com badge de destaque no card e no modal de edição do lead.
 - **Catálogo de Produtos e Precificação Base (`crm_products`)**: Módulo dedicado para cadastrar os produtos da empresa com nome e valor oficial em R$. No card do Kanban, o nome do lead e o valor do produto aparecem de imediato no topo. Ao selecionar o produto no modal do lead, o valor base é preenchido automaticamente, mantendo campo para valor real negociado com desconto.
@@ -358,6 +364,19 @@ Abaixo estão as perguntas sobre mecânicas de fundo que ainda não estão docum
   - **Se não existir**: Cria um novo Deal com o Nome do Contato, Telefone, E-mail, Origem da Plataforma do Webhook, Produto, Valor e Estágio selecionados.
 - **Suporte a Reenvio e Testes**:
   - Tanto no recebimento ao vivo de webhooks quanto no reprocessamento pelo Histórico de Disparos ou Testes de Webhook, a automação do Kanban é acionada respeitando o isolamento multi-tenant (`client_id`).
+
+### 16. Avanço Automático de Contatos entre Pipelines no CRM
+- **Configuração no Estágio / Coluna (`StageModal`)**:
+  - Em qualquer coluna do Kanban (ex: "Venda" ou qualquer etapa configurada), o operador pode habilitar o switch **"Avançar para outro Pipeline"**.
+  - **Seleção Dinâmica**: Apresenta dropdown com os demais pipelines disponíveis do cliente (`forward_to_pipeline_id`) e dropdown com as colunas correspondentes do pipeline selecionado (`forward_to_stage_id`).
+- **Gatilho e Execução Automática**:
+  - Quando um card/contato atinge essa etapa (seja por arraste manual Drag & Drop, criação direta, atualização via formulário ou gatilho de Webhook), o backend executa imediatamente o encaminhamento (`crm_service.check_and_forward_deal_if_configured`).
+  - **Se o lead já possuir oportunidade no pipeline de destino**: A oportunidade existente é atualizada para a coluna configurada, atualizando o status (`won`, `lost` ou `open`) e o timestamp de última interação sem duplicar contatos.
+  - **Se for um novo lead no pipeline de destino**: Cria automaticamente a oportunidade com o Telefone, Nome, E-mail e Canal de origem do contato, herdando o Produto e o Valor Padrão (`default_value`) configurados no pipeline de destino.
+- **Segurança e Prevenção de Loops**:
+  - O sistema impede auto-avanço para o próprio pipeline de origem, bloqueando loops infinitos.
+- **Feedback e Identificação Visual**:
+  - No cabeçalho da coluna configurada no Kanban, o sistema exibe o indicador visual verde com efeito pulsante: `⚡ Avança automaticamente para outro funil`.
 
 ## 📋 Histórico de Decisões
 As perguntas iniciais sobre regras de negócio foram todas respondidas e integradas às seções acima. O sistema segue o modelo de isolamento total entre clientes e automação robusta com retentativas configuradas.

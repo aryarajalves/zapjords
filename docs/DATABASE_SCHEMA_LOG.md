@@ -30,6 +30,8 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 27/10/2026 | Suporte a Etiquetas no Contato em Disparos em Massa e Recorrentes | `scheduled_triggers`, `recurring_triggers` | `contact_labels` (JSONB / JSON DEFAULT '[]') | `backend/scripts/database/add_contact_labels_columns.py` |
+| 27/10/2026 | Avanço Automático de Leads para Próximo Pipeline e Etapa | `sales_pipeline_stages` | `forward_to_pipeline_id` (INTEGER, FK), `forward_to_stage_id` (INTEGER, FK) | `backend/scripts/database/add_pipeline_forward_columns.py` |
 | 23/10/2026 | Catálogo de Produtos do CRM e Vínculo com Desconto em Deals | `crm_products`, `sales_deals` | Tabela `crm_products` criada (`name`, `price`, `description`, `is_active`) e colunas `product_id`, `product_name`, `original_value` adicionadas em `sales_deals` | `backend/add_crm_products_table.py` |
 | 23/10/2026 | Suporte a ON DELETE CASCADE em FKs de Usuário e Limpeza em Lote | `user_clients`, `password_reset_tokens`, `api_keys` | Constraints atualizadas com ON DELETE CASCADE e cascade/passive_deletes no ORM | `backend/add_cascade_to_user_clients.py` |
 | 23/10/2026 | Estágios Padrão do Kanban de Vendas (Prospect, Lead, Oportunidade, Venda, Desistencia) | sales_pipeline_stages | Padronização das 5 colunas com reordenação e migração de deals existentes | backend/scripts/database/update_kanban_default_stages.py |

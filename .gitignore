@@ -91,3 +91,5 @@ scratch/
 compactar_docker.bat
 backend/compactar_docker.bat
 
+scratch_backups/
+*.bak

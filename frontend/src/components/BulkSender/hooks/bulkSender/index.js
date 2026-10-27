@@ -47,6 +47,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
     const [privateMessageDelayUnit, setPrivateMessageDelayUnit] = useState("seconds");
     const [privateMessageConcurrency, setPrivateMessageConcurrency] = useState(1);
     const [selectedChatwootLabels, setSelectedChatwootLabels] = useState([]);
+    const [selectedContactLabels, setSelectedContactLabels] = useState([]);
 
     // Button Actions (card 04)
     const [buttonActions, setButtonActions] = useState({});
@@ -108,6 +109,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
                 setSendPrivateMessage(false);
                 setPrivateMessageText("");
                 setSelectedChatwootLabels([]);
+                setSelectedContactLabels([]);
                 setButtonActions({});
                 setFinalContacts([]);
                 setSelectionMetadata({});
@@ -150,6 +152,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         setSendPrivateMessage(false);
         setPrivateMessageText("");
         setSelectedChatwootLabels([]);
+        setSelectedContactLabels([]);
         setFinalContacts([]);
         resetExclusion();
         setScheduledTime("");
@@ -178,6 +181,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
             scheduledTime,
             maxDispatchTime,
             selectedChatwootLabels,
+            selectedContactLabels,
             sendPrivateMessage,
             privateMessageText,
             privateMessageDelayUnit,
@@ -206,6 +210,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         sendPrivateMessage, setSendPrivateMessage, privateMessageText, setPrivateMessageText,
         privateMessageDelay, setPrivateMessageDelay, privateMessageDelayUnit, setPrivateMessageDelayUnit,
         privateMessageConcurrency, setPrivateMessageConcurrency, selectedChatwootLabels, setSelectedChatwootLabels,
+        selectedContactLabels, setSelectedContactLabels,
         finalContacts, selectionMetadata, isSending, delaySeconds, setDelaySeconds,
         delayUnit, setDelayUnit, concurrency, setConcurrency, scheduledTime, setScheduledTime,
         maxDispatchTime, setMaxDispatchTime, clearMaxDispatchTime,

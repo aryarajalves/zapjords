@@ -135,6 +135,17 @@ export default function SalesKanban({ onViewChange }) {
         });
     };
 
+    const confirmDeletePipeline = (pipelineId, pipelineName) => {
+        setIsPipelineModalOpen(false);
+        setDeleteModal({
+            isOpen: true,
+            type: 'pipeline',
+            id: pipelineId,
+            title: 'Excluir Pipeline?',
+            message: `Tem certeza que deseja excluir o pipeline "${pipelineName}"? Todas as colunas e oportunidades vinculadas a ele serão excluídas permanentemente.`
+        });
+    };
+
     const confirmDeleteDeal = (dealId, contactName) => {
         setIsDealModalOpen(false);
         setDeleteModal({
@@ -181,6 +192,7 @@ export default function SalesKanban({ onViewChange }) {
                 onSearchChange={setSearchTerm}
                 onOpenNewPipeline={openNewPipeline}
                 onOpenEditPipeline={openEditPipeline}
+                onDeletePipeline={(pipe) => confirmDeletePipeline(pipe.id, pipe.name)}
                 onOpenNewDeal={openNewDeal}
                 onOpenNewStage={openNewStage}
                 onOpenProducts={() => setIsProductModalOpen(true)}
@@ -260,7 +272,9 @@ export default function SalesKanban({ onViewChange }) {
                 isOpen={isPipelineModalOpen}
                 onClose={() => setIsPipelineModalOpen(false)}
                 onSave={handleSavePipeline}
+                onDelete={confirmDeletePipeline}
                 pipelineToEdit={pipelineToEdit}
+                products={products}
             />
 
             <StageModal
@@ -270,6 +284,7 @@ export default function SalesKanban({ onViewChange }) {
                 onDelete={confirmDeleteStage}
                 stageToEdit={stageToEdit}
                 pipelineId={selectedPipelineId}
+                pipelines={pipelines}
             />
 
             <DealModal

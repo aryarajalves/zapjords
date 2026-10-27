@@ -107,6 +107,8 @@ export default function TriggerBulkInfo({
       {/* Botões e Ações */}
       <TriggerButtonsActions
         buttonActions={triggerWithActions.button_actions}
+        trigger={triggerWithActions}
+        onConfigure={triggerWithActions.onConfigureButtonActions}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiTrello, FiPlus, FiRefreshCw, FiDollarSign, FiCheckCircle, FiSearch, FiEdit2, FiTag, FiColumns, FiPackage, FiTrendingUp, FiMinimize2, FiMaximize2 } from 'react-icons/fi';
+import { FiTrello, FiPlus, FiRefreshCw, FiDollarSign, FiCheckCircle, FiSearch, FiEdit2, FiTag, FiColumns, FiPackage, FiTrendingUp, FiMinimize2, FiMaximize2, FiTrash2 } from 'react-icons/fi';
 
 const STAGE_BAR_COLORS = {
     blue: 'bg-blue-500',
@@ -21,6 +21,7 @@ export function KanbanHeader({
     onSearchChange,
     onOpenNewPipeline,
     onOpenEditPipeline,
+    onDeletePipeline,
     onOpenNewDeal,
     onOpenNewStage,
     onOpenProducts,
@@ -101,14 +102,26 @@ export function KanbanHeader({
                     </div>
 
                     {selectedPipeline && (
-                        <button
-                            type="button"
-                            onClick={() => onOpenEditPipeline(selectedPipeline)}
-                            title="Editar Pipeline do Produto"
-                            className="p-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 rounded-xl transition-all cursor-pointer"
-                        >
-                            <FiEdit2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => onOpenEditPipeline(selectedPipeline)}
+                                title="Editar Pipeline do Produto"
+                                className="p-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 rounded-xl transition-all cursor-pointer"
+                            >
+                                <FiEdit2 size={14} />
+                            </button>
+                            {onDeletePipeline && (
+                                <button
+                                    type="button"
+                                    onClick={() => onDeletePipeline(selectedPipeline)}
+                                    title={`Excluir Pipeline "${selectedPipeline.name}"`}
+                                    className="p-2 bg-slate-800/80 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded-xl transition-all cursor-pointer"
+                                >
+                                    <FiTrash2 size={14} />
+                                </button>
+                            )}
+                        </div>
                     )}
 
                     <button

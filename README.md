@@ -1,6 +1,6 @@
-# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.1.1 — Versão Estável)
+# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.1.2 — Versão Estável)
 
-Versão estável com **Kanban de Vendas & CRM Multi-Produtos com Seleção por Coluna Única, Seleção Global, Remoção Individual/em Massa e Edição em Massa de Produto e Preço**, **Suporte Completo à Plataforma de Vendas Checkout Jords e Pagamentos em Criptomoeda (USDT, Polygon, NOWPayments, exibição rica de carteira e código de pedido)**, **Lembretes de Agendamento em Formulários Personalizados (gatilhos independentes para envio inicial, lembrete matinal e minutos antes da reunião)**, **Criação Automática de Convites do App Bússola Astrológica via Webhook (variável {{link_bussola}} e identificador explícito de endpoint backend)**, **Responsividade Mobile Completa (Modal de Configurações e Disparo de Templates 24h)**, **Filtros Temporais para Disparos Recorrentes**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Modularização Completa de Clean Code**.
+Versão estável com **Configuração Dinâmica de Ações de Botões em Templates no Histórico de Disparos (com Busca Instantânea de Funis por Nome/ID, Ativação de Agente IA em Funis Interativos, Bloqueio ou Sem Ação)**, **Auto-Avanço Automático de Leads entre Pipelines e Estágios no Kanban de Vendas CRM**, **Aplicação Direta de Etiquetas (Tags) no Contato em Disparos em Massa**, **Enquadramento e Recorte Visual de Imagens/Mídias no Construtor de Templates (Image Crop Modal com proporções WhatsApp)**, **Gerenciamento Completo de Pipelines (Exclusão Segura e Dropdown Dinâmico de Produtos)**, **Kanban Multi-Produtos**, **Suporte à Plataforma Checkout Jords e Criptomoedas (USDT, Polygon, NOWPayments)**, **Lembretes de Agendamento**, **Convites Bússola Astrológica via Webhook**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Arquitetura Modular Clean Code**.
 
 O **ZapVoice** é um ecossistema completo e profissional de automação e marketing de alta performance integrado à **API Oficial do WhatsApp (Meta)**. 
 
@@ -35,9 +35,15 @@ Permite enviar mensagens e templates aprovados pela Meta para múltiplos contato
 *   **Modos de Envio**: Importação de planilha Excel/CSV, inserção manual ou carregamento por etiquetas (tags) de leads cadastrados.
 *   **Compliance de Envio**: Permite validar canais e verificar a janela de 24h antes do envio, além de gerenciar um painel de exclusão rápida de números da lista.
 *   **Busca e Filtros de Contatos**: Ferramentas de busca por número de telefone parcial, código de área internacional (DDI) e código de DDD estruturado para segmentação avançada no modal de histórico de disparos.
+*   **Aplicação Direta de Etiquetas no Contato**: Opção integrada de selecionar etiquetas já cadastradas para vinculação automática à entidade do contato no ato do disparo em massa, sincronizando com o Chat e CRM sem sobrescrever etiquetas de conversa existentes.
 
 ### 2. Disparos Recorrentes
 Permite reenvio automático de templates em períodos definidos (semanal ou mensal) filtrando dinamicamente pelas etiquetas aplicadas aos contatos na base de dados.
+
+### 2.1. Construtor de Templates e Mídias (Template Creator)
+Criação e edição de modelos HSM com aprovação na Meta:
+*   **Enquadramento e Recorte de Mídia (Image Crop Modal)**: Modal interativo com pré-visualização completa, controles de escala (zoom) e enquadramento livre ou fixo (proporções 1:1, 4:3, 16:9) para evitar distorções no WhatsApp.
+*   **Live Preview em Tempo Real**: Visualização fiel ao aplicativo WhatsApp para mensagens de texto, mídias de cabeçalho, corpo dinâmico com variáveis e botões de resposta rápida/URL.
 
 ### 3. Construtor Visual de Funis (Visual Flow Builder)
 Criação gráfica em estilo *drag-and-drop* de fluxos de conversação inteligentes:
@@ -58,6 +64,7 @@ Visualização e controle de conversas diretamente no painel do ZapVoice:
 *   **Marcadores/Labels**: Gerenciamento de tags e rótulos aplicados a cada conversa para segmentação ágil.
 *   **Remoção Automática de Etiquetas**: Configuração de etiquetas a serem removidas automaticamente da conversa do chat interno quando a janela de 24 horas expira.
 *   **Filtro de Conversas por Data**: Possibilidade de segmentar conversas no atendimento em tempo real por data específica ou intervalo de datas (De/Até).
+*   **Configuração Dinâmica de Botões no Histórico**: Modal dedicado no Histórico de Disparos para conectar funis a botões de templates retroativamente ou configurar respostas (interação com início de funil e IA, bloqueio de contato ou sem ação), com seletor pesquisável por nome do funil em tempo real.
 
 
 ### 5. API Keys e Segurança
@@ -73,6 +80,12 @@ Integração nativa com as principais plataformas do mercado: **Hotmart, Kiwify,
 *   **Geração Automática de Convites Bússola**: Criação automática de links de convite para o aplicativo Bússola Astrológica via webhook, disponibilizados através da variável de substituição `{{link_bussola}}`.
 *   **Inteligência de Vendas Casadas**: Detecção automática de ofertas **Order Bump** e campanhas de **Upsell / Upgrade** baseadas no nome do produto ou tags do payload para evitar duplicação ou segmentar funis específicos.
 *   **Filtros de Interface e Ordenação**: Painel de visualização com dropdown de pesquisa por plataforma, filtros rápidos de integrações "Com Gatilhos" e "Com Histórico", e ordenação decrescente baseada na contagem total de disparos no histórico.
+
+### 6.1. CRM e Kanban de Vendas Multi-Produtos
+Gestão visual do ciclo de vida dos leads e oportunidades de venda:
+*   **Auto-Avanço entre Pipelines**: Configuração por estágio/coluna para avançar automaticamente o contato para outro pipeline e para uma coluna específica ao atingir determinada etapa (ex: Venda).
+*   **Gerenciamento Dinâmico de Pipelines**: Dropdown alfabético com produtos cadastrados para criação de novas esteiras e opção de exclusão completa e segura de pipelines não utilizados.
+*   **Ações em Massa e Seleção por Coluna**: Seleção rápida de cards por coluna ou globalmente, alteração em lote de produtos e preços e exclusão em massa.
 
 ### 7. Webhook Leads e Filtros de Contato (BSUD)
 Painel dedicado para qualificação e acompanhamento de contatos recebidos por webhooks e integrações:

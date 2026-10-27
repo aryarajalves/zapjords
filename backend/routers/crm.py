@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from core.deps import get_db
-from core.permissions import require_user, require_premium
+from core.permissions import require_user
 from models.auth import User
 from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct
 from schemas_domain import crm as schemas_crm
@@ -16,7 +16,6 @@ logger = setup_logger("router_crm")
 
 router = APIRouter(prefix="/crm", tags=["CRM & Kanban de Vendas"])
 
-
 def get_client_id(x_client_id: Optional[str] = Header(None)) -> int:
     if not x_client_id:
         raise HTTPException(status_code=400, detail="X-Client-ID header é obrigatório")
@@ -24,7 +23,6 @@ def get_client_id(x_client_id: Optional[str] = Header(None)) -> int:
         return int(x_client_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="X-Client-ID inválido")
-
 
 # --- PIPELINES ---
 
@@ -70,21 +68,42 @@ def list_pipelines(
             "deals_count": deals_count,
             "total_value": float(total_value),
             "created_at": p.created_at,
-            "updated_at": p.updated_at
+            "updated_at": p.updated_at,
+            "stages": [
+                {
+                    "id": s.id,
+                    "pipeline_id": s.pipeline_id,
+                    "client_id": s.client_id,
+                    "name": s.name,
+                    "order_index": s.order_index,
+                    "color": s.color,
+                    "stage_type": s.stage_type,
+                    "webhook_event_trigger": s.webhook_event_trigger,
+                    "forward_to_pipeline_id": getattr(s, "forward_to_pipeline_id", None),
+                    "forward_to_stage_id": getattr(s, "forward_to_stage_id", None),
+                    "created_at": s.created_at,
+                    "updated_at": s.updated_at
+                }
+                for s in p.stages
+            ]
         }
         result.append(p_dict)
 
     return result
-
 
 @router.post("/pipelines", response_model=schemas_crm.SalesPipelineResponse, status_code=status.HTTP_201_CREATED)
 def create_pipeline(
     payload: schemas_crm.SalesPipelineCreate,
     client_id: int = Depends(get_client_id),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_premium)
+    current_user: User = Depends(require_user)
 ):
     """Cria um novo pipeline para um produto."""
+    if payload.is_default:
+        db.query(SalesPipeline).filter(
+            SalesPipeline.client_id == client_id
+        ).update({"is_default": False})
+
     new_pipe = SalesPipeline(
         client_id=client_id,
         name=payload.name.strip(),
@@ -135,14 +154,13 @@ def create_pipeline(
         "updated_at": new_pipe.updated_at
     }
 
-
 @router.put("/pipelines/{pipeline_id}", response_model=schemas_crm.SalesPipelineResponse)
 def update_pipeline(
     pipeline_id: int,
     payload: schemas_crm.SalesPipelineUpdate,
     client_id: int = Depends(get_client_id),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_premium)
+    current_user: User = Depends(require_user)
 ):
     pipe = db.query(SalesPipeline).filter(
         SalesPipeline.id == pipeline_id,
@@ -163,7 +181,11 @@ def update_pipeline(
         pipe.order_index = payload.order_index
     if payload.is_default is not None:
         pipe.is_default = payload.is_default
-
+        if payload.is_default:
+            db.query(SalesPipeline).filter(
+                SalesPipeline.client_id == client_id,
+                SalesPipeline.id != pipe.id
+            ).update({"is_default": False})
     db.commit()
     db.refresh(pipe)
 
@@ -193,13 +215,12 @@ def update_pipeline(
         "updated_at": pipe.updated_at
     }
 
-
 @router.delete("/pipelines/{pipeline_id}")
 def delete_pipeline(
     pipeline_id: int,
     client_id: int = Depends(get_client_id),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_premium)
+    current_user: User = Depends(require_user)
 ):
     pipe = db.query(SalesPipeline).filter(
         SalesPipeline.id == pipeline_id,
@@ -208,10 +229,19 @@ def delete_pipeline(
     if not pipe:
         raise HTTPException(status_code=404, detail="Pipeline não encontrado")
 
+    is_def = pipe.is_default
     db.delete(pipe)
     db.commit()
-    return {"message": "Pipeline excluído com sucesso"}
 
+    if is_def:
+        next_pipe = db.query(SalesPipeline).filter(
+            SalesPipeline.client_id == client_id
+        ).order_by(SalesPipeline.order_index.asc(), SalesPipeline.id.asc()).first()
+        if next_pipe:
+            next_pipe.is_default = True
+            db.commit()
+
+    return {"message": "Pipeline excluído com sucesso"}
 
 @router.post("/pipelines/{pipeline_id}/sync-history", response_model=schemas_crm.CrmSyncHistoryResult)
 def sync_pipeline_history_endpoint(
@@ -223,7 +253,6 @@ def sync_pipeline_history_endpoint(
     """Puxa retroativamente os leads de WebhookLead para as colunas deste pipeline."""
     res = crm_service.sync_pipeline_history(db, client_id, pipeline_id)
     return res
-
 
 # --- BOARD / KANBAN VIEW ---
 
@@ -280,6 +309,8 @@ def get_pipeline_board(
             "color": s.color,
             "stage_type": s.stage_type,
             "webhook_event_trigger": s.webhook_event_trigger,
+            "forward_to_pipeline_id": getattr(s, "forward_to_pipeline_id", None),
+            "forward_to_stage_id": getattr(s, "forward_to_stage_id", None),
             "created_at": s.created_at,
             "updated_at": s.updated_at,
             "deals": deals,
@@ -318,7 +349,6 @@ def get_pipeline_board(
         "conversion_rate": board_conversion_rate
     }
 
-
 # --- STAGES (COLUNAS) ---
 
 @router.get("/stages", response_model=List[schemas_crm.SalesPipelineStageResponse])
@@ -334,7 +364,6 @@ def list_stages(
         SalesPipelineStage.client_id == client_id
     ).order_by(SalesPipelineStage.order_index.asc(), SalesPipelineStage.id.asc()).all()
     return stages
-
 
 @router.post("/stages", response_model=schemas_crm.SalesPipelineStageResponse, status_code=status.HTTP_201_CREATED)
 def create_stage(
@@ -361,13 +390,14 @@ def create_stage(
         order_index=max_order + 1,
         color=payload.color or "blue",
         stage_type=payload.stage_type or "in_progress",
-        webhook_event_trigger=payload.webhook_event_trigger
+        webhook_event_trigger=payload.webhook_event_trigger,
+        forward_to_pipeline_id=payload.forward_to_pipeline_id if payload.forward_to_pipeline_id and payload.forward_to_pipeline_id > 0 else None,
+        forward_to_stage_id=payload.forward_to_stage_id if payload.forward_to_stage_id and payload.forward_to_stage_id > 0 else None
     )
     db.add(new_stage)
     db.commit()
     db.refresh(new_stage)
     return new_stage
-
 
 @router.put("/stages/{stage_id}", response_model=schemas_crm.SalesPipelineStageResponse)
 def update_stage(
@@ -394,11 +424,13 @@ def update_stage(
         stg.webhook_event_trigger = payload.webhook_event_trigger
     if payload.order_index is not None:
         stg.order_index = payload.order_index
-
+    if hasattr(payload, "forward_to_pipeline_id"):
+        stg.forward_to_pipeline_id = payload.forward_to_pipeline_id if payload.forward_to_pipeline_id and payload.forward_to_pipeline_id > 0 else None
+    if hasattr(payload, "forward_to_stage_id"):
+        stg.forward_to_stage_id = payload.forward_to_stage_id if payload.forward_to_stage_id and payload.forward_to_stage_id > 0 else None
     db.commit()
     db.refresh(stg)
     return stg
-
 
 @router.delete("/stages/{stage_id}")
 def delete_stage(
@@ -428,7 +460,6 @@ def delete_stage(
     db.delete(stg)
     db.commit()
     return {"message": "Estágio excluído com sucesso"}
-
 
 # --- DEALS (CARDS / OPORTUNIDADES) ---
 
@@ -510,8 +541,10 @@ def create_deal(
     db.add(deal)
     db.commit()
     db.refresh(deal)
+    stg = db.query(SalesPipelineStage).filter(SalesPipelineStage.id == deal.stage_id).first()
+    if stg:
+        crm_service.check_and_forward_deal_if_configured(db, deal, stg)
     return deal
-
 
 @router.patch("/deals/{deal_id}/move", response_model=schemas_crm.SalesDealResponse)
 def move_deal(
@@ -549,8 +582,8 @@ def move_deal(
     deal.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(deal)
+    crm_service.check_and_forward_deal_if_configured(db, deal, new_stg)
     return deal
-
 
 @router.put("/deals/{deal_id}", response_model=schemas_crm.SalesDealResponse)
 def update_deal(
@@ -595,8 +628,11 @@ def update_deal(
     deal.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(deal)
+    if payload.stage_id is not None:
+        target_stg = db.query(SalesPipelineStage).filter(SalesPipelineStage.id == deal.stage_id).first()
+        if target_stg:
+            crm_service.check_and_forward_deal_if_configured(db, deal, target_stg)
     return deal
-
 
 @router.get("/deals/by-phone/{phone}", response_model=Optional[schemas_crm.SalesDealResponse])
 def get_deal_by_phone(
@@ -619,7 +655,6 @@ def get_deal_by_phone(
 
     deal = query.order_by(SalesDeal.updated_at.desc(), SalesDeal.id.desc()).first()
     return deal
-
 
 @router.post("/deals/move-contact", response_model=schemas_crm.SalesDealResponse)
 def move_or_upsert_contact_deal(
@@ -697,6 +732,7 @@ def move_or_upsert_contact_deal(
         db.commit()
         db.refresh(deal)
         logger.info(f"✅ [CRM] Lead {digits} movido para estágio '{stage.name}' no pipeline {pipeline_id}.")
+        crm_service.check_and_forward_deal_if_configured(db, deal, stage)
         return deal
     else:
         new_deal = SalesDeal(
@@ -721,8 +757,8 @@ def move_or_upsert_contact_deal(
         db.commit()
         db.refresh(new_deal)
         logger.info(f"✅ [CRM] Nova oportunidade criada para {digits} no estágio '{stage.name}' do pipeline {pipeline_id}.")
+        crm_service.check_and_forward_deal_if_configured(db, new_deal, stage)
         return new_deal
-
 
 @router.delete("/deals/{deal_id}")
 def delete_deal(
@@ -742,7 +778,6 @@ def delete_deal(
     db.commit()
     return {"message": "Oportunidade excluída com sucesso"}
 
-
 @router.post("/deals/bulk-delete")
 def bulk_delete_deals(
     payload: schemas_crm.SalesDealBulkDelete,
@@ -753,7 +788,6 @@ def bulk_delete_deals(
     """Exclui múltiplos deals selecionados de uma vez."""
     deleted_count = crm_service.bulk_delete_deals(db, client_id, payload.deal_ids)
     return {"message": f"{deleted_count} oportunidades excluídas com sucesso", "count": deleted_count}
-
 
 @router.post("/deals/bulk-update")
 def bulk_update_deals(

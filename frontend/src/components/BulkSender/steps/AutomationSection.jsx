@@ -30,7 +30,10 @@ const AutomationSection = ({
                     </div>
                     <SearchableSelect
                         isMulti={true}
-                        options={chatwootLabels.map((lbl) => ({ value: lbl.title, label: lbl.title }))}
+                        options={(chatwootLabels || []).map((lbl) => {
+                            const val = typeof lbl === 'object' ? (lbl.title || lbl.name || lbl.value || lbl.label) : lbl;
+                            return { value: val, label: val };
+                        })}
                         value={selectedChatwootLabels}
                         onChange={(val) => setSelectedChatwootLabels(Array.isArray(val) ? val : [])}
                         placeholder="Selecione as etiquetas..."

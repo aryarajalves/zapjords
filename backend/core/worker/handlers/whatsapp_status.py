@@ -202,6 +202,17 @@ async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, 
             if parent_trigger and parent_trigger.is_bulk:
                 is_bulk = True
 
+        # Garante aplicação de etiquetas do contato pós-entrega
+        if trigger and getattr(trigger, "contact_labels", None):
+            try:
+                from services.contact_label_service import apply_contact_labels_locally
+                apply_contact_labels_locally(
+                    db=db, client_id=trigger.client_id, phone=phone,
+                    raw_labels=trigger.contact_labels, contact_name=trigger.contact_name
+                )
+            except Exception as e_cl:
+                logger.error(f"❌ [POST_DELIVERY] Erro ao aplicar etiquetas no contato: {e_cl}")
+
         if is_bulk:
             logger.info(f"⏭️ [DEFERRED_POST_DELIVERY] Trigger #{trigger_id} é um disparo em massa. Ignorando envio de nota privada.")
             db.close()

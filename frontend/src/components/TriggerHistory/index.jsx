@@ -10,6 +10,7 @@ import ErrorReportModal from './components/ErrorReportModal';
 import ChildrenFunnelsModal from './components/ChildrenFunnelsModal';
 import BulkSummaryBar from './components/BulkSummaryBar';
 import ManualInteractionModal from './components/ManualInteractionModal';
+import TriggerButtonActionsModal from './components/TriggerButtonActionsModal';
 
 import ErrorBoundary from '../ErrorBoundary';
 
@@ -38,6 +39,7 @@ const TriggerHistoryOrchestrator = ({ refreshKey, onNavigateToBulk, onNavigateTo
     } = useTriggerHistory(refreshKey, initialTriggerTypeProp);
 
     const [manualInteractionTriggerId, setManualInteractionTriggerId] = useState(null);
+    const [buttonActionsModalTrigger, setButtonActionsModalTrigger] = useState(null);
 
     const handleToggleShowOnlyPinned = () => {
         setShowOnlyPinned(v => !v);
@@ -194,6 +196,7 @@ const TriggerHistoryOrchestrator = ({ refreshKey, onNavigateToBulk, onNavigateTo
                 showOnlyPinned={showOnlyPinned}
                 folders={folders}
                 moveTriggerToFolder={moveTriggerToFolder}
+                onConfigureButtonActions={(trigger) => setButtonActionsModalTrigger(trigger)}
             />
 
             <Pagination 
@@ -225,6 +228,16 @@ const TriggerHistoryOrchestrator = ({ refreshKey, onNavigateToBulk, onNavigateTo
                 triggerId={manualInteractionTriggerId}
                 onRefresh={fetchHistory}
             />
+
+            {buttonActionsModalTrigger && (
+                <TriggerButtonActionsModal
+                    trigger={buttonActionsModalTrigger}
+                    onClose={() => setButtonActionsModalTrigger(null)}
+                    onSaved={() => {
+                        fetchHistory();
+                    }}
+                />
+            )}
 
         </div>
     );

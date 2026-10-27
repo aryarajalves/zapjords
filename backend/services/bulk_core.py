@@ -22,9 +22,31 @@ def _extract_header_media(components: list):
     return None
 
 
-async def _post_send(chatwoot, phone: str, contact_name: str, conversation_id, note_content: str, chatwoot_label, trigger_id: int = None, wamid: str = None):
+async def _post_send(chatwoot, phone: str, contact_name: str, conversation_id, note_content: str, chatwoot_label, trigger_id: int = None, wamid: str = None, contact_labels = None):
     """Após envio bem-sucedido: garante conversa, envia nota privada e aplica etiquetas."""
     try:
+        # Sincronização de Etiquetas no Contato (estritamente no perfil do lead/contato, NUNCA na conversa)
+        if contact_labels and trigger_id:
+            try:
+                from database import SessionLocal
+                import models
+                from services.contact_label_service import sync_contact_dispatch_labels
+                with SessionLocal() as db_lbl:
+                    c_id = getattr(chatwoot, "client_id", None)
+                    if not c_id:
+                        trg_tmp = db_lbl.query(models.ScheduledTrigger).get(trigger_id)
+                        c_id = trg_tmp.client_id if trg_tmp else None
+                    if c_id:
+                        await sync_contact_dispatch_labels(
+                            db=db_lbl,
+                            client_id=c_id,
+                            phone=phone,
+                            raw_contact_labels=contact_labels,
+                            contact_name=contact_name,
+                            chatwoot_client=chatwoot
+                        )
+            except Exception as e_lbl_sync:
+                logger.error(f"❌ [BULK] Erro ao sincronizar etiquetas do contato para {phone}: {e_lbl_sync}")
         # 1. Verificar se é disparo em massa (bulk) antes de resolver ou criar conversa
         is_bulk = False
         if trigger_id:
@@ -160,6 +182,7 @@ async def send_smart_message(
     template_btn_info: dict = None,
     contact_name: str = None,
     chatwoot_label: list = None,
+    contact_labels: list = None,
     conversation_id: int = None
 ):
     try:
@@ -259,7 +282,7 @@ async def send_smart_message(
                             msgs = res.get("messages") or []
                             if msgs: free_wamid = msgs[0].get("id")
                             if not free_wamid: free_wamid = res.get("id")
-                        asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, free_text, chatwoot_label, trigger_id, wamid=free_wamid))
+                        asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, free_text, chatwoot_label, trigger_id, wamid=free_wamid, contact_labels=contact_labels))
                         return {"result": res, "type": "FREE_MESSAGE", "success": True}
 
                     err_msg = str(res.get("detail", "")).lower() if isinstance(res, dict) else str(res).lower()
@@ -298,7 +321,7 @@ async def send_smart_message(
                 if isinstance(res, dict):
                     msgs = res.get("messages") or []
                     if msgs: tpl_wamid = msgs[0].get("id")
-                asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, note_content, chatwoot_label, trigger_id, wamid=tpl_wamid))
+                asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, note_content, chatwoot_label, trigger_id, wamid=tpl_wamid, contact_labels=contact_labels))
                 return {"result": res, "type": "TEMPLATE"}
 
 

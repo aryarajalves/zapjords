@@ -111,6 +111,7 @@ async def process_bulk_send(
         init_trig.processed_data = pdata
 
         c_label = init_trig.chatwoot_label
+        c_contact_labels = getattr(init_trig, "contact_labels", None)
         c_id = init_trig.client_id
         trig_exclusion_list = list(init_trig.exclusion_list or []) if getattr(init_trig, 'exclusion_list', None) else []
 
@@ -237,6 +238,7 @@ async def process_bulk_send(
                         last_interaction=batch_interaction_map.get(phone), template_body_cache=template_body_cache,
                         template_btn_info=template_btn_info, contact_name=name,
                         chatwoot_label=c_label,
+                        contact_labels=c_contact_labels,
                         conversation_id=c.get('conversation_id') or c.get('id') if isinstance(c, dict) else None
                     ))
 

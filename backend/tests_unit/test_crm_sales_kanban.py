@@ -17,7 +17,9 @@ from routers.crm import (
     move_deal,
     sync_pipeline_history_endpoint,
     bulk_delete_deals,
-    bulk_update_deals
+    bulk_update_deals,
+    delete_pipeline,
+    update_pipeline
 )
 from schemas_domain import crm as schemas_crm
 
@@ -43,12 +45,14 @@ def test_default_pipeline_creation_and_stages():
     assert len(pipelines) == 1
     default_pipe = pipelines[0]
     assert default_pipe["name"] == "Pipeline Geral de Vendas"
-    assert default_pipe["stages_count"] == 6
+    assert default_pipe["stages_count"] == 5
 
-    # Verificar board do pipeline com as 6 colunas padrão
+    # Verificar board do pipeline com as 5 colunas padrão
     board = get_pipeline_board(pipeline_id=default_pipe["id"], client_id=1, db=db, current_user=user)
-    assert len(board["stages"]) == 6
+    assert len(board["stages"]) == 5
     assert board["total_deals"] == 0
+    stage_names = [s["name"] for s in board["stages"]]
+    assert stage_names == ["Prospect", "Lead", "Oportunidade", "Venda", "Desistencia"]
 
     db.close()
 
@@ -66,7 +70,7 @@ def test_create_custom_product_pipeline():
     assert new_pipe["name"] == "Mentoria High Ticket"
     assert new_pipe["product_name"] == "Mentoria Elite"
     assert new_pipe["associated_tags"] == "mentoria, vip, black"
-    assert new_pipe["stages_count"] == 6
+    assert new_pipe["stages_count"] == 5
 
     db.close()
 
@@ -649,5 +653,196 @@ def test_bulk_operations_client_isolation():
     assert res_upd["count"] == 0
     db.refresh(d2)
     assert d2.value == 200.0
+
+    db.close()
+
+
+def test_delete_pipeline_and_cascade_cleanup():
+    db, client, user = setup_crm_test_db()
+
+    # Cria dois pipelines para o cliente 1
+    pipe1 = crm_service.get_or_create_default_pipeline(db, 1)
+    pipe2 = create_pipeline(
+        payload=schemas_crm.SalesPipelineCreate(name="Pipeline Secundário", is_default=False),
+        client_id=1, db=db, current_user=user
+    )
+
+    stage1 = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe1.id).first()
+    deal1 = create_deal(
+        payload=schemas_crm.SalesDealCreate(pipeline_id=pipe1.id, stage_id=stage1.id, contact_phone="5511999998888", value=500.0),
+        client_id=1, db=db, current_user=user
+    )
+
+    # Exclui o pipeline padrão (pipe1)
+    res = delete_pipeline(pipeline_id=pipe1.id, client_id=1, db=db, current_user=user)
+    assert res["message"] == "Pipeline excluído com sucesso"
+
+    # Confirma que pipe1 foi removido
+    assert db.query(SalesPipeline).filter(SalesPipeline.id == pipe1.id).first() is None
+
+    # Confirma que seus estágios e deals foram removidos em cascata
+    assert db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe1.id).count() == 0
+    assert db.query(SalesDeal).filter(SalesDeal.id == deal1.id).first() is None
+
+    # Confirma que o pipeline restante (pipe2) agora virou default
+    updated_pipe2 = db.query(SalesPipeline).filter(SalesPipeline.id == pipe2["id"]).first()
+    assert updated_pipe2 is not None
+    assert updated_pipe2.is_default is True
+
+    # Tentativa de excluir pipeline inexistente deve lançar 404
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc_info:
+        delete_pipeline(pipeline_id=99999, client_id=1, db=db, current_user=user)
+    assert exc_info.value.status_code == 404
+
+    db.close()
+
+
+def test_stage_auto_forward_to_another_pipeline():
+    from routers.crm import update_stage
+
+    db, client, user = setup_crm_test_db()
+
+    # 1. Pipeline A (Vendas)
+    pipe_a = crm_service.get_or_create_default_pipeline(db, 1)
+    stages_a = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe_a.id).all()
+    won_stage_a = next(s for s in stages_a if s.stage_type == "won")
+
+    # 2. Pipeline B (Onboarding)
+    pipe_b_dict = create_pipeline(
+        payload=schemas_crm.SalesPipelineCreate(
+            name="Pipeline Onboarding VIP",
+            product_name="Mentoria VIP",
+            default_value=1500.0,
+            is_default=False
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    pipe_b_id = pipe_b_dict["id"]
+    stages_b = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe_b_id).order_by(SalesPipelineStage.order_index.asc()).all()
+    target_stage_b = stages_b[0]
+
+    # 3. Configura auto-forward no estágio "won" do Pipeline A para o estágio inicial do Pipeline B
+    updated_stg_a = update_stage(
+        stage_id=won_stage_a.id,
+        payload=schemas_crm.SalesPipelineStageUpdate(
+            forward_to_pipeline_id=pipe_b_id,
+            forward_to_stage_id=target_stage_b.id
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    assert updated_stg_a.forward_to_pipeline_id == pipe_b_id
+    assert updated_stg_a.forward_to_stage_id == target_stage_b.id
+
+    # 4. Criar deal em estágio inicial no Pipeline A
+    initial_stage_a = stages_a[0]
+    deal_a = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe_a.id,
+            stage_id=initial_stage_a.id,
+            contact_phone="5511988887777",
+            contact_name="Cliente Vip Forward",
+            contact_email="vip@cliente.com",
+            value=297.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    assert deal_a.stage_id == initial_stage_a.id
+
+    # Nenhum deal deve existir ainda no Pipeline B para este contato
+    deal_b_initial = db.query(SalesDeal).filter(
+        SalesDeal.pipeline_id == pipe_b_id,
+        SalesDeal.contact_phone == "5511988887777"
+    ).first()
+    assert deal_b_initial is None
+
+    # 5. Mover deal no Pipeline A para a coluna "Venda Ganha" com auto-forward configurado
+    moved_deal = move_deal(
+        deal_id=deal_a.id,
+        payload=schemas_crm.SalesDealMove(stage_id=won_stage_a.id),
+        client_id=1, db=db, current_user=user
+    )
+    assert moved_deal.stage_id == won_stage_a.id
+    assert moved_deal.status == "won"
+
+    # 6. Validar que o contato foi automaticamente criado no Pipeline B no estágio configurado
+    deal_b = db.query(SalesDeal).filter(
+        SalesDeal.pipeline_id == pipe_b_id,
+        SalesDeal.contact_phone == "5511988887777"
+    ).first()
+    assert deal_b is not None
+    assert deal_b.stage_id == target_stage_b.id
+    assert deal_b.contact_name == "Cliente Vip Forward"
+    assert deal_b.contact_email == "vip@cliente.com"
+    assert deal_b.product_name == "Mentoria VIP"
+    assert deal_b.value == 1500.0
+
+    # 7. Validar prevenção de loop se configurado para o mesmo pipeline
+    update_stage(
+        stage_id=won_stage_a.id,
+        payload=schemas_crm.SalesPipelineStageUpdate(
+            forward_to_pipeline_id=pipe_a.id,
+            forward_to_stage_id=initial_stage_a.id
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    # Movimentação não deve disparar loop
+    res_loop = crm_service.check_and_forward_deal_if_configured(db, moved_deal, won_stage_a)
+    assert res_loop is None
+
+    db.close()
+
+
+
+def test_pipeline_update_permissions_and_single_default():
+    """Valida que usuários padrão (role='user') conseguem criar, editar e definir pipelines padrão,
+    e que apenas 1 pipeline permanece como is_default=True por cliente."""
+    db, client, user = setup_crm_test_db()
+    user.role = "user"
+    db.commit()
+
+    # 1. Criar Pipeline 1 como padrão
+    p1 = create_pipeline(
+        payload=schemas_crm.SalesPipelineCreate(
+            name="Pipeline 1 Padrão",
+            is_default=True,
+            default_value=50.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    assert p1["is_default"] is True
+
+    # 2. Criar Pipeline 2 como não-padrão
+    p2 = create_pipeline(
+        payload=schemas_crm.SalesPipelineCreate(
+            name="Pipeline 2 Secundário",
+            is_default=False,
+            default_value=150.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    assert p2["is_default"] is False
+
+    # 3. Editar Pipeline 2 definindo-o como padrão do sistema (com usuário role='user')
+    updated_p2 = update_pipeline(
+        pipeline_id=p2["id"],
+        payload=schemas_crm.SalesPipelineUpdate(
+            name="Pipeline 2 Agora Padrão",
+            product_name="Curso Avançado",
+            default_value=197.0,
+            is_default=True
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    assert updated_p2["is_default"] is True
+    assert updated_p2["name"] == "Pipeline 2 Agora Padrão"
+    assert updated_p2["product_name"] == "Curso Avançado"
+    assert updated_p2["default_value"] == 197.0
+
+    # 4. Validar que no banco o Pipeline 1 foi desmarcado de is_default automaticamente
+    pipe1_db = db.query(SalesPipeline).filter(SalesPipeline.id == p1["id"]).first()
+    pipe2_db = db.query(SalesPipeline).filter(SalesPipeline.id == p2["id"]).first()
+    assert pipe1_db.is_default is False
+    assert pipe2_db.is_default is True
 
     db.close()

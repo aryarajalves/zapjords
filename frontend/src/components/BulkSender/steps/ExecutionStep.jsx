@@ -3,6 +3,7 @@ import RecipientSelector from '../../RecipientSelector';
 import ExclusionListManager from './ExclusionListManager';
 import SchedulingSection from './SchedulingSection';
 import ButtonActionsSection from './ButtonActionsSection';
+import ContactLabelsSection from './ContactLabelsSection';
 import { getTemplateCategoryInfo } from '../utils/templateUtils';
 
 const ExecutionStep = ({
@@ -63,6 +64,9 @@ const ExecutionStep = ({
     isDynamicLabel = true,
     setIsDynamicLabel,
     selectedChatwootLabels = [],
+    chatwootLabels = [],
+    selectedContactLabels = [],
+    setSelectedContactLabels,
     setStep,
 
     templateButtons = [],
@@ -270,6 +274,12 @@ const ExecutionStep = ({
                             setIsDynamicLabel={setIsDynamicLabel}
                             selectionMetadata={selectionMetadata}
                             selectedChatwootLabels={selectedChatwootLabels}
+                        />
+
+                        <ContactLabelsSection
+                            chatwootLabels={chatwootLabels}
+                            selectedContactLabels={selectedContactLabels}
+                            setSelectedContactLabels={setSelectedContactLabels}
                         />
 
 

@@ -33,6 +33,21 @@ export default function TriggerActionButtons({
         </button>
       )}
 
+      {/* 0b. CONECTAR FUNIS / CONFIGURAR BOTÕES */}
+      {triggerWithActions.onConfigureButtonActions && (triggerWithActions.template_name || (triggerWithActions.button_actions && Object.keys(triggerWithActions.button_actions).length > 0)) && (
+        <TriggerTableTip text="Conectar funis aos botões do template ou configurar ações de interação e bloqueio.">
+          <button 
+            onClick={() => triggerWithActions.onConfigureButtonActions(triggerWithActions)} 
+            className="p-1 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition cursor-pointer" 
+            title="Configurar Ações dos Botões"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            </svg>
+          </button>
+        </TriggerTableTip>
+      )}
+
       {/* 1. DISPAROS EM ANDAMENTO */}
       {triggerWithActions.status === 'processing' && (
         <>

@@ -10,12 +10,11 @@ from models.chat import ChatConversation
 logger = setup_logger("crm_service")
 
 DEFAULT_STAGE_TEMPLATES = [
-    {"name": "Carrinho Abandonado", "color": "rose", "stage_type": "initial", "webhook_event_trigger": "carrinho_abandonado", "order_index": 0},
-    {"name": "Primeiro Contato", "color": "blue", "stage_type": "in_progress", "webhook_event_trigger": None, "order_index": 1},
-    {"name": "Em Negociação", "color": "amber", "stage_type": "in_progress", "webhook_event_trigger": None, "order_index": 2},
-    {"name": "Aguardando Pagamento", "color": "purple", "stage_type": "in_progress", "webhook_event_trigger": "pix_gerado,boleto_gerado", "order_index": 3},
-    {"name": "Venda Concluída", "color": "emerald", "stage_type": "won", "webhook_event_trigger": "compra_aprovada", "order_index": 4},
-    {"name": "Perdido", "color": "slate", "stage_type": "lost", "webhook_event_trigger": None, "order_index": 5},
+    {"name": "Prospect", "color": "blue", "stage_type": "initial", "webhook_event_trigger": None, "order_index": 0},
+    {"name": "Lead", "color": "cyan", "stage_type": "in_progress", "webhook_event_trigger": "carrinho_abandonado", "order_index": 1},
+    {"name": "Oportunidade", "color": "amber", "stage_type": "in_progress", "webhook_event_trigger": "pix_gerado,boleto_gerado", "order_index": 2},
+    {"name": "Venda", "color": "emerald", "stage_type": "won", "webhook_event_trigger": "compra_aprovada", "order_index": 3},
+    {"name": "Desistencia", "color": "rose", "stage_type": "lost", "webhook_event_trigger": None, "order_index": 4},
 ]
 
 
@@ -189,6 +188,94 @@ def sync_pipeline_history(db: Session, client_id: int, pipeline_id: int) -> Dict
         "skipped": len(leads) - (created_count + updated_count),
         "message": f"Sincronização concluída! {created_count} novas oportunidades criadas e {updated_count} atualizadas."
     }
+
+
+
+def check_and_forward_deal_if_configured(
+    db: Session,
+    deal: SalesDeal,
+    stage: SalesPipelineStage
+) -> Optional[SalesDeal]:
+    """
+    Avança automaticamente um contato para outro pipeline/etapa quando ele entra
+    em uma coluna que possui forward_to_pipeline_id e forward_to_stage_id configurados.
+    """
+    if not stage or not getattr(stage, "forward_to_pipeline_id", None) or not getattr(stage, "forward_to_stage_id", None):
+        return None
+
+    # Segurança: não auto-avançar para o próprio pipeline para prevenir loops
+    if stage.forward_to_pipeline_id == deal.pipeline_id:
+        logger.warning(f"⚠️ [CRM AUTO-FORWARD] Ignorado forward em loop para o mesmo pipeline {deal.pipeline_id}.")
+        return None
+
+    target_pipe = db.query(SalesPipeline).filter(
+        SalesPipeline.id == stage.forward_to_pipeline_id,
+        SalesPipeline.client_id == deal.client_id
+    ).first()
+
+    if not target_pipe:
+        logger.warning(f"⚠️ [CRM AUTO-FORWARD] Pipeline destino {stage.forward_to_pipeline_id} não encontrado.")
+        return None
+
+    target_stg = db.query(SalesPipelineStage).filter(
+        SalesPipelineStage.id == stage.forward_to_stage_id,
+        SalesPipelineStage.pipeline_id == target_pipe.id,
+        SalesPipelineStage.client_id == deal.client_id
+    ).first()
+
+    if not target_stg:
+        logger.warning(f"⚠️ [CRM AUTO-FORWARD] Etapa destino {stage.forward_to_stage_id} não encontrada no pipeline {target_pipe.id}.")
+        return None
+
+    # Verificar se o contato já possui deal no pipeline de destino
+    existing_target_deal = db.query(SalesDeal).filter(
+        SalesDeal.pipeline_id == target_pipe.id,
+        SalesDeal.contact_phone == deal.contact_phone,
+        SalesDeal.client_id == deal.client_id
+    ).first()
+
+    target_deal_status = "won" if target_stg.stage_type == "won" else ("lost" if target_stg.stage_type == "lost" else "open")
+
+    if existing_target_deal:
+        existing_target_deal.stage_id = target_stg.id
+        existing_target_deal.status = target_deal_status
+        existing_target_deal.updated_at = datetime.now(timezone.utc)
+        existing_target_deal.last_interaction_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(existing_target_deal)
+        logger.info(
+            f"⚡ [CRM AUTO-FORWARD] Contato {deal.contact_phone} ({deal.contact_name}) já possuía deal no pipeline "
+            f"'{target_pipe.name}', movido para etapa '{target_stg.name}'."
+        )
+        return existing_target_deal
+    else:
+        new_val = target_pipe.default_value or 0.0
+        new_deal = SalesDeal(
+            client_id=deal.client_id,
+            pipeline_id=target_pipe.id,
+            stage_id=target_stg.id,
+            lead_id=deal.lead_id,
+            contact_phone=deal.contact_phone,
+            contact_name=deal.contact_name,
+            contact_email=deal.contact_email,
+            title=f"Oportunidade - {deal.contact_name or deal.contact_phone}",
+            product_id=None,
+            product_name=target_pipe.product_name,
+            channel=deal.channel,
+            original_value=new_val,
+            value=new_val,
+            status=target_deal_status,
+            notes=f"Avançado automaticamente da etapa '{stage.name}' do pipeline anterior.",
+            last_interaction_at=datetime.now(timezone.utc)
+        )
+        db.add(new_deal)
+        db.commit()
+        db.refresh(new_deal)
+        logger.info(
+            f"⚡ [CRM AUTO-FORWARD] Novo deal criado para {deal.contact_phone} ({deal.contact_name}) no pipeline "
+            f"'{target_pipe.name}' na etapa '{target_stg.name}' (R$ {new_val})."
+        )
+        return new_deal
 
 
 def process_webhook_lead_for_crm(

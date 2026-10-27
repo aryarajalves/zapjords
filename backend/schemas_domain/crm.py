@@ -36,6 +36,8 @@ class SalesPipelineStageBase(BaseModel):
     color: Optional[str] = "blue"
     stage_type: Optional[str] = "in_progress"  # initial, in_progress, won, lost
     webhook_event_trigger: Optional[str] = None
+    forward_to_pipeline_id: Optional[int] = None
+    forward_to_stage_id: Optional[int] = None
 
 class SalesPipelineStageCreate(SalesPipelineStageBase):
     pipeline_id: int
@@ -46,6 +48,8 @@ class SalesPipelineStageUpdate(BaseModel):
     color: Optional[str] = None
     stage_type: Optional[str] = None
     webhook_event_trigger: Optional[str] = None
+    forward_to_pipeline_id: Optional[int] = None
+    forward_to_stage_id: Optional[int] = None
 
 class SalesPipelineStageResponse(SalesPipelineStageBase):
     id: int
@@ -162,6 +166,7 @@ class SalesPipelineResponse(SalesPipelineBase):
     total_value: Optional[float] = 0.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    stages: Optional[List[SalesPipelineStageResponse]] = []
 
     model_config = ConfigDict(from_attributes=True)
 

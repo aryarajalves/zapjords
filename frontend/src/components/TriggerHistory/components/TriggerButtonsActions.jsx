@@ -1,13 +1,44 @@
 import React from 'react';
 
-export default function TriggerButtonsActions({ buttonActions }) {
-  if (!buttonActions || Object.keys(buttonActions).length === 0) {
+export default function TriggerButtonsActions({ buttonActions, trigger, onConfigure }) {
+  const hasActions = buttonActions && Object.keys(buttonActions).length > 0;
+  const canConfigure = Boolean(onConfigure && (hasActions || trigger?.template_name));
+
+  if (!hasActions && !canConfigure) {
     return null;
+  }
+
+  if (!hasActions && canConfigure) {
+    return (
+      <div className="mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-800/50 flex items-center">
+        <button
+          type="button"
+          onClick={() => onConfigure(trigger)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition cursor-pointer shadow-sm"
+          title="Conectar funis e ações aos botões deste template"
+        >
+          <span>🔘</span>
+          <span>Conectar Funis aos Botões</span>
+        </button>
+      </div>
+    );
   }
 
   return (
     <div className="mt-3 flex flex-col gap-1 border-t border-gray-100 dark:border-gray-800/50 pt-2 text-xs">
-      <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Botões e Ações:</span>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Botões e Ações:</span>
+        {onConfigure && (
+          <button
+            type="button"
+            onClick={() => onConfigure(trigger)}
+            className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>✏️</span>
+            <span>Configurar Botões</span>
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2 mt-1">
         {Object.entries(buttonActions).map(([btnText, action]) => {
           const hasFunnel = action && action.funnel_id;
