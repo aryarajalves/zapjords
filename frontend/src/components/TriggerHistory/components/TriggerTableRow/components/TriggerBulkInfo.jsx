@@ -46,6 +46,10 @@ export default function TriggerBulkInfo({
         })()}
         {triggerWithActions.product_name === 'SCALE_TEST' ? (
           <span className="text-xs bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full font-bold">⚡ Simulação</span>
+        ) : triggerWithActions.is_followup ? (
+          <span className="text-xs bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-300/40 dark:border-purple-800/40 px-2 py-0.5 rounded-full font-bold flex items-center gap-1" title={`Disparo de Follow-up Etapa #${triggerWithActions.followup_step_number || 1}`}>
+            🔁 Follow-up #{triggerWithActions.followup_step_number || 1}
+          </span>
         ) : triggerWithActions.is_recurring ? (
           <span className="text-xs bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">🔄 Recorrente</span>
         ) : (

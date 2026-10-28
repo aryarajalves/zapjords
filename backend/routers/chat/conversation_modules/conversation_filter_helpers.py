@@ -23,6 +23,8 @@ def build_conversation_filter_query(
     has_active_funnel: Optional[bool] = None,
     last_message_read_only: Optional[bool] = None,
     last_message_unread_only: Optional[bool] = None,
+    no_pipeline: Optional[bool] = None,
+    not_in_pipeline_id: Optional[int] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     search: Optional[str] = None,
@@ -158,6 +160,35 @@ def build_conversation_filter_query(
             query = query.filter(models.ChatConversation.id.in_(unread_convo_ids))
         else:
             query = query.filter(models.ChatConversation.id == -1)
+
+    if no_pipeline or not_in_pipeline_id is not None:
+        deal_query = db.query(models.SalesDeal.contact_phone).filter(
+            models.SalesDeal.client_id == client_id,
+            models.SalesDeal.contact_phone.isnot(None)
+        )
+        if not_in_pipeline_id is not None:
+            deal_query = deal_query.filter(models.SalesDeal.pipeline_id == not_in_pipeline_id)
+
+        raw_deal_phones = [r[0] for r in deal_query.all() if r[0]]
+        deal_suffixes = set()
+        for p in raw_deal_phones:
+            digits = "".join(filter(str.isdigit, str(p)))
+            if len(digits) >= 8:
+                deal_suffixes.add(digits[-8:])
+
+        if deal_suffixes:
+            client_convos = db.query(models.ChatConversation.id, models.ChatConversation.phone).filter(
+                models.ChatConversation.client_id == client_id
+            ).all()
+
+            excluded_convo_ids = []
+            for c_id, c_phone in client_convos:
+                c_digits = "".join(filter(str.isdigit, str(c_phone or "")))
+                if len(c_digits) >= 8 and c_digits[-8:] in deal_suffixes:
+                    excluded_convo_ids.append(c_id)
+
+            if excluded_convo_ids:
+                query = query.filter(~models.ChatConversation.id.in_(excluded_convo_ids))
 
 
     if start_date:

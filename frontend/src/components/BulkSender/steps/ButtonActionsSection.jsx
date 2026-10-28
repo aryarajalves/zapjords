@@ -45,10 +45,10 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full" />
 
             <h2 className="text-2xl font-black text-white flex items-center gap-4 mb-8 relative z-10">
-                <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10">
-                    03
+                <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10 flex items-center justify-center">
+                    <FiZap className="w-5 h-5" />
                 </span>
-                Ação dos Botões
+                Ação dos Botões (Template Principal)
             </h2>
 
             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-8 relative z-10">

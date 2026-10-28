@@ -227,6 +227,7 @@ export function useChatCrmDeal({ isOpen, selectedConvo, onClose }) {
 
             if (res.ok) {
                 toast.success(`Lead ${existingDeal ? 'movido' : 'adicionado'} para "${targetStageName}" no Kanban! 🚀`);
+                window.dispatchEvent(new CustomEvent('reload-chat-messages', { detail: { convoId: selectedConvo?.id } }));
                 if (onClose) onClose();
             } else {
                 const errData = await res.json().catch(() => ({}));

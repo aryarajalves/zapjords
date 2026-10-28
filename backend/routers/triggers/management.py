@@ -241,7 +241,10 @@ async def list_triggers(
             models.ScheduledTrigger.product_name != "HIDDEN_CHILD",
             models.ScheduledTrigger.product_name == None
         ))
-        query = query.filter(models.ScheduledTrigger.parent_id == None)
+        query = query.filter(or_(
+            models.ScheduledTrigger.parent_id == None,
+            models.ScheduledTrigger.is_followup == True
+        ))
     
     if funnel_name:
         query = query.join(models.Funnel).filter(models.Funnel.name.ilike(f"%{funnel_name}%"))

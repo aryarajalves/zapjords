@@ -155,3 +155,114 @@ async def test_send_chat_media_message_broadcasts_websocket(mock_publish, mock_g
     assert mock_publish.call_args[0][0] == "new_message"
     assert mock_publish.call_args[0][1]["media_url"] == "/static/uploads/nova_imagem.png"
     assert mock_publish.call_args[0][1]["conversation_id"] == convo.id
+
+
+@pytest.mark.asyncio
+async def test_list_conversation_media_template_messages_resolution(db_session):
+    # Criar template no cache (com id explícito para SQLite)
+    tmpl_cache = models.WhatsAppTemplateCache(
+        id=999888777,
+        client_id=1,
+        name="template_com_video_header",
+        language="pt_BR",
+        category="MARKETING",
+        body="Olá, veja este vídeo especial",
+        components=[
+            {
+                "type": "HEADER",
+                "format": "VIDEO",
+                "example": {
+                    "header_handle": ["https://whatsapp.net/video_cache_sample.mp4"]
+                }
+            },
+            {
+                "type": "BODY",
+                "text": "Olá, veja este vídeo especial"
+            }
+        ]
+    )
+    db_session.add(tmpl_cache)
+    db_session.commit()
+
+    # Criar conversa
+    convo = models.ChatConversation(
+        client_id=1,
+        phone="5585991112233",
+        contact_name="Lead Template",
+        status="open"
+    )
+    db_session.add(convo)
+    db_session.commit()
+    db_session.refresh(convo)
+
+    # 1. Mensagem de template com URL de vídeo direta
+    msg_template_video = models.ChatMessage(
+        conversation_id=convo.id,
+        sender_type="user",
+        message_type="template",
+        content="Vídeo de boas vindas",
+        media_url="https://s3.backblaze.com/video_apresentacao.mp4",
+        meta_data={
+            "is_template": True,
+            "template_name": "video_direto",
+            "header": {"format": "VIDEO"}
+        },
+        timestamp=datetime.now(timezone.utc)
+    )
+
+    # 2. Mensagem de template com documento PDF
+    msg_template_doc = models.ChatMessage(
+        conversation_id=convo.id,
+        sender_type="user",
+        message_type="template",
+        content="E-book gratuito anexo",
+        media_url="https://api.zapvoice.com/proxy/ebook_astrologia.pdf",
+        meta_data={
+            "is_template": True,
+            "template_name": "ebook_template",
+            "header": {"format": "DOCUMENT"},
+            "filename": "ebook_astrologia.pdf"
+        },
+        timestamp=datetime.now(timezone.utc)
+    )
+
+    # 3. Mensagem de template sem media_url no ChatMessage, mas com template_name existente no cache
+    msg_template_from_cache = models.ChatMessage(
+        conversation_id=convo.id,
+        sender_type="user",
+        message_type="template",
+        content="Convite pelo cache",
+        media_url=None,
+        meta_data={
+            "is_template": True,
+            "template_name": "template_com_video_header"
+        },
+        timestamp=datetime.now(timezone.utc)
+    )
+
+    db_session.add_all([msg_template_video, msg_template_doc, msg_template_from_cache])
+    db_session.commit()
+
+    res = await list_conversation_media(
+        conversation_id=convo.id,
+        client_id=1,
+        current_user=mock_user,
+        db=db_session
+    )
+
+    # Deve conter 2 itens em media (os dois vídeos) e 1 em docs (o pdf)
+    assert res["total_media"] == 2
+    assert res["total_docs"] == 1
+    assert res["total_all"] == 3
+
+    # Validar tipos resolvidos em media
+    media_urls = [m["url"] for m in res["media"]]
+    media_types = [m["type"] for m in res["media"]]
+    assert "https://s3.backblaze.com/video_apresentacao.mp4" in media_urls
+    assert "https://whatsapp.net/video_cache_sample.mp4" in media_urls
+    assert all(t == "video" for t in media_types)
+
+    # Validar documento resolvido
+    assert res["docs"][0]["type"] == "document"
+    assert res["docs"][0]["url"] == "https://api.zapvoice.com/proxy/ebook_astrologia.pdf"
+

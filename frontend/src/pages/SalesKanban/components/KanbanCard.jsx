@@ -255,10 +255,10 @@ export function KanbanCard({
                         type="button"
                         onClick={(e) => {
                             e.stopPropagation();
-                            onOpenChat(deal.contact_phone);
+                            onOpenChat(deal.contact_phone, deal.contact_name);
                         }}
                         className="p-1.5 hover:bg-emerald-500/15 text-slate-400 hover:text-emerald-400 border border-transparent hover:border-emerald-500/30 rounded-lg transition-all cursor-pointer"
-                        title="Conversar no WhatsApp"
+                        title="Abrir conversa no ZapVoice"
                     >
                         <FiMessageSquare size={13} />
                     </button>

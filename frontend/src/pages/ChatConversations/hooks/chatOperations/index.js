@@ -57,7 +57,22 @@ export function useChatOperations({
         selectedConvo,
         setSelectedConvo,
         activeClient,
-        engine
+        engine,
+        activeTab,
+        statusFilter,
+        searchQuery,
+        selectedLabelFilter,
+        filterBlockStatus,
+        filterHasNote,
+        filterStartDate,
+        filterEndDate,
+        filterUnread,
+        filterWindowOpen,
+        filterHasReplied,
+        selectAllPages,
+        setSelectAllPages,
+        excludedConvoIds,
+        setExcludedConvoIds
     });
 
     const messageActionsOps = useChatMessageActionsOperations({
@@ -130,6 +145,8 @@ export function useChatOperations({
         handleSaveNote: convoStatusOps.handleSaveNote,
         handleConfirmBlockContact: convoStatusOps.handleConfirmBlockContact,
         handleUnblockContact: convoStatusOps.handleUnblockContact,
+        handleBulkBlock: convoStatusOps.handleBulkBlock,
+        handleBulkUnblock: convoStatusOps.handleBulkUnblock,
 
         // Ações de mensagem (pin mensagem, favoritar, copiar, reenvio)
         handleTogglePinMessage: messageActionsOps.handleTogglePinMessage,

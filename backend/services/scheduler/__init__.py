@@ -111,6 +111,25 @@ async def scheduler_task():
                 
                 # Trigger em Massa (Template ou Funil)
                 if trigger.is_bulk:
+                    if trigger.is_followup:
+                        from services.followup_service import qualify_followup_contacts
+                        qualified_contacts = qualify_followup_contacts(db, trigger)
+                        if not qualified_contacts:
+                            trigger.status = "completed"
+                            trigger.failure_reason = "Nenhum contato qualificado para follow-up"
+                            trigger.total_contacts = 0
+                            trigger.contacts_list = []
+                            db.commit()
+                            logger.info(f"ℹ️ [FOLLOW-UP #{trigger.id}] Finalizado sem envio: nenhum contato qualificado restante.")
+                            await rabbitmq.publish_event("trigger_updated", {
+                                "trigger_id": trigger.id,
+                                "client_id": trigger.client_id,
+                                "status": "completed"
+                            })
+                            continue
+                        trigger.contacts_list = qualified_contacts
+                        trigger.total_contacts = len(qualified_contacts)
+                        db.commit()
                     payload = {
                         "trigger_id": trigger.id,
                         "funnel_id": trigger.funnel_id,

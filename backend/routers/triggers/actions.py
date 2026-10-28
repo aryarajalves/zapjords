@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 import uuid
 import models, schemas
+from utils import normalize_phone
 from core.deps import get_current_user, get_db, get_validated_client_id
 from core.logger import logger
 from rabbitmq_client import rabbitmq
@@ -116,6 +117,19 @@ async def cancel_trigger(trigger_id: int, db: Session = Depends(get_db), current
 
     trigger.status = new_status
     db.commit()
+
+    if new_status in ("cancelled", "cancelling"):
+        try:
+            child_fus = db.query(models.ScheduledTrigger).filter(
+                models.ScheduledTrigger.parent_id == trigger.id,
+                models.ScheduledTrigger.status.in_(["queued", "pending"])
+            ).all()
+            for fu in child_fus:
+                fu.status = "cancelled"
+                fu.failure_reason = f"Disparo pai #{trigger.id} cancelado pelo usuário"
+            db.commit()
+        except Exception as e_fu_c:
+            logger.warning(f"⚠️ Erro ao cancelar follow-ups filhos: {e_fu_c}")
 
     # Log imediato só para cancelamentos diretos (não bulk em andamento)
     if new_status == "cancelled":
@@ -522,3 +536,81 @@ async def update_trigger_button_actions(
         "button_actions": resolved_actions
     }
 
+
+
+@router.post("/{trigger_id}/exclude-contact", summary="Excluir Contato Específico do Follow-up")
+async def exclude_contact_from_followup(
+    trigger_id: int,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    x_client_id: int = Depends(get_validated_client_id),
+    current_user: models.User = Depends(get_current_user)
+):
+    phone = payload.get("phone")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Telefone obrigatório")
+    norm_phone = normalize_phone(phone)
+    if not norm_phone:
+        raise HTTPException(status_code=400, detail="Telefone inválido")
+
+    trigger = db.query(models.ScheduledTrigger).filter_by(id=trigger_id, client_id=x_client_id).first()
+    if not trigger:
+        raise HTTPException(status_code=404, detail="Disparo não encontrado")
+
+    cur_excl = list(trigger.exclusion_list or [])
+    if norm_phone not in cur_excl:
+        cur_excl.append(norm_phone)
+        trigger.exclusion_list = cur_excl
+        db.commit()
+
+    return {"message": f"Contato {norm_phone} excluído do disparo com sucesso", "trigger_id": trigger_id}
+
+
+@router.get("/contacts/{phone}/pending-followup", summary="Buscar Follow-up Pendente para Contato")
+async def get_contact_pending_followup(
+    phone: str,
+    db: Session = Depends(get_db),
+    x_client_id: int = Depends(get_validated_client_id),
+    current_user: models.User = Depends(get_current_user)
+):
+    norm_phone = normalize_phone(phone)
+    if not norm_phone:
+        return {"has_pending": False}
+
+    pending_fus = db.query(models.ScheduledTrigger).filter(
+        models.ScheduledTrigger.client_id == x_client_id,
+        models.ScheduledTrigger.is_followup == True,
+        models.ScheduledTrigger.status.in_(["queued", "pending"])
+    ).order_by(models.ScheduledTrigger.scheduled_time.asc()).all()
+
+    for fu in pending_fus:
+        cur_excl = [normalize_phone(p) for p in (fu.exclusion_list or [])]
+        if norm_phone in cur_excl:
+            continue
+        delivered = db.query(models.MessageStatus).filter(
+            models.MessageStatus.trigger_id == fu.parent_id,
+            models.MessageStatus.phone_number.like(f"%{norm_phone[-8:]}"),
+            models.MessageStatus.status.in_(["delivered", "read"])
+        ).first()
+        if delivered:
+            return {
+                "has_pending": True,
+                "followup_id": fu.id,
+                "step_number": fu.followup_step_number or 1,
+                "template_name": fu.template_name,
+                "scheduled_time": fu.scheduled_time.isoformat() if fu.scheduled_time else None
+            }
+
+    return {"has_pending": False}
+
+
+@router.post("/contacts/{phone}/cancel-followups", summary="Cancelar Todos os Follow-ups de um Contato")
+async def cancel_contact_followups(
+    phone: str,
+    db: Session = Depends(get_db),
+    x_client_id: int = Depends(get_validated_client_id),
+    current_user: models.User = Depends(get_current_user)
+):
+    from services.followup_service import cancel_contact_from_pending_followups
+    count = cancel_contact_from_pending_followups(db, x_client_id, phone, reason="cancelado_manual_chat")
+    return {"message": f"{count} follow-ups cancelados para o contato", "cancelled_count": count}

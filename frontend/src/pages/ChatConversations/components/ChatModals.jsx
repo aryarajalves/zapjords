@@ -15,6 +15,7 @@ import DeletePrivateNoteConfirmModal from '../Modals/DeletePrivateNoteConfirmMod
 import ClearChatConfirmModal from '../Modals/ClearChatConfirmModal';
 import ExportConversationModal from '../Modals/ExportConversationModal';
 import AddChatToCrmModal from '../Modals/AddChatToCrmModal';
+import BulkPipelineModal from '../Modals/BulkPipelineModal';
 
 export default function ChatModals({
     engine,
@@ -39,7 +40,10 @@ export default function ChatModals({
     exportModal,
     setExportModal,
     isCrmModalOpen,
-    setIsCrmModalOpen
+    setIsCrmModalOpen,
+    isBulkPipelineModalOpen,
+    setIsBulkPipelineModalOpen,
+    filterParams
 }) {
     const effectiveSelectedCount = selectAllPages
         ? Math.max(0, engine.totalConvos - (excludedConvoIds?.length || 0))
@@ -110,12 +114,15 @@ export default function ChatModals({
 
             <BlockContactModal
                 isOpen={engine.isBlockModalOpen}
-                onClose={() => engine.setIsBlockModalOpen(false)}
-                onConfirm={chatOps.handleConfirmBlockContact}
+                onClose={() => {
+                    engine.setIsBlockModalOpen(false);
+                    if (engine.setBlockModalMode) engine.setBlockModalMode('single');
+                }}
+                onConfirm={engine.blockModalMode === 'bulk' ? chatOps.handleBulkBlock : chatOps.handleConfirmBlockContact}
                 isSaving={engine.isBlockingContact}
-                count={1}
-                selectAllPages={false}
-                targetLabel={selectedConvo ? `${selectedConvo.contact_name || selectedConvo.phone} (${selectedConvo.phone})` : null}
+                count={engine.blockModalMode === 'bulk' ? effectiveSelectedCount : 1}
+                selectAllPages={engine.blockModalMode === 'bulk' && selectAllPages}
+                targetLabel={engine.blockModalMode === 'bulk' ? null : (selectedConvo ? `${selectedConvo.contact_name || selectedConvo.phone} (${selectedConvo.phone})` : null)}
             />
 
             <ResendAgentflowModal
@@ -289,6 +296,27 @@ export default function ChatModals({
                 isOpen={isCrmModalOpen}
                 onClose={() => setIsCrmModalOpen && setIsCrmModalOpen(false)}
                 selectedConvo={selectedConvo}
+            />
+
+            <BulkPipelineModal
+                isOpen={isBulkPipelineModalOpen}
+                onClose={() => setIsBulkPipelineModalOpen && setIsBulkPipelineModalOpen(false)}
+                selectedCount={effectiveSelectedCount}
+                selectAllPages={selectAllPages}
+                selectedConvoIds={engine.selectedConvoIds}
+                excludedConvoIds={excludedConvoIds}
+                filterParams={filterParams}
+                activeClientId={activeClient?.id}
+                pipelines={engine.pipelines || []}
+                onSuccess={() => {
+                    engine.setSelectedConvoIds([]);
+                    if (selectAllPages && setExcludedConvoIds) {
+                        setExcludedConvoIds([]);
+                    }
+                    if (engine.loadConversations) {
+                        engine.loadConversations();
+                    }
+                }}
             />
         </>
     );

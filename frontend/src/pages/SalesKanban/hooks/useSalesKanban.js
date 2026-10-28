@@ -357,12 +357,21 @@ export function useSalesKanban({ onViewChange }) {
     };
 
     // Ação Rápida: Abrir conversa no Chat com o contato
-    const handleOpenChat = (phone) => {
+    const handleOpenChat = (phone, contactName = '') => {
         if (!phone) return;
         localStorage.setItem('crm_target_chat_phone', phone);
+        if (contactName) {
+            localStorage.setItem('crm_target_chat_name', contactName);
+        }
         if (onViewChange) {
             onViewChange('chat_conversations');
         }
+        window.dispatchEvent(new CustomEvent('navigate-view', { detail: 'chat_conversations' }));
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('select-chat-convo', {
+                detail: { phone, contact_name: contactName }
+            }));
+        }, 150);
     };
 
     // Filtragem de deals por termo de busca

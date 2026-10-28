@@ -396,5 +396,10 @@ async def schedule_bulk_send(
                     }, synchronize_session=False)
             db.commit()
 
+    followups_data = payload.get("followups") or []
+    if followups_data:
+        from services.followup_service import create_followup_triggers
+        create_followup_triggers(db, trigger, followups_data, x_client_id)
+
     db.refresh(trigger)
     return trigger

@@ -52,6 +52,7 @@ async def list_conversation_media(
     link_items = []
     note_items = []
 
+    template_cache_map = {}
     url_pattern = re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+')
 
     for m in messages:
@@ -80,44 +81,74 @@ async def list_conversation_media(
             })
             continue
 
-        if m.media_url:
+        # Extração de URL e tipo de mídia (suporte a mídia direta, templates e headers)
+        media_url = m.media_url
+        detected_type = m_type
+
+        # Verificar se possui metadados de cabeçalho
+        hdr = m.meta_data.get("header") if isinstance(m.meta_data, dict) else None
+        hdr_format = hdr.get("format") if isinstance(hdr, dict) else None
+
+        if not media_url and isinstance(hdr, dict):
+            media_url = hdr.get("media_url") or hdr.get("url")
+
+        # Se for mensagem de template ou possuir is_template
+        if m_type == "template" or (isinstance(m.meta_data, dict) and m.meta_data.get("is_template")):
+            # Se ainda não possui media_url, consultar cache de templates
+            if not media_url and isinstance(m.meta_data, dict) and m.meta_data.get("template_name"):
+                tmpl_name = m.meta_data.get("template_name")
+                if tmpl_name not in template_cache_map:
+                    tmpl_obj = db.query(models.WhatsAppTemplateCache).filter(
+                        models.WhatsAppTemplateCache.client_id == client_id,
+                        models.WhatsAppTemplateCache.name == tmpl_name
+                    ).first()
+                    template_cache_map[tmpl_name] = tmpl_obj
+                else:
+                    tmpl_obj = template_cache_map[tmpl_name]
+
+                if tmpl_obj and isinstance(tmpl_obj.components, list):
+                    for comp in tmpl_obj.components:
+                        if isinstance(comp, dict) and comp.get("type") == "HEADER":
+                            hdr_format = hdr_format or comp.get("format")
+                            ex = comp.get("example")
+                            if isinstance(ex, dict) and ex.get("header_handle") and len(ex["header_handle"]) > 0:
+                                media_url = ex["header_handle"][0]
+                            elif comp.get("media_url"):
+                                media_url = comp.get("media_url")
+                            break
+
+            if hdr_format:
+                hdr_fmt_lower = str(hdr_format).lower()
+                if hdr_fmt_lower in ["image", "video", "document", "audio"]:
+                    detected_type = hdr_fmt_lower
+
+        # Inferir tipo de mídia por extensão caso o tipo ainda seja genérico, template ou texto
+        if media_url and detected_type in ["template", "text", None, ""]:
+            clean_url = media_url.split("?")[0].lower()
+            if any(clean_url.endswith(ext) for ext in [".mp4", ".mov", ".webm", ".m4v", ".mkv", ".avi"]):
+                detected_type = "video"
+            elif any(clean_url.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"]):
+                detected_type = "image"
+            elif any(clean_url.endswith(ext) for ext in [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv"]):
+                detected_type = "document"
+            elif any(clean_url.endswith(ext) for ext in [".mp3", ".ogg", ".wav", ".m4a", ".aac", ".opus"]):
+                detected_type = "audio"
+
+        if media_url:
             item_data = {
                 "id": m.id,
                 "message_id": m.id,
-                "type": m_type,
-                "url": m.media_url,
+                "type": detected_type,
+                "url": media_url,
                 "timestamp": msg_time,
                 "caption": m.content,
-                "filename": m.meta_data.get("filename") if isinstance(m.meta_data, dict) else None,
+                "filename": (m.meta_data.get("filename") if isinstance(m.meta_data, dict) else None) or (media_url.split("/")[-1].split("?")[0] if detected_type == "document" else None),
                 "sender_type": m.sender_type
             }
-            if m_type in ["image", "video", "sticker", "audio", "voice"]:
-                media_items.append(item_data)
-            elif m_type == "document":
+            if detected_type == "document":
                 doc_items.append(item_data)
             else:
                 media_items.append(item_data)
-
-        elif isinstance(m.meta_data, dict) and m.meta_data.get("header"):
-            hdr = m.meta_data.get("header", {})
-            hdr_format = hdr.get("format")
-            if hdr_format in ["IMAGE", "VIDEO", "DOCUMENT"]:
-                hdr_url = hdr.get("media_url") or m.media_url
-                if hdr_url:
-                    item_data = {
-                        "id": m.id,
-                        "message_id": m.id,
-                        "type": hdr_format.lower(),
-                        "url": hdr_url,
-                        "timestamp": msg_time,
-                        "caption": m.content,
-                        "filename": m.meta_data.get("filename"),
-                        "sender_type": m.sender_type
-                    }
-                    if hdr_format == "DOCUMENT":
-                        doc_items.append(item_data)
-                    else:
-                        media_items.append(item_data)
 
         if m.content:
             found_urls = url_pattern.findall(m.content)

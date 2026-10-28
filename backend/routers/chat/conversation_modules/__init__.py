@@ -1,6 +1,7 @@
 from .list_routes import (
     router as list_router,
     get_or_create_conversation,
+    get_conversation_by_id,
     list_conversations,
 )
 from .status_routes import (
@@ -8,6 +9,8 @@ from .status_routes import (
     update_conversation_status,
     toggle_archive_conversation,
     bulk_archive_conversations,
+    bulk_block_conversations,
+    bulk_unblock_conversations,
 )
 from .toggle_routes import (
     router as toggle_router,
@@ -41,6 +44,8 @@ __all__ = [
     "update_conversation_status",
     "toggle_archive_conversation",
     "bulk_archive_conversations",
+    "bulk_block_conversations",
+    "bulk_unblock_conversations",
     "assign_conversation",
     "mark_as_read",
     "toggle_pin_conversation",

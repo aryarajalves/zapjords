@@ -29,6 +29,9 @@ export const executeBulkSend = async ({
     privateMessageDelay,
     privateMessageConcurrency,
     buttonActions,
+    isFollowupEnabled,
+    followups,
+    stopTags,
     isDynamicLabel,
     isRecurring,
     recurrenceFrequency,
@@ -100,6 +103,38 @@ export const executeBulkSend = async ({
         });
     }
 
+    let formattedFollowups = [];
+    if (isFollowupEnabled && Array.isArray(followups) && followups.length > 0) {
+        for (let i = 0; i < followups.length; i++) {
+            const fu = followups[i];
+            if (!fu.template_name) {
+                return toast.error(`Selecione o template para a etapa #${i + 1} de follow-up.`, {
+                    duration: 5000,
+                    icon: '⚠️',
+                    style: { borderRadius: '15px', background: '#1e293b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
+                });
+            }
+            if (fu.schedule_type === 'fixed' && !fu.scheduled_time) {
+                return toast.error(`Defina a data e horário para a etapa #${i + 1} de follow-up.`, {
+                    duration: 5000,
+                    icon: '⚠️',
+                    style: { borderRadius: '15px', background: '#1e293b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
+                });
+            }
+            const fuTpl = templates.find(t => t.name === fu.template_name);
+            formattedFollowups.push({
+                template_name: fu.template_name,
+                language: fu.language || fuTpl?.language || 'pt_BR',
+                schedule_type: fu.schedule_type || 'relative',
+                relative_delay_hours: fu.schedule_type === 'fixed' ? null : (parseInt(fu.relative_delay_hours) || 24),
+                scheduled_time: fu.schedule_type === 'fixed' && fu.scheduled_time ? new Date(fu.scheduled_time).toISOString() : null,
+                button_actions: fu.button_actions && Object.keys(fu.button_actions).length > 0 ? fu.button_actions : null,
+                stop_tags: stopTags || [],
+                components: fuTpl ? buildComponentsPayload(fuTpl, {}) : []
+            });
+        }
+    }
+
     setIsSending(true);
     try {
         const vFilters = selectionMetadata?.variableFilters || {};
@@ -122,6 +157,7 @@ export const executeBulkSend = async ({
             private_message_delay: privateMessageDelayUnit === 'minutes' ? privateMessageDelay * 60 : privateMessageDelay,
             private_message_concurrency: privateMessageConcurrency,
             button_actions: Object.keys(buttonActions).length > 0 ? buttonActions : null,
+            followups: formattedFollowups.length > 0 ? formattedFollowups : null,
             is_dynamic_label: !!(scheduledTime && isDynamicLabel && (selectionMetadata?.mode === 'tag' || (selectedChatwootLabels && selectedChatwootLabels.length > 0))),
             dynamic_label_name: selectionMetadata?.tag || (selectedChatwootLabels && selectedChatwootLabels[0]) || null
         };

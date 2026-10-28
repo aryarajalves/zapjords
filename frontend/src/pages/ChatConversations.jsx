@@ -9,6 +9,7 @@ import ChatHeaderNav from './ChatConversations/components/ChatHeaderNav';
 import ChatListSidebar from './ChatConversations/components/ChatListSidebar';
 import ActiveChatHeader from './ChatConversations/components/ActiveChatHeader';
 import ActiveChatBanner from './ChatConversations/components/ActiveChatBanner';
+import FollowUpChatBanner from './ChatConversations/components/FollowUpChatBanner';
 import ChatMessageList from './ChatConversations/components/ChatMessageList';
 import ActiveChatInput from './ChatConversations/components/ActiveChatInput';
 import ChatContactSidebar from './ChatConversations/ChatContactSidebar';
@@ -47,6 +48,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
         filterHasActiveFunnel, setFilterHasActiveFunnel,
         filterLastMessageRead, setFilterLastMessageRead,
         filterLastMessageUnread, setFilterLastMessageUnread,
+        filterNoPipeline, setFilterNoPipeline,
+        filterNotInPipelineId, setFilterNotInPipelineId,
         filterBlockStatus, setFilterBlockStatus,
         filterStartDate, setFilterStartDate,
         filterEndDate, setFilterEndDate,
@@ -74,6 +77,29 @@ export default function ChatConversations({ onClose, onNavigate }) {
     } = modalState;
 
     const [isCrmModalOpen, setIsCrmModalOpen] = useState(false);
+    const [isBulkPipelineModalOpen, setIsBulkPipelineModalOpen] = useState(false);
+
+    const filterParams = {
+        tab: activeTab,
+        status: statusFilter,
+        search: searchQuery || undefined,
+        ...(typeof selectedLabelFilter === 'string' ? { label: selectedLabelFilter || undefined } : {}),
+        block_status: filterBlockStatus || undefined,
+        has_note: filterHasNote || undefined,
+        start_date: filterStartDate || undefined,
+        end_date: filterEndDate || undefined,
+        unread_only: filterUnread || undefined,
+        window_open_only: filterWindowOpen || undefined,
+        template_sent_24h_only: filterTemplate24h || undefined,
+        urgent_only: filterUrgent || undefined,
+        has_replied: filterHasReplied || undefined,
+        has_active_funnel: filterHasActiveFunnel || undefined,
+        last_message_read_only: filterLastMessageRead || undefined,
+        last_message_unread_only: filterLastMessageUnread || undefined,
+        no_pipeline: filterNoPipeline || undefined,
+        not_in_pipeline_id: filterNotInPipelineId || undefined,
+        order_by: orderBy || undefined
+    };
 
     // 3. Engine de dados e hooks especializados
     const engine = useChatEngine({
@@ -81,6 +107,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
         filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, filterUnread,
         filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel,
         filterLastMessageRead, filterLastMessageUnread,
+        filterNoPipeline, filterNotInPipelineId,
         orderBy, selectedConvo, setSelectedConvo
     });
 
@@ -128,6 +155,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
         filterHasActiveFunnel,
         filterLastMessageRead,
         filterLastMessageUnread,
+        filterNoPipeline,
+        filterNotInPipelineId,
         orderBy,
         activeClient,
         setIsSearchMode,
@@ -170,6 +199,9 @@ export default function ChatConversations({ onClose, onNavigate }) {
                 setExportModal={setExportModal}
                 isCrmModalOpen={isCrmModalOpen}
                 setIsCrmModalOpen={setIsCrmModalOpen}
+                isBulkPipelineModalOpen={isBulkPipelineModalOpen}
+                setIsBulkPipelineModalOpen={setIsBulkPipelineModalOpen}
+                filterParams={filterParams}
             />
 
             <div className="flex flex-col h-full w-full bg-[#0f172a] text-gray-100 overflow-hidden font-sans">
@@ -212,6 +244,10 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             setFilterLastMessageRead={setFilterLastMessageRead}
                             filterLastMessageUnread={filterLastMessageUnread}
                             setFilterLastMessageUnread={setFilterLastMessageUnread}
+                            filterNoPipeline={filterNoPipeline}
+                            setFilterNoPipeline={setFilterNoPipeline}
+                            filterNotInPipelineId={filterNotInPipelineId}
+                            setFilterNotInPipelineId={setFilterNotInPipelineId}
                             filterBlockStatus={filterBlockStatus}
                             setFilterBlockStatus={setFilterBlockStatus}
                             filterStartDate={filterStartDate}
@@ -228,6 +264,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             excludedConvoIds={excludedConvoIds}
                             setExcludedConvoIds={setExcludedConvoIds}
                             setIsBulkTagModalOpen={chatOps.setIsBulkTagModalOpen}
+                            setIsBulkPipelineModalOpen={setIsBulkPipelineModalOpen}
+                            handleBulkUnblock={chatOps.handleBulkUnblock}
                             isOpenAiConfigured={noteAndAi.isOpenAiConfigured}
                             isAnalyzingAi={noteAndAi.isAnalyzingAi}
                             handleAnalyzeBulkChatsDoubts={noteAndAi.handleAnalyzeBulkChatsDoubts}
@@ -286,6 +324,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
                                     isLoadingPipeline={chatOps.isLoadingPipeline}
                                     onOpenCancelModal={() => setIsCancelFunnelModalOpen(true)}
                                 />
+
+                                <FollowUpChatBanner selectedConvo={selectedConvo} />
 
                                 <ChatMessageList
                                     engine={engine}

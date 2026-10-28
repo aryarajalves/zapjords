@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi import APIRouter, Depends, HTTPException, Header, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -544,6 +544,16 @@ def create_deal(
     stg = db.query(SalesPipelineStage).filter(SalesPipelineStage.id == deal.stage_id).first()
     if stg:
         crm_service.check_and_forward_deal_if_configured(db, deal, stg)
+    pipe_obj = db.query(SalesPipeline).filter(SalesPipeline.id == deal.pipeline_id).first()
+    crm_service.add_pipeline_private_note(
+        db=db,
+        client_id=client_id,
+        phone=digits,
+        pipeline_name=pipe_obj.name if pipe_obj else "",
+        stage_name=stg.name if stg else "",
+        user_id=current_user.id if current_user and hasattr(current_user, "id") else None,
+        action_type="added"
+    )
     return deal
 
 @router.patch("/deals/{deal_id}/move", response_model=schemas_crm.SalesDealResponse)
@@ -583,6 +593,17 @@ def move_deal(
     db.commit()
     db.refresh(deal)
     crm_service.check_and_forward_deal_if_configured(db, deal, new_stg)
+    pipe_obj = db.query(SalesPipeline).filter(SalesPipeline.id == deal.pipeline_id).first()
+    crm_service.add_pipeline_private_note(
+        db=db,
+        client_id=client_id,
+        phone=deal.contact_phone,
+        pipeline_name=pipe_obj.name if pipe_obj else "",
+        stage_name=new_stg.name,
+        user_id=current_user.id if current_user and hasattr(current_user, "id") else None,
+        action_type="moved",
+        commit=True
+    )
     return deal
 
 @router.put("/deals/{deal_id}", response_model=schemas_crm.SalesDealResponse)
@@ -733,6 +754,17 @@ def move_or_upsert_contact_deal(
         db.refresh(deal)
         logger.info(f"✅ [CRM] Lead {digits} movido para estágio '{stage.name}' no pipeline {pipeline_id}.")
         crm_service.check_and_forward_deal_if_configured(db, deal, stage)
+        pipeline_obj = db.query(SalesPipeline).filter(SalesPipeline.id == pipeline_id).first()
+        pipe_name = pipeline_obj.name if pipeline_obj else ""
+        crm_service.add_pipeline_private_note(
+            db=db,
+            client_id=client_id,
+            phone=digits,
+            pipeline_name=pipe_name,
+            stage_name=stage.name,
+            user_id=current_user.id if current_user and hasattr(current_user, "id") else None,
+            action_type="moved"
+        )
         return deal
     else:
         new_deal = SalesDeal(
@@ -758,6 +790,17 @@ def move_or_upsert_contact_deal(
         db.refresh(new_deal)
         logger.info(f"✅ [CRM] Nova oportunidade criada para {digits} no estágio '{stage.name}' do pipeline {pipeline_id}.")
         crm_service.check_and_forward_deal_if_configured(db, new_deal, stage)
+        pipeline_obj = db.query(SalesPipeline).filter(SalesPipeline.id == pipeline_id).first()
+        pipe_name = pipeline_obj.name if pipeline_obj else ""
+        crm_service.add_pipeline_private_note(
+            db=db,
+            client_id=client_id,
+            phone=digits,
+            pipeline_name=pipe_name,
+            stage_name=stage.name,
+            user_id=current_user.id if current_user and hasattr(current_user, "id") else None,
+            action_type="added"
+        )
         return new_deal
 
 @router.delete("/deals/{deal_id}")
@@ -808,3 +851,19 @@ def bulk_update_deals(
         value=payload.value
     )
     return {"message": f"{updated_count} oportunidades atualizadas com sucesso", "count": updated_count}
+
+
+@router.post("/deals/bulk-add-contacts")
+def bulk_add_contacts_to_pipeline(
+    payload: dict = Body(...),
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Adiciona contatos selecionados ou por filtro a uma pipeline do Kanban."""
+    return crm_service.bulk_add_contacts_to_pipeline(
+        db=db,
+        client_id=client_id,
+        current_user=current_user,
+        payload=payload
+    )

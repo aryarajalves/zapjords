@@ -17,8 +17,9 @@ export const MediaGridItem = memo(function MediaGridItem({ item, activeClientId,
 
     const formattedDate = useMemo(() => formatDate(item.timestamp), [item.timestamp, formatDate]);
 
-    const isVideo = item.type === 'video';
-    const isAudio = item.type === 'audio' || item.type === 'voice';
+    const cleanUrl = typeof item.url === 'string' ? item.url.split('?')[0].toLowerCase() : '';
+    const isVideo = item.type === 'video' || (cleanUrl && /\.(mp4|mov|webm|m4v|mkv|avi)$/i.test(cleanUrl));
+    const isAudio = item.type === 'audio' || item.type === 'voice' || (cleanUrl && /\.(mp3|ogg|wav|m4a|aac|opus)$/i.test(cleanUrl));
 
     return (
         <div
@@ -26,9 +27,22 @@ export const MediaGridItem = memo(function MediaGridItem({ item, activeClientId,
             onClick={() => window.open(resolvedUrl, '_blank')}
         >
             {isVideo ? (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-black/40 text-white">
-                    <FiVideo size={28} className="text-emerald-400 mb-1" />
-                    <span className="text-[10px] bg-black/60 px-1.5 py-0.5 rounded font-mono">Vídeo</span>
+                <div className="relative w-full h-full bg-slate-900 flex items-center justify-center overflow-hidden">
+                    <video
+                        src={resolvedUrl}
+                        preload="metadata"
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        onLoadedData={() => setIsLoaded(true)}
+                        onError={() => setHasError(true)}
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white">
+                        <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center border border-white/20 group-hover:scale-110 group-hover:bg-emerald-600/90 transition-all">
+                            <FiVideo size={20} className="text-emerald-400 group-hover:text-white" />
+                        </div>
+                        <span className="text-[10px] bg-black/70 px-2 py-0.5 rounded-full font-mono mt-1.5 border border-white/10">Vídeo</span>
+                    </div>
                 </div>
             ) : isAudio ? (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-black/40 text-white">

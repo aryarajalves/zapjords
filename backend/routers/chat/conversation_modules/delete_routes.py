@@ -89,6 +89,8 @@ async def delete_conversations_bulk(
             urgent_only=payload.get("urgent_only"),
             has_replied=payload.get("has_replied"),
             has_active_funnel=payload.get("has_active_funnel"),
+            no_pipeline=payload.get("no_pipeline"),
+            not_in_pipeline_id=payload.get("not_in_pipeline_id"),
             start_date=payload.get("start_date"),
             end_date=payload.get("end_date"),
             search=payload.get("search"),

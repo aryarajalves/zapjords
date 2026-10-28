@@ -19,6 +19,54 @@ logger = setup_logger("ChatRouter.ConversationList")
 router = APIRouter()
 
 
+def _format_conversation_dict(c: models.ChatConversation, blocked_suffixes, resting_map, active_funnels_map):
+    block_type, resting_until = get_block_info(c.phone, blocked_suffixes, resting_map)
+    digits = "".join(filter(str.isdigit, c.phone or ""))
+    suffix_key = digits[-8:] if len(digits) >= 8 else None
+    active_funnel = active_funnels_map.get(suffix_key) if suffix_key else None
+
+    return {
+        "id": c.id,
+        "client_id": c.client_id,
+        "phone": c.phone,
+        "contact_name": c.contact_name,
+        "last_message_content": c.last_message_content,
+        "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
+        "status": c.status,
+        "unread_count": c.unread_count,
+        "assigned_user_id": c.assigned_user_id,
+        "assigned_user_name": c.assigned_user.full_name if c.assigned_user else None,
+        "labels": c.labels or [],
+        "last_contact_message_at": c.last_contact_message_at.isoformat() if c.last_contact_message_at else None,
+        "pinned": c.pinned,
+        "urgent": c.urgent,
+        "pinned_message_id": c.pinned_message_id,
+        "private_note": c.private_note,
+        "block_status": block_type,
+        "resting_until": resting_until.isoformat() if resting_until else None,
+        "active_funnel": active_funnel
+    }
+
+
+@router.get("/chat/conversations/{conversation_id}", summary="Obter detalhes de uma conversa por ID")
+async def get_conversation_by_id(
+    conversation_id: int,
+    client_id: int = Depends(get_client_id),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    convo = db.query(models.ChatConversation).filter(
+        models.ChatConversation.id == conversation_id,
+        models.ChatConversation.client_id == client_id
+    ).first()
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
+    active_funnels_map = get_active_funnels_map(db, client_id)
+    return _format_conversation_dict(convo, blocked_suffixes, resting_map, active_funnels_map)
+
+
 @router.post("/chat/conversations/get-or-create")
 async def get_or_create_conversation(
     payload: dict,
@@ -56,12 +104,9 @@ async def get_or_create_conversation(
         db.commit()
         db.refresh(convo)
 
-    return {
-        "id": convo.id,
-        "phone": convo.phone,
-        "contact_name": convo.contact_name,
-        "last_contact_message_at": convo.last_contact_message_at.isoformat() if convo.last_contact_message_at else None
-    }
+    blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
+    active_funnels_map = get_active_funnels_map(db, client_id)
+    return _format_conversation_dict(convo, blocked_suffixes, resting_map, active_funnels_map)
 
 
 @router.get("/chat/conversations")
@@ -88,6 +133,8 @@ async def list_conversations(
     has_active_funnel: Optional[bool] = None,
     last_message_read_only: Optional[bool] = None,
     last_message_unread_only: Optional[bool] = None,
+    no_pipeline: Optional[bool] = None,
+    not_in_pipeline_id: Optional[int] = None,
     order_by: str = "recent",
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1),
@@ -117,6 +164,8 @@ async def list_conversations(
         has_active_funnel=has_active_funnel,
         last_message_read_only=last_message_read_only,
         last_message_unread_only=last_message_unread_only,
+        no_pipeline=no_pipeline,
+        not_in_pipeline_id=not_in_pipeline_id,
         start_date=start_date,
         end_date=end_date,
         search=search,
@@ -152,31 +201,7 @@ async def list_conversations(
             elif block_type != block_status:
                 continue
 
-        digits = "".join(filter(str.isdigit, c.phone or ""))
-        suffix_key = digits[-8:] if len(digits) >= 8 else None
-        active_funnel = active_funnels_map.get(suffix_key) if suffix_key else None
-
-        result.append({
-            "id": c.id,
-            "client_id": c.client_id,
-            "phone": c.phone,
-            "contact_name": c.contact_name,
-            "last_message_content": c.last_message_content,
-            "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
-            "status": c.status,
-            "unread_count": c.unread_count,
-            "assigned_user_id": c.assigned_user_id,
-            "assigned_user_name": c.assigned_user.full_name if c.assigned_user else None,
-            "labels": c.labels or [],
-            "last_contact_message_at": c.last_contact_message_at.isoformat() if c.last_contact_message_at else None,
-            "pinned": c.pinned,
-            "urgent": c.urgent,
-            "pinned_message_id": c.pinned_message_id,
-            "private_note": c.private_note,
-            "block_status": block_type,
-            "resting_until": resting_until.isoformat() if resting_until else None,
-            "active_funnel": active_funnel
-        })
+        result.append(_format_conversation_dict(c, blocked_suffixes, resting_map, active_funnels_map))
 
     total_count = len(result)
     start_idx = (page - 1) * limit

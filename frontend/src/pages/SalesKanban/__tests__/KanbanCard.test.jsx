@@ -80,7 +80,7 @@ describe('KanbanCard Component', () => {
         expect(handleEdit).toHaveBeenCalledWith(mockDeal);
     });
 
-    it('dispara onOpenChat ao clicar no botão de WhatsApp sem disparar onEdit', () => {
+    it('dispara onOpenChat ao clicar no botão de chat do ZapVoice sem disparar onEdit', () => {
         const handleEdit = vi.fn();
         const handleOpenChat = vi.fn();
         render(
@@ -92,10 +92,10 @@ describe('KanbanCard Component', () => {
             />
         );
 
-        const chatBtn = screen.getByTitle('Conversar no WhatsApp');
+        const chatBtn = screen.getByTitle('Abrir conversa no ZapVoice');
         fireEvent.click(chatBtn);
 
-        expect(handleOpenChat).toHaveBeenCalledWith('5511999998888');
+        expect(handleOpenChat).toHaveBeenCalledWith('5511999998888', 'Lucas Silva');
         expect(handleEdit).not.toHaveBeenCalled();
     });
 

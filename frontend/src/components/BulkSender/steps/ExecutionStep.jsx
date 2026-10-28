@@ -4,6 +4,7 @@ import ExclusionListManager from './ExclusionListManager';
 import SchedulingSection from './SchedulingSection';
 import ButtonActionsSection from './ButtonActionsSection';
 import ContactLabelsSection from './ContactLabelsSection';
+import FollowUpSection from './FollowUpSection';
 import { getTemplateCategoryInfo } from '../utils/templateUtils';
 
 const ExecutionStep = ({
@@ -75,7 +76,13 @@ const ExecutionStep = ({
     funnels = [],
     selectedTemplate = '',
     templates = [],
-    whatsappProfile = null
+    whatsappProfile = null,
+    isFollowupEnabled = false,
+    setIsFollowupEnabled,
+    followups = [],
+    setFollowups,
+    stopTags = [],
+    setStopTags
 }) => {
     const [showQualityWarningModal, setShowQualityWarningModal] = React.useState(false);
 
@@ -207,13 +214,25 @@ const ExecutionStep = ({
                     funnels={funnels}
                 />
 
+                <FollowUpSection
+                    isFollowupEnabled={isFollowupEnabled}
+                    setIsFollowupEnabled={setIsFollowupEnabled}
+                    followups={followups}
+                    setFollowups={setFollowups}
+                    stopTags={stopTags}
+                    setStopTags={setStopTags}
+                    templates={templates}
+                    funnels={funnels}
+                    chatwootLabels={chatwootLabels}
+                />
+
                 <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative overflow-hidden group/exec">
                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full"></div>
                     <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-teal-500/5 blur-3xl rounded-full"></div>
 
                     <div className="flex items-center gap-4 mb-10 relative z-10">
                         <h2 className="text-2xl font-black text-white flex items-center gap-4">
-                            <span className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 shadow-xl shadow-emerald-500/10">03</span>
+                            <span className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 shadow-xl shadow-emerald-500/10">04</span>
                             Opções de Disparo
                         </h2>
                     </div>

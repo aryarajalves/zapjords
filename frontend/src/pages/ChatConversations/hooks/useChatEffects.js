@@ -25,6 +25,8 @@ export function useChatEffects({
     filterHasActiveFunnel,
     filterLastMessageRead,
     filterLastMessageUnread,
+    filterNoPipeline,
+    filterNotInPipelineId,
     orderBy,
     activeClient,
     setIsSearchMode,
@@ -53,7 +55,7 @@ export function useChatEffects({
     useEffect(() => {
         setSelectAllPages(false);
         if (setExcludedConvoIds) setExcludedConvoIds([]);
-    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, orderBy]);
+    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, filterNoPipeline, filterNotInPipelineId, orderBy]);
 
     // Polling de conversas e labels
     useEffect(() => {
@@ -64,7 +66,7 @@ export function useChatEffects({
             engine.loadAvailableLabels();
         }, 5000);
         return () => clearInterval(convoInterval);
-    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, activeClient, engine.page, engine.limit, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, orderBy]);
+    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, activeClient, engine.page, engine.limit, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, filterNoPipeline, filterNotInPipelineId, orderBy]);
 
     // Carregamento de mensagens da conversa selecionada e polling
     useEffect(() => {
@@ -83,9 +85,10 @@ export function useChatEffects({
         return () => clearInterval(msgInterval);
     }, [selectedConvo?.id, activeClient]);
 
-    // Carrega atendentes disponíveis
+    // Carrega atendentes disponíveis e pipelines
     useEffect(() => {
         engine.loadAvailableAgents();
+        if (engine.loadPipelines) engine.loadPipelines();
     }, [activeClient]);
 
     // Event listener global para seleção externa de conversa
@@ -102,8 +105,35 @@ export function useChatEffects({
             }
         };
         window.addEventListener('select-chat-convo', handleSelectConvo);
+
+        // Verificar se há conversa pendente vinda do CRM/Kanban via localStorage
+        const pendingPhone = localStorage.getItem('crm_target_chat_phone');
+        if (pendingPhone) {
+            localStorage.removeItem('crm_target_chat_phone');
+            const pendingName = localStorage.getItem('crm_target_chat_name') || '';
+            localStorage.removeItem('crm_target_chat_name');
+            if (engine.openConversationByPhone) {
+                engine.openConversationByPhone(pendingPhone, pendingName);
+            }
+        }
+
         return () => window.removeEventListener('select-chat-convo', handleSelectConvo);
     }, [engine.openConversationById, engine.openConversationByPhone]);
+
+    // Recarregar mensagens da conversa ativa ao receber evento
+    useEffect(() => {
+        const handleReloadMessages = (event) => {
+            const targetId = event.detail?.convoId || selectedConvo?.id;
+            if (targetId && typeof engine.loadMessages === 'function') {
+                engine.loadMessages(targetId, false);
+            }
+            if (typeof engine.loadConversations === 'function') {
+                engine.loadConversations();
+            }
+        };
+        window.addEventListener('reload-chat-messages', handleReloadMessages);
+        return () => window.removeEventListener('reload-chat-messages', handleReloadMessages);
+    }, [selectedConvo?.id, engine.loadMessages, engine.loadConversations]);
 
     // Timer da Janela de 24 horas
     useEffect(() => {

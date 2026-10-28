@@ -83,6 +83,10 @@ class ScheduledTrigger(Base):
     
     parent_id = Column(Integer, ForeignKey("scheduled_triggers.id", ondelete="CASCADE"), nullable=True, index=True)
     is_followup = Column(Boolean, default=False)
+    followup_step_number = Column(Integer, default=0, nullable=True)
+    stop_tags = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    schedule_type = Column(String, default="fixed", nullable=True)
+    relative_delay_hours = Column(Integer, nullable=True)
     is_recurring = Column(Boolean, default=False)
     is_stress_test = Column(Boolean, default=False)
     recurring_trigger_id = Column(Integer, ForeignKey("recurring_triggers.id", ondelete="SET NULL"), nullable=True, index=True)

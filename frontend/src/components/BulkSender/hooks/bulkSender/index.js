@@ -52,6 +52,11 @@ export const useBulkSender = (onViewChange, onSuccess) => {
     // Button Actions (card 04)
     const [buttonActions, setButtonActions] = useState({});
 
+    // Follow-up Sequence (card 03)
+    const [isFollowupEnabled, setIsFollowupEnabled] = useState(false);
+    const [followups, setFollowups] = useState([]);
+    const [stopTags, setStopTags] = useState([]);
+
     // Step 2: Execution & Contacts
     const [finalContacts, setFinalContacts] = useState([]);
     const [selectionMetadata, setSelectionMetadata] = useState({});
@@ -111,6 +116,9 @@ export const useBulkSender = (onViewChange, onSuccess) => {
                 setSelectedChatwootLabels([]);
                 setSelectedContactLabels([]);
                 setButtonActions({});
+                setIsFollowupEnabled(false);
+                setFollowups([]);
+                setStopTags([]);
                 setFinalContacts([]);
                 setSelectionMetadata({});
                 setIsValidated(false);
@@ -159,6 +167,9 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         setMaxDispatchTime("");
         setIsRecurring(false);
         setButtonActions({});
+        setIsFollowupEnabled(false);
+        setFollowups([]);
+        setStopTags([]);
         toast.success("Configurações resetadas!");
     };
 
@@ -188,6 +199,9 @@ export const useBulkSender = (onViewChange, onSuccess) => {
             privateMessageDelay,
             privateMessageConcurrency,
             buttonActions,
+            isFollowupEnabled,
+            followups,
+            stopTags,
             isDynamicLabel,
             isRecurring,
             recurrenceFrequency,
@@ -207,6 +221,9 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         selectedTemplate, setSelectedTemplate, templateSearch, setTemplateSearch,
         isTemplateDropdownOpen, setIsTemplateDropdownOpen, templateParams, setTemplateParams,
         buttonActions, setButtonActions,
+        isFollowupEnabled, setIsFollowupEnabled,
+        followups, setFollowups,
+        stopTags, setStopTags,
         sendPrivateMessage, setSendPrivateMessage, privateMessageText, setPrivateMessageText,
         privateMessageDelay, setPrivateMessageDelay, privateMessageDelayUnit, setPrivateMessageDelayUnit,
         privateMessageConcurrency, setPrivateMessageConcurrency, selectedChatwootLabels, setSelectedChatwootLabels,

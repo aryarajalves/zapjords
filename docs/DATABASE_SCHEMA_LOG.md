@@ -30,6 +30,7 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 27/10/2026 | Suporte à Sequência de Follow-up em Disparos em Massa | `scheduled_triggers` | `followup_step_number` (INTEGER), `stop_tags` (JSONB / JSON), `schedule_type` (VARCHAR), `relative_delay_hours` (INTEGER) | `backend/scripts/database/add_followup_trigger_columns.py` |
 | 27/10/2026 | Suporte a Etiquetas no Contato em Disparos em Massa e Recorrentes | `scheduled_triggers`, `recurring_triggers` | `contact_labels` (JSONB / JSON DEFAULT '[]') | `backend/scripts/database/add_contact_labels_columns.py` |
 | 27/10/2026 | Avanço Automático de Leads para Próximo Pipeline e Etapa | `sales_pipeline_stages` | `forward_to_pipeline_id` (INTEGER, FK), `forward_to_stage_id` (INTEGER, FK) | `backend/scripts/database/add_pipeline_forward_columns.py` |
 | 23/10/2026 | Catálogo de Produtos do CRM e Vínculo com Desconto em Deals | `crm_products`, `sales_deals` | Tabela `crm_products` criada (`name`, `price`, `description`, `is_active`) e colunas `product_id`, `product_name`, `original_value` adicionadas em `sales_deals` | `backend/add_crm_products_table.py` |

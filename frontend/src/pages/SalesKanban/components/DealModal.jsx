@@ -169,12 +169,12 @@ export function DealModal({
                         {dealToEdit && onOpenChat && (
                             <button
                                 type="button"
-                                onClick={() => onOpenChat(dealToEdit.contact_phone)}
+                                onClick={() => onOpenChat(dealToEdit.contact_phone, dealToEdit.contact_name)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                                title="Conversar no WhatsApp"
+                                title="Abrir conversa no ZapVoice"
                             >
                                 <FiMessageSquare size={13} />
-                                <span className="hidden sm:inline">WhatsApp</span>
+                                <span className="hidden sm:inline">Conversar no ZapVoice</span>
                             </button>
                         )}
                         <button

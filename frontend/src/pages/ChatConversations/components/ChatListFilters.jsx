@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiTag, FiRefreshCw, FiSlash, FiCalendar, FiClock, FiSliders, FiChevronLeft, FiChevronRight, FiCheckCircle } from 'react-icons/fi';
 import ChatLabelFilterDropdown from './ChatLabelFilterDropdown';
+import PipelineFilterControl from './PipelineFilterControl';
 
 export default function ChatListFilters({
     activeTab,
@@ -34,6 +35,11 @@ export default function ChatListFilters({
     setFilterLastMessageRead,
     filterLastMessageUnread,
     setFilterLastMessageUnread,
+    filterNoPipeline,
+    setFilterNoPipeline,
+    filterNotInPipelineId,
+    setFilterNotInPipelineId,
+    pipelines = [],
     filterBlockStatus,
     setFilterBlockStatus,
     filterStartDate,
@@ -154,7 +160,7 @@ export default function ChatListFilters({
                     >
                         {[
                             { key: 'marcador', label: 'Marcador', icon: FiTag, active: !!(selectedLabelFilter && (typeof selectedLabelFilter === 'string' ? selectedLabelFilter : selectedLabelFilter.labels?.length > 0)) },
-                            { key: 'status', label: 'Status', icon: FiRefreshCw, active: filterWindowOpen || filterTemplate24h || filterUnread || filterHasNote || filterUrgent || filterHasReplied || filterHasActiveFunnel || filterLastMessageRead || filterLastMessageUnread },
+                            { key: 'status', label: 'Status', icon: FiRefreshCw, active: filterWindowOpen || filterTemplate24h || filterUnread || filterHasNote || filterUrgent || filterHasReplied || filterHasActiveFunnel || filterLastMessageRead || filterLastMessageUnread || filterNoPipeline || !!filterNotInPipelineId },
                             { 
                                 key: 'bloqueio', 
                                 label: filterBlockStatus === 'unblocked' ? 'Não Bloqueados' : filterBlockStatus === 'blocked' ? 'Bloqueados' : filterBlockStatus === 'resting' ? 'Em Repouso' : 'Bloqueio', 
@@ -272,6 +278,14 @@ export default function ChatListFilters({
                         >
                             Não viu última msg
                         </button>
+
+                        <PipelineFilterControl
+                            filterNoPipeline={filterNoPipeline}
+                            setFilterNoPipeline={setFilterNoPipeline}
+                            filterNotInPipelineId={filterNotInPipelineId}
+                            setFilterNotInPipelineId={setFilterNotInPipelineId}
+                            pipelines={pipelines}
+                        />
                     </div>
                 )}
 

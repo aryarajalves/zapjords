@@ -292,4 +292,46 @@ describe('ContactMediaSection e ConversationMediaModal', () => {
 
         expect(onDeleteNote).toHaveBeenCalledWith(11);
     });
+
+    it('ConversationMediaModal renderiza item de vídeo com elemento video e badge de vídeo', () => {
+        const testData = {
+            total_media: 1,
+            total_docs: 0,
+            total_links: 0,
+            total_notes: 0,
+            total_all: 1,
+            media: [
+                {
+                    id: 99,
+                    type: 'video',
+                    url: 'https://s3.backblaze.com/video_sample.mp4',
+                    caption: 'Vídeo explicativo do template',
+                    timestamp: '2026-08-17T10:00:00Z'
+                }
+            ],
+            docs: [],
+            links: [],
+            notes: []
+        };
+
+        const { container } = render(
+            <ConversationMediaModal
+                isOpen={true}
+                onClose={vi.fn()}
+                contactName="Cliente Vídeo"
+                mediaData={testData}
+                isLoading={false}
+                activeClientId={1}
+            />
+        );
+
+        // Deve renderizar o elemento <video>
+        const videoElement = container.querySelector('video');
+        expect(videoElement).toBeInTheDocument();
+        expect(videoElement).toHaveAttribute('src', 'https://s3.backblaze.com/video_sample.mp4');
+
+        // Deve exibir o badge 'Vídeo'
+        expect(screen.getByText('Vídeo')).toBeInTheDocument();
+        expect(screen.getAllByText('Vídeo explicativo do template').length).toBeGreaterThan(0);
+    });
 });

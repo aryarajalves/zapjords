@@ -26,6 +26,8 @@ export function useChatEngine({
   filterHasActiveFunnel,
   filterLastMessageRead,
   filterLastMessageUnread,
+  filterNoPipeline,
+  filterNotInPipelineId,
   orderBy = 'recent',
   selectedConvo,
   setSelectedConvo
@@ -56,6 +58,7 @@ export function useChatEngine({
   const [isClearingChat, setIsClearingChat] = useState(false);
   const [confirmResendAgentflow, setConfirmResendAgentflow] = useState(null);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [blockModalMode, setBlockModalMode] = useState('single');
   const [isBlockingContact, setIsBlockingContact] = useState(false);
 
   // Gravação de áudio
@@ -72,6 +75,8 @@ export function useChatEngine({
   const {
     conversations,
     setConversations,
+    pipelines,
+    loadPipelines,
     availableLabels,
     chatLabels,
     contactLabels,
@@ -107,6 +112,8 @@ export function useChatEngine({
     filterHasActiveFunnel,
     filterLastMessageRead,
     filterLastMessageUnread,
+    filterNoPipeline,
+    filterNotInPipelineId,
     orderBy,
     selectedConvo,
     setSelectedConvo
@@ -255,6 +262,8 @@ export function useChatEngine({
     setConfirmResendAgentflow,
     isBlockModalOpen,
     setIsBlockModalOpen,
+    blockModalMode,
+    setBlockModalMode,
     isBlockingContact,
     setIsBlockingContact,
     isRecording,
@@ -267,6 +276,8 @@ export function useChatEngine({
     messagesEndRef,
     messagesContainerRef,
     lastContactMessage,
+    pipelines,
+    loadPipelines,
     loadConversations,
     loadAvailableAgents,
     handleAssignConversation,

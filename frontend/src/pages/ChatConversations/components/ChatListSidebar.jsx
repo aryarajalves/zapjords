@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiTag, FiRefreshCw, FiArchive, FiZap } from 'react-icons/fi';
+import { FiTag, FiRefreshCw, FiArchive, FiZap, FiColumns, FiSlash, FiCheckCircle } from 'react-icons/fi';
 import { BsStars } from 'react-icons/bs';
 import ChatListFilters from './ChatListFilters';
 import ChatListItem from './ChatListItem';
@@ -33,6 +33,10 @@ export default function ChatListSidebar({
     setFilterLastMessageRead,
     filterLastMessageUnread,
     setFilterLastMessageUnread,
+    filterNoPipeline,
+    setFilterNoPipeline,
+    filterNotInPipelineId,
+    setFilterNotInPipelineId,
     filterBlockStatus,
     setFilterBlockStatus,
     filterStartDate,
@@ -49,6 +53,8 @@ export default function ChatListSidebar({
     excludedConvoIds = [],
     setExcludedConvoIds,
     setIsBulkTagModalOpen,
+    setIsBulkPipelineModalOpen,
+    handleBulkUnblock,
     isOpenAiConfigured,
     isAnalyzingAi,
     handleAnalyzeBulkChatsDoubts,
@@ -95,6 +101,11 @@ export default function ChatListSidebar({
                 setFilterLastMessageRead={setFilterLastMessageRead}
                 filterLastMessageUnread={filterLastMessageUnread}
                 setFilterLastMessageUnread={setFilterLastMessageUnread}
+                filterNoPipeline={filterNoPipeline}
+                setFilterNoPipeline={setFilterNoPipeline}
+                filterNotInPipelineId={filterNotInPipelineId}
+                setFilterNotInPipelineId={setFilterNotInPipelineId}
+                pipelines={engine.pipelines}
                 filterBlockStatus={filterBlockStatus}
                 setFilterBlockStatus={setFilterBlockStatus}
                 filterStartDate={filterStartDate}
@@ -173,6 +184,41 @@ export default function ChatListSidebar({
                                 <FiZap size={13} />
                                 <span>Funil</span>
                             </button>
+
+                            <button
+                                id="bulk-pipeline-btn"
+                                onClick={() => setIsBulkPipelineModalOpen && setIsBulkPipelineModalOpen(true)}
+                                className="flex items-center gap-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-1.5 rounded-lg text-xs font-semibold transition border border-purple-500/20 shrink-0 whitespace-nowrap cursor-pointer shadow-sm"
+                                title="Adicionar conversas selecionadas a uma pipeline do Kanban"
+                            >
+                                <FiColumns size={13} />
+                                <span>Pipeline</span>
+                            </button>
+
+                            {filterBlockStatus === 'blocked' || filterBlockStatus === 'resting' ? (
+                                <button
+                                    id="bulk-unblock-btn"
+                                    onClick={() => handleBulkUnblock && handleBulkUnblock()}
+                                    className="flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-1.5 rounded-lg text-xs font-semibold transition border border-emerald-500/20 shrink-0 whitespace-nowrap cursor-pointer shadow-sm"
+                                    title="Desbloquear conversas selecionadas"
+                                >
+                                    <FiCheckCircle size={13} />
+                                    <span>Desbloquear</span>
+                                </button>
+                            ) : (
+                                <button
+                                    id="bulk-block-btn"
+                                    onClick={() => {
+                                        if (engine.setBlockModalMode) engine.setBlockModalMode('bulk');
+                                        engine.setIsBlockModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-1.5 rounded-lg text-xs font-semibold transition border border-rose-500/20 shrink-0 whitespace-nowrap cursor-pointer shadow-sm"
+                                    title="Bloquear conversas selecionadas"
+                                >
+                                    <FiSlash size={13} />
+                                    <span>Bloquear</span>
+                                </button>
+                            )}
 
                             <button
                                 id="bulk-archive-btn"

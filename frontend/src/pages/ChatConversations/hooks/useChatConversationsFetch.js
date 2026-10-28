@@ -21,11 +21,14 @@ export function useChatConversationsFetch({
   filterHasActiveFunnel,
   filterLastMessageRead,
   filterLastMessageUnread,
+  filterNoPipeline,
+  filterNotInPipelineId,
   orderBy = 'recent',
   selectedConvo,
   setSelectedConvo
 }) {
   const [conversations, setConversations] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
   const [availableLabels, setAvailableLabels] = useState([]);
   const [chatLabels, setChatLabels] = useState([]);
   const [contactLabels, setContactLabels] = useState([]);
@@ -60,6 +63,8 @@ export function useChatConversationsFetch({
     filterHasActiveFunnel,
     filterLastMessageRead,
     filterLastMessageUnread,
+    filterNoPipeline,
+    filterNotInPipelineId,
     orderBy
   ]);
 
@@ -101,6 +106,8 @@ export function useChatConversationsFetch({
       if (filterHasActiveFunnel) url.searchParams.append('has_active_funnel', 'true');
       if (filterLastMessageRead) url.searchParams.append('last_message_read_only', 'true');
       if (filterLastMessageUnread) url.searchParams.append('last_message_unread_only', 'true');
+      if (filterNoPipeline) url.searchParams.append('no_pipeline', 'true');
+      if (filterNotInPipelineId) url.searchParams.append('not_in_pipeline_id', String(filterNotInPipelineId));
       if (orderBy) url.searchParams.append('order_by', orderBy);
 
       const res = await fetchWithAuth(url.toString(), {}, activeClient.id);
@@ -227,6 +234,19 @@ export function useChatConversationsFetch({
     }
   }, [activeClient?.id]);
 
+  const loadPipelines = useCallback(async () => {
+    if (!activeClient?.id) return;
+    try {
+      const res = await fetchWithAuth(`${API_URL}/crm/pipelines`, {}, activeClient.id);
+      if (res.ok) {
+        const data = await res.json();
+        setPipelines(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar pipelines:', err);
+    }
+  }, [activeClient?.id]);
+
   const getLabelColor = (labelName) => {
     if (!labelName) return '#3b82f6';
     const found = (availableLabelsDetails || []).find(
@@ -238,6 +258,8 @@ export function useChatConversationsFetch({
   return {
     conversations,
     setConversations,
+    pipelines,
+    loadPipelines,
     availableLabels,
     chatLabels,
     contactLabels,

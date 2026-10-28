@@ -2,7 +2,27 @@ import { toast } from 'react-hot-toast';
 import { fetchWithAuth } from '../../../../AuthContext';
 import { API_URL } from '../../../../config';
 
-export function useChatConvoStatusOperations({ selectedConvo, setSelectedConvo, activeClient, engine }) {
+export function useChatConvoStatusOperations({
+    selectedConvo,
+    setSelectedConvo,
+    activeClient,
+    engine,
+    activeTab,
+    statusFilter,
+    searchQuery,
+    selectedLabelFilter,
+    filterBlockStatus,
+    filterHasNote,
+    filterStartDate,
+    filterEndDate,
+    filterUnread,
+    filterWindowOpen,
+    filterHasReplied,
+    selectAllPages,
+    setSelectAllPages,
+    excludedConvoIds,
+    setExcludedConvoIds
+}) {
     const handleTogglePin = async () => {
         if (!selectedConvo) return;
         const newPinned = !selectedConvo.pinned;
@@ -134,11 +154,155 @@ export function useChatConvoStatusOperations({ selectedConvo, setSelectedConvo, 
         }
     };
 
+    const handleBulkBlock = async (type, hours) => {
+        if (!activeClient) return;
+        if (!engine.selectedConvoIds?.length && !selectAllPages) return;
+
+        engine.setIsBlockingContact(true);
+        const loadingToast = toast.loading(selectAllPages ? 'Bloqueando contatos em massa...' : 'Bloqueando contatos selecionados...');
+
+        try {
+            const inc = selectedLabelFilter?.include_labels || (selectedLabelFilter?.items?.filter(i => i.mode === 'has').map(i => i.name)) || [];
+            const exc = selectedLabelFilter?.exclude_labels || (selectedLabelFilter?.items?.filter(i => i.mode === 'has_not').map(i => i.name)) || [];
+
+            const labelPayload = typeof selectedLabelFilter === 'string'
+                ? { label: selectedLabelFilter || undefined }
+                : (inc.length > 0 || exc.length > 0 ? {
+                    include_labels: inc.length > 0 ? inc : undefined,
+                    exclude_labels: exc.length > 0 ? exc : undefined,
+                    label_op: selectedLabelFilter?.op || 'or'
+                } : (selectedLabelFilter?.labels?.length > 0 ? {
+                    labels: selectedLabelFilter.labels,
+                    label_mode: selectedLabelFilter.mode || 'has',
+                    label_op: selectedLabelFilter.op || 'or'
+                } : {}));
+
+            const payload = selectAllPages ? {
+                select_all_pages: true,
+                type: type || 'permanent',
+                hours: type === 'resting' ? Number(hours || 24) : undefined,
+                excluded_ids: excludedConvoIds?.length > 0 ? excludedConvoIds : undefined,
+                tab: activeTab,
+                status: statusFilter,
+                search: searchQuery || undefined,
+                ...labelPayload,
+                block_status: filterBlockStatus || undefined,
+                has_note: filterHasNote || undefined,
+                start_date: filterStartDate || undefined,
+                end_date: filterEndDate || undefined,
+                unread_only: filterUnread || undefined,
+                window_open_only: filterWindowOpen || undefined,
+                has_replied: filterHasReplied || undefined
+            } : {
+                ids: engine.selectedConvoIds,
+                type: type || 'permanent',
+                hours: type === 'resting' ? Number(hours || 24) : undefined
+            };
+
+            const res = await fetchWithAuth(`${API_URL}/chat/conversations/bulk-block`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }, activeClient.id);
+
+            if (res.ok) {
+                const data = await res.json();
+                toast.dismiss(loadingToast);
+                toast.success(data.message || 'Contatos bloqueados com sucesso!');
+                engine.setIsBlockModalOpen(false);
+                if (engine.setBlockModalMode) engine.setBlockModalMode('single');
+                engine.setSelectedConvoIds([]);
+                if (selectAllPages) {
+                    if (setSelectAllPages) setSelectAllPages(false);
+                    if (setExcludedConvoIds) setExcludedConvoIds([]);
+                }
+                engine.loadConversations(false);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                toast.dismiss(loadingToast);
+                toast.error(errData.detail || 'Erro ao bloquear contatos.');
+            }
+        } catch {
+            toast.dismiss(loadingToast);
+            toast.error('Erro de conexão ao processar bloqueio.');
+        } finally {
+            engine.setIsBlockingContact(false);
+        }
+    };
+
+    const handleBulkUnblock = async () => {
+        if (!activeClient) return;
+        if (!engine.selectedConvoIds?.length && !selectAllPages) return;
+
+        const loadingToast = toast.loading('Desbloqueando contatos selecionados...');
+        try {
+            const inc = selectedLabelFilter?.include_labels || (selectedLabelFilter?.items?.filter(i => i.mode === 'has').map(i => i.name)) || [];
+            const exc = selectedLabelFilter?.exclude_labels || (selectedLabelFilter?.items?.filter(i => i.mode === 'has_not').map(i => i.name)) || [];
+
+            const labelPayload = typeof selectedLabelFilter === 'string'
+                ? { label: selectedLabelFilter || undefined }
+                : (inc.length > 0 || exc.length > 0 ? {
+                    include_labels: inc.length > 0 ? inc : undefined,
+                    exclude_labels: exc.length > 0 ? exc : undefined,
+                    label_op: selectedLabelFilter?.op || 'or'
+                } : (selectedLabelFilter?.labels?.length > 0 ? {
+                    labels: selectedLabelFilter.labels,
+                    label_mode: selectedLabelFilter.mode || 'has',
+                    label_op: selectedLabelFilter.op || 'or'
+                } : {}));
+
+            const payload = selectAllPages ? {
+                select_all_pages: true,
+                excluded_ids: excludedConvoIds?.length > 0 ? excludedConvoIds : undefined,
+                tab: activeTab,
+                status: statusFilter,
+                search: searchQuery || undefined,
+                ...labelPayload,
+                block_status: filterBlockStatus || undefined,
+                has_note: filterHasNote || undefined,
+                start_date: filterStartDate || undefined,
+                end_date: filterEndDate || undefined,
+                unread_only: filterUnread || undefined,
+                window_open_only: filterWindowOpen || undefined,
+                has_replied: filterHasReplied || undefined
+            } : {
+                ids: engine.selectedConvoIds
+            };
+
+            const res = await fetchWithAuth(`${API_URL}/chat/conversations/bulk-unblock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }, activeClient.id);
+
+            if (res.ok) {
+                const data = await res.json();
+                toast.dismiss(loadingToast);
+                toast.success(data.message || 'Contatos desbloqueados com sucesso!');
+                engine.setSelectedConvoIds([]);
+                if (selectAllPages) {
+                    if (setSelectAllPages) setSelectAllPages(false);
+                    if (setExcludedConvoIds) setExcludedConvoIds([]);
+                }
+                engine.loadConversations(false);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                toast.dismiss(loadingToast);
+                toast.error(errData.detail || 'Erro ao desbloquear contatos.');
+            }
+        } catch {
+            toast.dismiss(loadingToast);
+            toast.error('Erro ao desbloquear contatos.');
+        }
+    };
+
     return {
         handleTogglePin,
         handleToggleUrgent,
         handleSaveNote,
         handleConfirmBlockContact,
-        handleUnblockContact
+        handleUnblockContact,
+        handleBulkBlock,
+        handleBulkUnblock
     };
 }

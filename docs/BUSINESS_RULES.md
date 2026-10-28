@@ -383,3 +383,25 @@ As perguntas iniciais sobre regras de negócio foram todas respondidas e integra
 
 ---
 > 📋 **Documentação Atualizada:** Regras de negócio de Prazo Limite e Expiração de Disparo em Massa consolidadas.
+
+### 17. Sequência de Follow-up em Disparos em Massa (Bulk Sender)
+- **Propósito**: Permitir que o operador configure uma cadência de reenvio de templates aprovados pela Meta para recuperação de leads que não interagiram no disparo principal.
+- **Configuração no Disparo em Massa**:
+  - No Step 2 de execução (ExecutionStep), a seção 'Opções de Disparo' recebe o badge **04**.
+  - O operador pode ativar a 'Sequência de Follow-up' e adicionar múltiplas etapas (Follow-up #1, Follow-up #2...).
+  - Para cada follow-up configurado:
+    - **Template Oficial**: Seleção de template aprovado pela Meta com preenchimento de variáveis e mídias.
+    - **Ações dos Botões do Follow-up**: Se o template tiver botões, o operador pode definir a ação de cada botão (Interação com funil/IA ou Bloqueio do contato).
+    - **Agendamento Flexível**: Suporte a Data/Hora fixos (calendário) ou Intervalo relativo (ex: 24 horas após o disparo anterior).
+- **Critério Rígido de Qualificação de Contatos**:
+  - Quando a etapa do follow-up é acionada, o sistema consulta a lista do disparo pai e **SOMENTE qualifica contatos cuja mensagem anterior foi entregue com sucesso** (status delivered ou 
+ead).
+  - Contatos cujo disparo anterior falhou (ailed), números inválidos ou contatos que entraram na lista de bloqueio (BlockedContact) são sumariamente descartados.
+- **Critérios Exclusivos de Interrupção / Cancelamento**:
+  - O envio de follow-up para um contato é cancelado **exclusivamente** nas seguintes condições:
+    1. **Clique em Botão do Template**: O contato clicou em qualquer botão do template anterior (seja botão de interação com funil ou botão de bloqueio, registrado via MessageStatus.is_interaction == True ou webhook utton_reply).
+    2. **Etiqueta de Parada (Stop Tag)**: O contato possui uma das etiquetas de interrupção configuradas no disparo, verificada tanto nas etiquetas da conversa (ChatConversation.labels) quanto nas etiquetas do lead (WebhookLead.tags).
+    3. **Cancelamento Manual**: O operador cancelou manualmente a etapa inteira do follow-up (pelo Histórico de Disparos) ou cancelou o follow-up de um lead individual (pelo modal de contatos do histórico ou pelo Chat de atendimento).
+  - *Mensagens de texto/áudio simples sem clique em botão e sem etiqueta de parada NÃO cancelam o follow-up automaticamente*.
+- **Visibilidade e Rastreamento no Histórico de Disparos**:
+  - Cada etapa de follow-up que for agendada/executada é gerada como um disparo independente na tabela scheduled_triggers vinculado pelo parent_id, sendo listada no Histórico de Disparos com badge descritivo claro [Follow-up #N].

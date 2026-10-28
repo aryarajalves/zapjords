@@ -197,6 +197,12 @@ async def handle_button_actions(
         except Exception as e_stats:
             logger.error(f"❌ Erro ao reconciliar stats: {e_stats}")
 
+        try:
+            from services.followup_service import cancel_contact_from_pending_followups
+            cancel_contact_from_pending_followups(db, target_cid, from_phone, reason="clicou_botao")
+        except Exception as e_fu_btn:
+            logger.warning(f"⚠️ [FOLLOWUP-CANCEL-BTN] Erro ao cancelar follow-up pendente: {e_fu_btn}")
+
     # Execução assíncrona da ação do botão
     if action and action.get("type") in ("interaction", "block"):
         action_funnel_id = action.get("funnel_id")
