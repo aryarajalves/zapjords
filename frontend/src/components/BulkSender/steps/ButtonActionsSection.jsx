@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiZap, FiSlash, FiMinus, FiCpu } from 'react-icons/fi';
+import SearchableFunnelSelect from './SearchableFunnelSelect';
 
 const TYPE_OPTIONS = [
     { value: 'none',        label: 'Nenhum',    icon: FiMinus,  color: 'slate' },
@@ -13,7 +14,7 @@ const COLOR = {
     rose:    { ring: 'ring-rose-500/30',    bg: 'bg-rose-500/10',    text: 'text-rose-400',    border: 'border-rose-500/20' },
 };
 
-const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions, funnels }) => {
+const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions, funnels, stepNumber = '03' }) => {
     if (!templateButtons || templateButtons.length === 0) return null;
 
     const getAction = (btnText) =>
@@ -22,7 +23,7 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
     const setType = (btnText, type) => {
         setButtonActions(prev => ({
             ...prev,
-            [btnText]: { ...getAction(btnText), type, funnel_id: null }
+            [btnText]: { ...getAction(btnText), type, funnel_id: type === 'none' ? null : getAction(btnText).funnel_id }
         }));
     };
 
@@ -45,8 +46,8 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full" />
 
             <h2 className="text-2xl font-black text-white flex items-center gap-4 mb-8 relative z-10">
-                <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10 flex items-center justify-center">
-                    <FiZap className="w-5 h-5" />
+                <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10 font-mono text-xl">
+                    {stepNumber}
                 </span>
                 Ação dos Botões (Template Principal)
             </h2>
@@ -56,7 +57,7 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
             </p>
 
             <div className="space-y-5 relative z-10">
-                {templateButtons.map((btnText) => {
+                {templateButtons.map((btnText, idx) => {
                     const action = getAction(btnText);
                     const activeOpt = TYPE_OPTIONS.find(o => o.value === action.type) || TYPE_OPTIONS[0];
                     const c = COLOR[activeOpt.color];
@@ -69,6 +70,9 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
                         >
                             {/* Button label */}
                             <div className="flex items-center gap-3 mb-5">
+                                <span className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 border border-violet-500/30 font-black text-xs flex items-center justify-center shrink-0">
+                                    #{idx + 1}
+                                </span>
                                 <span className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-xl text-white font-black text-sm truncate max-w-[220px]">
                                     {btnText}
                                 </span>
@@ -119,28 +123,26 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
 
                             {/* Funnel selector (optional) */}
                             {showFunnel && (
-                                <div>
-                                    <label className="block text-[9px] font-black text-slate-600 uppercase mb-2 px-1 tracking-widest">
-                                        Funil a disparar — <span className="text-slate-500 normal-case">opcional</span>
+                                <div className="space-y-2">
+                                    <label className="block text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">
+                                        Funil a disparar — <span className="text-slate-400 normal-case">opcional</span>
                                     </label>
-                                    <select
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+                                    <SearchableFunnelSelect
                                         value={action.funnel_id || ''}
-                                        onChange={(e) => setFunnel(btnText, e.target.value || null)}
-                                    >
-                                        <option value="" className="bg-slate-900 text-white">— Nenhum funil —</option>
-                                        {funnels.map((f) => (
-                                            <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.is_pinned ? '📌 ' : ''}{f.name}{f.tag ? ` [${f.tag}]` : ''}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setFunnel(btnText, val)}
+                                        funnels={funnels}
+                                        emptyLabel="— Nenhum funil —"
+                                        placeholder="Pesquisar funil por nome ou tag..."
+                                        theme={action.type === 'block' ? 'rose' : (action.type === 'interaction' ? 'emerald' : 'violet')}
+                                    />
                                     {action.type === 'block' && (
-                                        <p className="text-rose-400/70 text-[10px] font-bold mt-2 px-1">
-                                            O contato será adicionado à lista de bloqueados automaticamente.
+                                        <p className="text-rose-400/80 text-[10px] font-bold mt-1 px-1">
+                                            ⚠️ O contato será adicionado à lista de bloqueados automaticamente.
                                         </p>
                                     )}
                                     {action.type === 'interaction' && (
-                                        <p className="text-emerald-400/70 text-[10px] font-bold mt-2 px-1">
-                                            O funil será iniciado após 5–8 segundos da resposta.
+                                        <p className="text-emerald-400/80 text-[10px] font-bold mt-1 px-1">
+                                            ⚡ O funil será iniciado após 5–8 segundos da resposta.
                                         </p>
                                     )}
                                 </div>

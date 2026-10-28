@@ -212,6 +212,7 @@ const ExecutionStep = ({
                     buttonActions={buttonActions}
                     setButtonActions={setButtonActions}
                     funnels={funnels}
+                    stepNumber="03"
                 />
 
                 <FollowUpSection
@@ -224,6 +225,7 @@ const ExecutionStep = ({
                     templates={templates}
                     funnels={funnels}
                     chatwootLabels={chatwootLabels}
+                    stepNumber={templateButtons && templateButtons.length > 0 ? '04' : '03'}
                 />
 
                 <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative overflow-hidden group/exec">
@@ -232,7 +234,9 @@ const ExecutionStep = ({
 
                     <div className="flex items-center gap-4 mb-10 relative z-10">
                         <h2 className="text-2xl font-black text-white flex items-center gap-4">
-                            <span className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 shadow-xl shadow-emerald-500/10">04</span>
+                            <span className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 shadow-xl shadow-emerald-500/10 font-mono text-xl">
+                                {templateButtons && templateButtons.length > 0 ? '05' : '04'}
+                            </span>
                             Opções de Disparo
                         </h2>
                     </div>

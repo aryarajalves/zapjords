@@ -11,9 +11,11 @@ export default function FollowUpSection({
     setStopTags,
     templates = [],
     funnels = [],
-    chatwootLabels = []
+    chatwootLabels = [],
+    stepNumber = '03'
 }) {
     const [tagInput, setTagInput] = useState('');
+    const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
 
     const handleToggle = () => {
         const nextState = !isFollowupEnabled;
@@ -76,10 +78,11 @@ export default function FollowUpSection({
         setStopTags(prev => prev.filter(t => t !== tagToRemove));
     };
 
-    // Sugestões de etiquetas que ainda não foram adicionadas
-    const availableLabelSuggestions = (chatwootLabels || [])
-        .map(l => (typeof l === 'object' ? l.title || l.name : l))
-        .filter(name => name && !stopTags.includes(name));
+    // Opções de etiquetas disponíveis (chatwootLabels não selecionadas), filtradas pelo texto digitado
+    const filteredLabelOptions = (chatwootLabels || [])
+        .map(l => (typeof l === 'object' ? (l.title || l.name || l.value || l.label) : l))
+        .filter(name => name && typeof name === 'string' && !stopTags.includes(name))
+        .filter(name => !tagInput.trim() || name.toLowerCase().includes(tagInput.trim().toLowerCase()));
 
     return (
         <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative overflow-hidden group/followup">
@@ -89,8 +92,8 @@ export default function FollowUpSection({
             {/* Header com Badge 03 */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 relative z-10">
                 <h2 className="text-2xl font-black text-white flex items-center gap-4">
-                    <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10">
-                        03
+                    <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10 font-mono text-xl">
+                        {stepNumber}
                     </span>
                     Sequência de Follow-up
                 </h2>
@@ -138,47 +141,95 @@ export default function FollowUpSection({
                             Etiquetas de Parada (Interrompem o envio)
                         </label>
 
-                        {/* Input de tag */}
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="Digite uma etiqueta e pressione Adicionar (ex: comprou, cliente)..."
-                                value={tagInput}
-                                onChange={(e) => setTagInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
+                        {/* Input de tag com Dropdown */}
+                        <div className="relative">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Clique para ver etiquetas ou digite para filtrar..."
+                                    value={tagInput}
+                                    onChange={(e) => {
+                                        setTagInput(e.target.value);
+                                        setIsTagDropdownOpen(true);
+                                    }}
+                                    onFocus={() => setIsTagDropdownOpen(true)}
+                                    onClick={() => setIsTagDropdownOpen(true)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddStopTag(tagInput);
+                                            setIsTagDropdownOpen(false);
+                                        }
+                                    }}
+                                    className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 outline-none focus:border-violet-500 transition-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
                                         handleAddStopTag(tagInput);
-                                    }
-                                }}
-                                className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-violet-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => handleAddStopTag(tagInput)}
-                                className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-violet-900/30"
-                            >
-                                <FiPlus size={14} />
-                                Adicionar
-                            </button>
-                        </div>
-
-                        {/* Sugestões rápidas de etiquetas do Chatwoot */}
-                        {availableLabelSuggestions.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                <span className="text-[10px] text-slate-500 font-bold uppercase">Sugestões:</span>
-                                {availableLabelSuggestions.slice(0, 6).map(lbl => (
-                                    <button
-                                        key={lbl}
-                                        type="button"
-                                        onClick={() => handleAddStopTag(lbl)}
-                                        className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/5 transition-all"
-                                    >
-                                        + {lbl}
-                                    </button>
-                                ))}
+                                        setIsTagDropdownOpen(false);
+                                    }}
+                                    className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-violet-900/30 shrink-0"
+                                >
+                                    <FiPlus size={14} />
+                                    Adicionar
+                                </button>
                             </div>
-                        )}
+
+                            {/* Dropdown com a lista de etiquetas disponíveis */}
+                            {isTagDropdownOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setIsTagDropdownOpen(false)}
+                                    />
+                                    <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50 max-h-56 overflow-y-auto p-2 space-y-1">
+                                        {/* Opção para adicionar tag personalizada se digitou algo que não existe */}
+                                        {tagInput.trim() && !filteredLabelOptions.some(opt => opt.toLowerCase() === tagInput.trim().toLowerCase()) && (
+                                            <button
+                                                type="button"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    handleAddStopTag(tagInput);
+                                                    setIsTagDropdownOpen(false);
+                                                }}
+                                                className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-violet-400 hover:bg-violet-500/10 flex items-center gap-2 border border-violet-500/20 mb-1 transition-all"
+                                            >
+                                                <FiPlus size={13} />
+                                                Adicionar &quot;{tagInput.trim()}&quot;
+                                            </button>
+                                        )}
+
+                                        {filteredLabelOptions.map((labelName) => (
+                                            <button
+                                                key={labelName}
+                                                type="button"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    handleAddStopTag(labelName);
+                                                    setIsTagDropdownOpen(false);
+                                                }}
+                                                className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/5 flex items-center justify-between group transition-colors"
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <FiTag size={12} className="text-violet-400" />
+                                                    {labelName}
+                                                </span>
+                                                <span className="text-[10px] text-slate-500 group-hover:text-violet-400 font-bold uppercase">
+                                                    + Adicionar
+                                                </span>
+                                            </button>
+                                        ))}
+
+                                        {filteredLabelOptions.length === 0 && !tagInput.trim() && (
+                                            <div className="px-4 py-3 text-center text-xs text-slate-500 italic">
+                                                Nenhuma etiqueta cadastrada no momento
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
 
                         {/* Lista de etiquetas de parada ativas */}
                         {stopTags.length > 0 ? (

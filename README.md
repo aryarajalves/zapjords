@@ -36,6 +36,10 @@ Permite enviar mensagens e templates aprovados pela Meta para múltiplos contato
 *   **Compliance de Envio**: Permite validar canais e verificar a janela de 24h antes do envio, além de gerenciar um painel de exclusão rápida de números da lista.
 *   **Busca e Filtros de Contatos**: Ferramentas de busca por número de telefone parcial, código de área internacional (DDI) e código de DDD estruturado para segmentação avançada no modal de histórico de disparos.
 *   **Aplicação Direta de Etiquetas no Contato**: Opção integrada de selecionar etiquetas já cadastradas para vinculação automática à entidade do contato no ato do disparo em massa, sincronizando com o Chat e CRM sem sobrescrever etiquetas de conversa existentes.
+*   **Sequência de Follow-up Inteligente**: Disparos sequenciais automatizados para leads qualificados com regras de parada (clique em botões ou etiquetas de cancelamento via dropdown).
+*   **Seleção de Template com Busca e Fixados no Topo**: Campo de busca em tempo real com destaque visual âmbar (`📌 Fixado`) para templates favoritados no follow-up.
+*   **Seletor Pesquisável de Funis (Interação e Bloqueio)**: Dropdown com filtro instantâneo por nome, tag e ID, permitindo vincular funis a botões tanto de interação quanto de bloqueio.
+*   **Enumeração Clara dos Botões**: Badges sequenciais (`#1`, `#2`) para cada botão dos templates no disparo principal e etapas de follow-up.
 
 ### 2. Disparos Recorrentes
 Permite reenvio automático de templates em períodos definidos (semanal ou mensal) filtrando dinamicamente pelas etiquetas aplicadas aos contatos na base de dados.

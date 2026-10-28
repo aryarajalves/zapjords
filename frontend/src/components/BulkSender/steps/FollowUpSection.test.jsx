@@ -102,7 +102,36 @@ describe('FollowUpSection Component Tests', () => {
         expect(screen.getByText('Não tenho interesse')).toBeDefined();
     });
 
-    it('deve permitir adicionar nova etiqueta de parada via botão Adicionar', () => {
+    it('ao clicar ou focar no input de etiquetas de parada, deve abrir o dropdown com as opções', () => {
+        const setStopTags = vi.fn();
+
+        render(
+            <FollowUpSection
+                isFollowupEnabled={true}
+                setIsFollowupEnabled={vi.fn()}
+                followups={[]}
+                setFollowups={vi.fn()}
+                stopTags={[]}
+                setStopTags={setStopTags}
+                templates={mockTemplates}
+                funnels={mockFunnels}
+                chatwootLabels={['vip', 'duvidas']}
+            />
+        );
+
+        const input = screen.getByPlaceholderText(/ver etiquetas ou digite para filtrar/i);
+        fireEvent.focus(input);
+
+        // Deve exibir as opções no dropdown
+        expect(screen.getByText('vip')).toBeDefined();
+        expect(screen.getByText('duvidas')).toBeDefined();
+
+        // Clicar em uma opção deve chamar setStopTags
+        fireEvent.mouseDown(screen.getByText('vip'));
+        expect(setStopTags).toHaveBeenCalled();
+    });
+
+    it('deve permitir adicionar nova etiqueta personalizada via botão Adicionar', () => {
         const setStopTags = vi.fn();
 
         render(
@@ -118,7 +147,7 @@ describe('FollowUpSection Component Tests', () => {
             />
         );
 
-        const input = screen.getByPlaceholderText(/Digite uma etiqueta/i);
+        const input = screen.getByPlaceholderText(/ver etiquetas ou digite para filtrar/i);
         fireEvent.change(input, { target: { value: 'cliente_fechado' } });
 
         const addBtn = screen.getByText('Adicionar');
@@ -156,5 +185,43 @@ describe('FollowUpSection Component Tests', () => {
         fireEvent.click(addStepBtn);
 
         expect(setFollowups).toHaveBeenCalled();
+    });
+
+    it('deve exibir seletor de funil pesquisável quando a ação do botão for bloqueio no follow-up', () => {
+        const followups = [
+            {
+                id: 1,
+                template_name: 'template_oferta',
+                language: 'pt_BR',
+                schedule_type: 'relative',
+                relative_delay_hours: 24,
+                button_actions: {
+                    'Não tenho interesse': { type: 'block', funnel_id: null, activate_agent: false }
+                }
+            }
+        ];
+
+        render(
+            <FollowUpSection
+                isFollowupEnabled={true}
+                setIsFollowupEnabled={vi.fn()}
+                followups={followups}
+                setFollowups={vi.fn()}
+                stopTags={[]}
+                setStopTags={vi.fn()}
+                templates={mockTemplates}
+                funnels={mockFunnels}
+            />
+        );
+
+        // Deve exibir o seletor de funil mesmo sendo bloqueio
+        expect(screen.getByText('Funil a disparar —')).toBeDefined();
+        expect(screen.getByText('Nenhum funil (apenas bloquear contato)')).toBeDefined();
+        expect(screen.getByText(/O contato será adicionado à lista de bloqueados automaticamente/i)).toBeDefined();
+
+        // Ao clicar para abrir o dropdown de funil, deve listar o funil disponível
+        const funnelTrigger = screen.getByText('Nenhum funil (apenas bloquear contato)');
+        fireEvent.click(funnelTrigger);
+        expect(screen.getByText('Funil Black Friday')).toBeDefined();
     });
 });

@@ -1,6 +1,8 @@
 import React from 'react';
 import { FiClock, FiCalendar, FiTrash2, FiZap, FiSlash, FiMinus, FiCpu, FiMessageSquare } from 'react-icons/fi';
 import { extractTemplateButtons } from '../hooks/bulkSender/templateUtils';
+import FollowUpTemplateSelect from './FollowUpTemplateSelect';
+import SearchableFunnelSelect from './SearchableFunnelSelect';
 
 const TYPE_OPTIONS = [
     { value: 'none', label: 'Nenhum', icon: FiMinus, color: 'slate' },
@@ -24,17 +26,6 @@ export default function FollowUpItem({
 }) {
     const selectedTpl = templates.find(t => t.name === followup.template_name);
     const templateButtons = selectedTpl ? extractTemplateButtons(selectedTpl) : [];
-
-    const handleTemplateChange = (e) => {
-        const tplName = e.target.value;
-        const tpl = templates.find(t => t.name === tplName);
-        onUpdate({
-            ...followup,
-            template_name: tplName,
-            language: tpl?.language || 'pt_BR',
-            button_actions: {}
-        });
-    };
 
     const handleScheduleTypeChange = (type) => {
         onUpdate({
@@ -105,24 +96,25 @@ export default function FollowUpItem({
                 </button>
             </div>
 
-            {/* Seleção do Template */}
+            {/* Seleção do Template com Busca e Pinned */}
             <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                     <FiMessageSquare size={12} className="text-violet-400" />
                     Template do WhatsApp
                 </label>
-                <select
-                    value={followup.template_name || ''}
-                    onChange={handleTemplateChange}
-                    className="w-full bg-slate-900 border border-white/10 rounded-2xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-violet-500 transition-all"
-                >
-                    <option value="">Selecione o template do follow-up...</option>
-                    {templates.map(t => (
-                        <option key={t.id || t.name} value={t.name}>
-                            {t.name} ({t.category || 'MARKETING'}) - {t.language || 'pt_BR'}
-                        </option>
-                    ))}
-                </select>
+                <FollowUpTemplateSelect
+                    selectedTemplateName={followup.template_name || ''}
+                    templates={templates}
+                    onSelectTemplate={(tplName, tplLang) => {
+                        const tpl = templates.find(t => t.name === tplName);
+                        onUpdate({
+                            ...followup,
+                            template_name: tplName,
+                            language: tpl?.language || tplLang || 'pt_BR',
+                            button_actions: {}
+                        });
+                    }}
+                />
             </div>
 
             {/* Agendamento */}
@@ -201,63 +193,87 @@ export default function FollowUpItem({
                     </div>
 
                     <div className="space-y-3">
-                        {templateButtons.map((btnText) => {
+                        {templateButtons.map((btnText, btnIdx) => {
                             const btnConfig = (followup.button_actions || {})[btnText] || { type: 'none', funnel_id: null, activate_agent: false };
                             const activeOpt = TYPE_OPTIONS.find(o => o.value === btnConfig.type) || TYPE_OPTIONS[0];
                             const c = COLOR[activeOpt.color];
+                            const showFunnel = btnConfig.type !== 'none';
 
                             return (
                                 <div key={btnText} className={`p-4 rounded-2xl border transition-all ${btnConfig.type !== 'none' ? `bg-slate-900/90 ${c.border}` : 'bg-slate-900/40 border-white/5'}`}>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white font-bold text-xs truncate max-w-[200px]">
-                                            {btnText}
+                                    {/* Linha do Botão (Identificador e Nome) */}
+                                    <div className="flex items-center justify-between gap-2 mb-3">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <span className="w-6 h-6 rounded-lg bg-violet-500/20 text-violet-300 font-black text-xs flex items-center justify-center shrink-0">
+                                                #{btnIdx + 1}
+                                            </span>
+                                            <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-xl text-white font-bold text-xs truncate max-w-[220px]" title={btnText}>
+                                                {btnText}
+                                            </span>
+                                        </div>
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider shrink-0">
+                                            Ação do Clique
                                         </span>
+                                    </div>
 
-                                        <div className="flex gap-1">
-                                            {TYPE_OPTIONS.map((opt) => (
+                                    {/* Seleção do Tipo de Ação em Grid de 3 Colunas (Sem estouro e sem corte de texto) */}
+                                    <div className="grid grid-cols-3 gap-2 mb-2">
+                                        {TYPE_OPTIONS.map((opt) => {
+                                            const Icon = opt.icon;
+                                            const isSel = btnConfig.type === opt.value;
+                                            const clr = COLOR[opt.color];
+                                            return (
                                                 <button
                                                     key={opt.value}
                                                     type="button"
                                                     onClick={() => handleButtonActionChange(btnText, 'type', opt.value)}
-                                                    className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${btnConfig.type === opt.value ? `${COLOR[opt.color].bg} ${COLOR[opt.color].text} ${COLOR[opt.color].border}` : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+                                                    className={`py-2 px-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                                                        isSel
+                                                            ? `${clr.bg} ${clr.text} ${clr.border} shadow-md`
+                                                            : 'bg-slate-950/60 text-slate-400 border-white/5 hover:text-white hover:bg-slate-900'
+                                                    }`}
                                                 >
-                                                    <opt.icon size={11} />
-                                                    {opt.label}
+                                                    <Icon size={12} className="shrink-0" />
+                                                    <span className="whitespace-nowrap">{opt.label}</span>
                                                 </button>
-                                            ))}
-                                        </div>
+                                            );
+                                        })}
                                     </div>
 
-                                    {btnConfig.type === 'interaction' && (
-                                        <div className="pt-3 border-t border-white/5 space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <select
+                                    {/* Configuração de Funil e Agente (Para Interação E Bloqueio) */}
+                                    {showFunnel && (
+                                        <div className="pt-3 border-t border-white/5 space-y-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-0.5 tracking-wider">
+                                                    Funil a disparar — <span className="text-slate-500 normal-case">opcional</span>
+                                                </label>
+                                                <SearchableFunnelSelect
                                                     value={btnConfig.funnel_id || ''}
-                                                    onChange={(e) => handleButtonActionChange(btnText, 'funnel_id', e.target.value ? parseInt(e.target.value) : null)}
-                                                    className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-emerald-500"
-                                                >
-                                                    <option value="">Nenhum funil (apenas registrar clique)</option>
-                                                    {funnels.map(f => (
-                                                        <option key={f.id} value={f.id}>{f.name}</option>
-                                                    ))}
-                                                </select>
+                                                    onChange={(val) => handleButtonActionChange(btnText, 'funnel_id', val)}
+                                                    funnels={funnels}
+                                                    emptyLabel={btnConfig.type === 'block' ? 'Nenhum funil (apenas bloquear contato)' : 'Nenhum funil (apenas registrar clique)'}
+                                                    placeholder="Pesquisar funil por nome ou tag..."
+                                                    theme={btnConfig.type === 'block' ? 'rose' : 'emerald'}
+                                                />
                                             </div>
-                                            <label className="flex items-center gap-2 cursor-pointer text-[10px] text-slate-400 font-bold">
+
+                                            <label className="flex items-center gap-2 cursor-pointer text-[10px] text-slate-400 font-bold hover:text-slate-200 transition-colors">
                                                 <input
                                                     type="checkbox"
                                                     checked={!!btnConfig.activate_agent}
                                                     onChange={(e) => handleButtonActionChange(btnText, 'activate_agent', e.target.checked)}
-                                                    className="rounded border-white/10 bg-slate-950 text-emerald-500 focus:ring-0"
+                                                    className="rounded border-white/10 bg-slate-950 text-violet-500 focus:ring-0"
                                                 />
-                                                <FiCpu size={12} className="text-emerald-400" />
+                                                <FiCpu size={12} className="text-violet-400" />
                                                 Ativar Agente de IA ao clicar
                                             </label>
-                                        </div>
-                                    )}
 
-                                    {btnConfig.type === 'block' && (
-                                        <div className="pt-2 border-t border-white/5 text-[10px] text-rose-400/90 font-medium">
-                                            ⚠️ O contato será bloqueado e não receberá mais nenhuma mensagem.
+                                            {btnConfig.type === 'block' && (
+                                                <p className="text-[10px] text-rose-400/90 font-medium flex items-center gap-1.5 pt-0.5">
+                                                    <span>⚠️</span>
+                                                    <span>O contato será adicionado à lista de bloqueados automaticamente.</span>
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
