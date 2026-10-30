@@ -7,9 +7,9 @@ export default function EmailTriggerNode({ data }) {
   const triggerConfig = data.trigger_config || {};
 
   return (
-    <div className="w-72 bg-slate-900/95 border-2 border-blue-500 rounded-2xl shadow-xl shadow-blue-500/10 overflow-hidden text-white backdrop-blur-md">
+    <div className="relative w-72 bg-slate-900/95 border-2 border-blue-500 rounded-2xl shadow-xl shadow-blue-500/10 text-white backdrop-blur-md">
       {/* Cabeçalho */}
-      <div className="px-3.5 py-2.5 bg-blue-600/20 border-b border-blue-500/30 flex items-center justify-between">
+      <div className="px-3.5 py-2.5 bg-blue-600/20 border-b border-blue-500/30 flex items-center justify-between rounded-t-[14px]">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-blue-500/20 rounded-lg text-blue-400">
             <FiZap size={14} />
@@ -20,7 +20,7 @@ export default function EmailTriggerNode({ data }) {
       </div>
 
       {/* Corpo */}
-      <div className="p-3.5 space-y-2.5 text-xs">
+      <div className="p-3.5 space-y-2.5 text-xs rounded-b-[14px]">
         <div>
           <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Tipo de Gatilho</label>
           <div className="flex items-center gap-2 p-2 bg-slate-800/80 rounded-xl border border-white/5">
@@ -57,7 +57,7 @@ export default function EmailTriggerNode({ data }) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-3.5 !h-3.5 !bg-blue-500 !border-2 !border-slate-900 !bottom-[-7px]"
+        className="!w-4.5 !h-4.5 !bg-blue-500 !border-[2.5px] !border-white !shadow-[0_0_12px_rgba(59,130,246,0.95)] !bottom-[-9px] !left-1/2 -translate-x-1/2 !z-50 hover:!scale-125 !transition-transform !cursor-crosshair"
       />
     </div>
   );

@@ -379,3 +379,42 @@ body.no-scroll, body.no-scroll main {
 .react-flow__controls-button:hover svg {
     fill: #38bdf8 !important;
 }
+
+
+/* Handles dos Nós do ReactFlow - Bolinhas 100% visíveis com destaque neon */
+.react-flow__handle {
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 9999px !important;
+    border: 2.5px solid #ffffff !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.9), 0 0 4px rgba(0, 0, 0, 0.6) !important;
+    z-index: 50 !important;
+    cursor: crosshair !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease !important;
+}
+
+.react-flow__handle:hover {
+    box-shadow: 0 0 18px rgba(56, 189, 248, 1), 0 0 6px #ffffff !important;
+}
+
+.react-flow__handle.react-flow__handle-top {
+    top: 0 !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+.react-flow__handle.react-flow__handle-top:hover {
+    transform: translate(-50%, -50%) scale(1.3) !important;
+}
+
+.react-flow__handle.react-flow__handle-bottom {
+    bottom: 0 !important;
+    left: 50% !important;
+    transform: translate(-50%, 50%) !important;
+}
+
+.react-flow__handle.react-flow__handle-bottom:hover {
+    transform: translate(-50%, 50%) scale(1.3) !important;
+}
