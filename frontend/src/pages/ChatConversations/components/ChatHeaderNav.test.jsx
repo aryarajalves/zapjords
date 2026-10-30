@@ -36,11 +36,14 @@ describe('ChatHeaderNav Component', () => {
         expect(onNavigate).toHaveBeenCalledWith('sales_kanban');
     });
 
-    it('ao clicar no botão de fechar (X) chama onClose', () => {
+    it('ao clicar no botão de fechar (X) chama onClose e possui classes seguras contra flickering', () => {
         const onClose = vi.fn();
         render(<ChatHeaderNav {...defaultProps} onClose={onClose} />);
 
         const closeBtn = screen.getByTitle('Fechar painel de atendimento');
+        expect(closeBtn).toHaveAttribute('type', 'button');
+        expect(closeBtn.className).toContain('transition-colors');
+        expect(closeBtn.className).toContain('shrink-0');
         fireEvent.click(closeBtn);
 
         expect(onClose).toHaveBeenCalled();

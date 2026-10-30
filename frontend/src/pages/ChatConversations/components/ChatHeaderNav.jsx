@@ -25,32 +25,38 @@ export default function ChatHeaderNav({ activeClient, user, onClose, onNavigate 
                     {activeClient && <p className="text-[10px] text-gray-500 truncate">Cliente: {activeClient.name}</p>}
                 </div>
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0 overflow-x-auto no-scrollbar">
-                {user?.role !== 'vendedor' && NAV_SHORTCUTS.map(s => {
-                    const Icon = s.icon;
-                    return (
-                        <button
-                            key={s.view}
-                            onClick={() => {
-                                if (s.view === 'bulk_sender' && onClose) {
-                                    onClose();
-                                } else if (onNavigate) {
-                                    onNavigate(s.view);
-                                }
-                            }}
-                            title={s.label}
-                            className="hidden sm:flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-blue-500/10 text-gray-600 dark:text-gray-300 hover:text-blue-500 rounded-xl transition text-xs font-semibold cursor-pointer shrink-0"
-                        >
-                            <Icon size={14} />
-                            <span className="hidden md:inline">{s.label}</span>
-                        </button>
-                    );
-                })}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+                    {user?.role !== 'vendedor' && NAV_SHORTCUTS.map(s => {
+                        const Icon = s.icon;
+                        return (
+                            <button
+                                key={s.view}
+                                type="button"
+                                onClick={() => {
+                                    if (s.view === 'bulk_sender' && onClose) {
+                                        onClose();
+                                    } else if (onNavigate) {
+                                        onNavigate(s.view);
+                                    }
+                                }}
+                                title={s.label}
+                                className="hidden sm:flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-blue-500/10 text-gray-600 dark:text-gray-300 hover:text-blue-500 rounded-xl transition-colors duration-150 text-xs font-semibold cursor-pointer shrink-0 select-none"
+                            >
+                                <Icon size={14} />
+                                <span className="hidden md:inline">{s.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
                 {onClose && (
                     <button
+                        type="button"
+                        data-testid="chat-header-close-nav-btn"
                         onClick={onClose}
                         title="Fechar painel de atendimento"
-                        className="ml-0.5 sm:ml-1 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition shrink-0"
+                        aria-label="Fechar painel de atendimento"
+                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors duration-150 shrink-0 cursor-pointer select-none relative z-10"
                     >
                         <FiX size={18} />
                     </button>
