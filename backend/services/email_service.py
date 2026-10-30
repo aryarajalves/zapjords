@@ -55,8 +55,50 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
         body_html = body_html.replace(key, str(val))
         subject = subject.replace(key, str(val))
 
+    # 0. BREVO / SENDINBLUE (API HTTP v3)
+    if provider == "brevo":
+        brevo_key = decrypt_token(getattr(config, "brevo_api_key", None))
+        if not brevo_key:
+            return {"success": False, "error": "Chave API da Brevo não configurada"}
+        try:
+            payload = {
+                "sender": {
+                    "name": from_name,
+                    "email": from_email
+                },
+                "to": [
+                    {
+                        "email": to_email,
+                        "name": name_val or to_email
+                    }
+                ],
+                "subject": subject,
+                "htmlContent": body_html
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                res = await client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={
+                        "api-key": brevo_key.strip(),
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    json=payload
+                )
+                if res.status_code in (200, 201, 202):
+                    msg_id = res.json().get("messageId")
+                    logger.info(f"📧 [EMAIL-BREVO] E-mail enviado para {to_email} | MessageId: {msg_id}")
+                    return {"success": True, "message_id": msg_id}
+                else:
+                    err_msg = res.json().get("message") or res.text
+                    logger.error(f"❌ [EMAIL-BREVO] Erro {res.status_code}: {err_msg}")
+                    return {"success": False, "error": f"Brevo: {err_msg}"}
+        except Exception as e:
+            logger.error(f"❌ [EMAIL-BREVO] Exceção: {e}")
+            return {"success": False, "error": str(e)}
+
     # 1. RESEND (API HTTP)
-    if provider == "resend":
+    elif provider == "resend":
         resend_key = decrypt_token(config.resend_api_key)
         if not resend_key:
             return {"success": False, "error": "Chave API do Resend não configurada"}

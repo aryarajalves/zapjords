@@ -123,6 +123,10 @@ Este documento centraliza as definições de comportamento do sistema e os requi
   - **Extensão Total até o Rodapé da Janela**: O layout do Kanban passa a preencher 100% da altura da janela (`h-full min-h-0`), sem travas artificiais de altura fixa, permitindo que as colunas desçam até a base da tela.
   - **Alternância de Visualização ("Recolher Métricas / Ver Métricas")**: Botão no cabeçalho permite alternar o Modo Foco. Ao recolher as métricas numéricas, mais de 120px de espaço vertical são liberados imediatamente, permitindo que a visualização dos cards seja contínua e minimize a rolagem interna nas colunas. A preferência é memorizada no navegador (`kanban_show_metrics`).
 
+- **Persistência da Última Pipeline Selecionada no Kanban**:
+  - Ao alternar entre pipelines de venda no cabeçalho do Kanban, o sistema salva automaticamente o ID da pipeline no navegador do operador (`kanban_selected_pipeline_${clientId}`).
+  - Se o operador sair da página do Kanban (navegando para Chat, Disparos, Funis, etc.) ou recarregar a tela (F5), a última pipeline visualizada é restaurada imediatamente, mesmo que ela não seja a pipeline padrão (`is_default`). Caso a pipeline salva venha a ser excluída, o sistema adota como fallback a pipeline padrão ou a primeira disponível.
+
 - **Remoção Individual e em Massa de Oportunidades no Kanban**:
   - **Remoção Individual Direta**: Cada card do Kanban conta com um botão direto de lixeira no rodapé (ao lado do atalho de chat). Ao clicar, abre obrigatoriamente popup de confirmação centralizado (`DeleteConfirmModal`) para evitar exclusões acidentais.
   - **Seleção Múltipla e Remoção em Massa**: Cada card possui um checkbox no topo. Ao marcar 1 ou mais cards, uma barra de ações em massa flutuante (`BulkActionsBar`) é exibida com a contagem de selecionados, atalhos de "Selecionar Todos" / "Desmarcar Todos" e botão "Remover Selecionados". A exclusão em massa executa via `POST /api/crm/deals/bulk-delete`, garantindo isolamento por cliente (`client_id`) e confirmação centralizada.
@@ -405,3 +409,62 @@ ead).
   - *Mensagens de texto/áudio simples sem clique em botão e sem etiqueta de parada NÃO cancelam o follow-up automaticamente*.
 - **Visibilidade e Rastreamento no Histórico de Disparos**:
   - Cada etapa de follow-up que for agendada/executada é gerada como um disparo independente na tabela scheduled_triggers vinculado pelo parent_id, sendo listada no Histórico de Disparos com badge descritivo claro [Follow-up #N].
+
+
+### 18. Chat de Atendimento: Leitura Independente por Usuário e Identificação Interna do Remetente
+- **Controle Independente de Mensagens Não Lidas por Operador (`user_read_states`)**:
+  - O badge verde de mensagens não lidas em cada conversa do Chat funciona de forma **independente para cada usuário logado**.
+  - Se o Usuário A marcar uma conversa como lida, a bolinha verde some **apenas para o Usuário A**; se o Usuário B também marcar como lida, some para os dois; se o Usuário C ainda não tiver marcado como lida, continuará vendo a bolinha verde até que ele mesmo leia/marque.
+  - Caso novas mensagens cheguem do contato após o Usuário A ter lido, o contador de não lidas volta a aparecer para o Usuário A refletindo apenas as novas mensagens desde a sua última leitura (`total_unread - seen_count`).
+- **Confirmação Explícita de Leitura (Apenas Abrir a Conversa NÃO Marca como Lida)**:
+  - Clicar para abrir e visualizar uma conversa (`GET /chat/conversations/{id}/messages`) **não** zera automaticamente o contador de não lidas.
+  - **Botão "Marcar como lida" (Opção B)**: Localizado exclusivamente dentro do cabeçalho da conversa aberta (`ActiveChatHeader`), exigindo que o operador abra a conversa para clicar no botão e confirmar a leitura.
+  - **Leitura Automática ao Responder (Marcação Global para Todos)**: Se qualquer atendente/usuário enviar uma mensagem para o contato (texto, mídia, áudio, template ou compartilhamento de contato), a conversa é marcada como lida automaticamente para **TODOS** os usuários e atendentes da empresa (zerando `unread_count = 0` e limpando `user_read_states = {}`), pois o atendimento ativo já foi prestado. O badge verde e o botão de marcar como lida somem imediatamente em todos os clientes conectados via WebSocket (`conversation_updated`). A contagem de não lidas só volta a ser incrementada quando o próprio contato enviar uma nova mensagem.
+- **Identificação Interna de Quem Enviou a Mensagem (Invisível ao Cliente Final)**:
+  - Toda mensagem enviada pelos usuários/sistema (`sender_type === 'user'`) exibe no topo do balão dentro do Chat do ZapVoice a identificação de quem enviou:
+    - Se enviada pelo próprio usuário logado (`msg.user_id === currentUser.id`): exibe **`Eu`**.
+    - Se enviada por outro membro da equipe (`msg.user_id !== currentUser.id`): exibe o **nome do usuário** (ex: `Jordão`, `Aryaraj`).
+    - Se enviada automaticamente por Funil / Disparo em Massa / Automação (`msg.user_id == null`): exibe **`Automação`**.
+  - Essa identificação existe apenas na interface interna do ZapVoice e **nunca** é enviada ao WhatsApp do cliente final.
+
+### 19. Kanban de Vendas: Indicadores de Janela de 24 Horas e Mensagens Não Lidas
+- **Badge de Janela de 24h Aberta no Card (`window_open` / `window_expires_at`)**:
+  - Cada card do Kanban cujo contato possui conversa ativa dentro da janela gratuita de 24 horas da Meta (`last_contact_message_at + 24h > now`) exibe um badge verde esmeralda pulsante com o tempo restante (`🟢 Janela 24h • Xh Ym`).
+- **Bolinha Verde de Mensagens Não Lidas no Card (`unread_count`)**:
+  - Cada card exibe uma bolinha verde com a contagem de mensagens não lidas calculada individualmente para o usuário logado (`user_read_states`), além de um ponto verde no botão rápido de abrir o Chat.
+- **Porcentagens e Contagens de Janela 24h Aberta**:
+  - **Por Etapa (Cabeçalho da Coluna)**: Exibe quantos leads daquela etapa estão com a janela de 24h aberta e a porcentagem sobre o total da etapa (`Janela 24h Aberta: X/Y (Z%)`).
+  - **Geral do Funil (Barra de Distribuição do Funil)**: Exibe a porcentagem e a contagem geral de contatos com janela de 24h aberta no pipeline (`Janela 24h: Z% (X/Y)`).
+- **Filtros Rápidos no Cabeçalho do Kanban**:
+  - Botões rápidos `Janela 24h (X)` e `Não lidas (Y)` ao lado da busca para filtrar imediatamente os cards com janela aberta ou mensagens pendentes de leitura.
+
+### 20. Sistema de E-mail Marketing via Brevo API
+- [x] Onde os itens de menu de E-mail Marketing devem ficar na barra lateral?
+  - **Decisão:** Na seção `ENVIOS & CAMPANHAS` na barra lateral (Opção A), como `E-mail Marketing` contendo abas internas para Disparo em Massa, Templates / Criador de E-mails, Provedores / SMTP e Histórico.
+- [x] Como deve funcionar o Criador de E-mails?
+  - **Decisão:** Editor visual de texto e blocos (negrito, cores, imagens, botões CTA com link, variáveis dinâmicas como `{{nome}}`, `{{email}}`, `{{produto}}`) + suporte a código HTML puro e tela cheia (Opção 1), salvando modelos reutilizáveis.
+- [x] De onde virá a lista de contatos no Disparador de E-mail?
+  - **Decisão:** Múltiplas fontes: contatos da base interna do ZapVoice (filtrando por Etiquetas ou por Pipeline/Etapa do Kanban de Vendas) E opção de importar CSV ou colar lista manual de e-mails (`email, nome`).
+- [x] A configuração da API Key da Brevo e do Remetente deve ser individual por Cliente?
+  - **Decisão:** Sim, cada cliente ativo (`client_id`) possui suas próprias credenciais da Brevo (`brevo_api_key`, `from_email`, `from_name`) configuradas de forma isolada e segura.
+- [x] Escopo da Primeira Versão (MVP Completo):
+  - **Decisão:** Foco inicial na configuração da Brevo por cliente, criação/edição de templates com variáveis, disparador em massa (imediato/agendado por tags, Kanban ou CSV/manual) e histórico de envios com status de sucesso/falha. Rastreamento detalhado de abertura/cliques via webhooks fica para a próxima fase.
+
+
+### 21. Sistema de Funis de E-mail Marketing (Sequências Automáticas com Delays e Parada Inteligente)
+- **Objetivo**: Permitir a criação de funis e réguas de relacionamento por e-mail com múltiplos passos (envio de template, delays programados em minutos/horas/dias e aplicação/remoção de tags no lead).
+- **Gatilhos de Entrada**:
+  - **Por Etiqueta (Tag)**: Quando um lead recebe uma tag específica no ZapVoice (ex: interessado, lead_capturado).
+  - **Por Status de Webhook**: Quando um evento de venda ou checkout é processado (ex: carrinho_abandonado, pix_gerado, cartao_recusado).
+  - **Por Etapa do Kanban de Vendas**: Quando a oportunidade do lead entra ou é movida para uma etapa específica do pipeline.
+  - **Manual / Disparo**: Inscrição direta de lista de contatos no funil.
+- **Tipos de Passos Suportados na Régua**:
+  - email: Envia um template de e-mail marketing cadastrado via Brevo API com personalização de variáveis ({{nome}}, {{email}}, etc.).
+  - delay: Aguarda um período configurável antes do próximo passo (delay_value e delay_unit em minutos, horas ou dias).
+  - 	ag_action: Adiciona ou remove etiquetas do lead (ction: 'add' | 'remove').
+- **Critérios de Parada / Interrupção Inteligente**:
+  - **Compra Aprovada (stop_on_purchase = True)**: Se o lead realizar a compra de um produto ou emitir evento de compra_aprovada, a sequência do funil é imediatamente cancelada com status stopped_purchase, evitando envios desnecessários ou cobranças indevidas.
+  - **Etiquetas de Parada (Stop Tags)**: Se o lead possuir ou receber qualquer uma das tags de parada configuradas no funil (ex: comprou, cliente_vip, descadastro), a execução é abortada com status stopped_tag.
+- **Controle de Execuções e Paginação**:
+  - As execuções do funil (EmailFunnelExecution) registram o histórico de cada passo executado, horários e possíveis falhas.
+  - A visualização dos leads inscritos no funil conta com paginação obrigatória de **20 contatos por vez**, alinhada com as diretrizes do sistema.

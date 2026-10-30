@@ -42,6 +42,10 @@ from .funnel_routes import (
     cancel_funnel_for_conversation,
     trigger_bulk_funnel_for_conversations,
 )
+from .bulk_template_routes import (
+    router as bulk_template_router,
+    trigger_bulk_template_for_conversations,
+)
 from .notes_and_labels_routes import (
     router as notes_labels_router,
     list_chat_agents,
@@ -81,6 +85,7 @@ router.include_router(conversation_router)
 router.include_router(message_router)
 router.include_router(message_actions_router)
 router.include_router(funnel_router)
+router.include_router(bulk_template_router)
 router.include_router(notes_labels_router)
 router.include_router(message_search_router)
 router.include_router(share_contact_router)

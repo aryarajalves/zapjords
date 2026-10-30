@@ -6,6 +6,7 @@ from services.utils.bulk_helpers import render_template_body, sanitize_template_
 
 logger = setup_logger(__name__)
 BRAZIL_TZ = zoneinfo.ZoneInfo("America/Sao_Paulo")
+_BULK_DB_SEMAPHORE = asyncio.Semaphore(5)
 
 
 def _extract_header_media(components: list):
@@ -22,7 +23,7 @@ def _extract_header_media(components: list):
     return None
 
 
-async def _post_send(chatwoot, phone: str, contact_name: str, conversation_id, note_content: str, chatwoot_label, trigger_id: int = None, wamid: str = None, contact_labels = None):
+async def _post_send(chatwoot, phone: str, contact_name: str, conversation_id, note_content: str, chatwoot_label, trigger_id: int = None, wamid: str = None, contact_labels = None, is_bulk: bool = None):
     """Após envio bem-sucedido: garante conversa, envia nota privada e aplica etiquetas."""
     try:
         # Sincronização de Etiquetas no Contato (estritamente no perfil do lead/contato, NUNCA na conversa)
@@ -31,41 +32,48 @@ async def _post_send(chatwoot, phone: str, contact_name: str, conversation_id, n
                 from database import SessionLocal
                 import models
                 from services.contact_label_service import sync_contact_dispatch_labels
-                with SessionLocal() as db_lbl:
-                    c_id = getattr(chatwoot, "client_id", None)
-                    if not c_id:
-                        trg_tmp = db_lbl.query(models.ScheduledTrigger).get(trigger_id)
-                        c_id = trg_tmp.client_id if trg_tmp else None
-                    if c_id:
-                        await sync_contact_dispatch_labels(
-                            db=db_lbl,
-                            client_id=c_id,
-                            phone=phone,
-                            raw_contact_labels=contact_labels,
-                            contact_name=contact_name,
-                            chatwoot_client=chatwoot
-                        )
+                async with _BULK_DB_SEMAPHORE:
+                    with SessionLocal() as db_lbl:
+                        c_id = getattr(chatwoot, "client_id", None)
+                        if not c_id:
+                            trg_tmp = db_lbl.query(models.ScheduledTrigger).get(trigger_id)
+                            c_id = trg_tmp.client_id if trg_tmp else None
+                        if c_id:
+                            await sync_contact_dispatch_labels(
+                                db=db_lbl,
+                                client_id=c_id,
+                                phone=phone,
+                                raw_contact_labels=contact_labels,
+                                contact_name=contact_name,
+                                chatwoot_client=chatwoot
+                            )
             except Exception as e_lbl_sync:
                 logger.error(f"❌ [BULK] Erro ao sincronizar etiquetas do contato para {phone}: {e_lbl_sync}")
         # 1. Verificar se é disparo em massa (bulk) antes de resolver ou criar conversa
-        is_bulk = False
-        if trigger_id:
-            from database import SessionLocal
-            import models
-            db_trig = SessionLocal()
-            try:
-                trigger = db_trig.query(models.ScheduledTrigger).get(trigger_id)
-                if trigger:
-                    if trigger.is_bulk:
-                        is_bulk = True
-                    elif trigger.parent_id:
-                        parent_trigger = db_trig.query(models.ScheduledTrigger).get(trigger.parent_id)
-                        if parent_trigger and parent_trigger.is_bulk:
-                            is_bulk = True
-            except Exception as e_trig:
-                logger.error(f"❌ [BULK] Erro ao verificar se trigger #{trigger_id} é bulk: {e_trig}")
-            finally:
-                db_trig.close()
+        if is_bulk is None:
+            is_bulk = False
+            if trigger_id:
+                from database import SessionLocal
+                import models
+                async with _BULK_DB_SEMAPHORE:
+                    db_trig = SessionLocal()
+                    try:
+                        trigger = db_trig.query(models.ScheduledTrigger).get(trigger_id)
+                        if trigger:
+                            if trigger.is_bulk:
+                                is_bulk = True
+                            elif trigger.parent_id:
+                                parent_trigger = db_trig.query(models.ScheduledTrigger).get(trigger.parent_id)
+                                if parent_trigger and parent_trigger.is_bulk:
+                                    is_bulk = True
+                    except Exception as e_trig:
+                        logger.error(f"❌ [BULK] Erro ao verificar se trigger #{trigger_id} é bulk: {e_trig}")
+                    finally:
+                        db_trig.close()
+
+        # Em disparo em massa sem etiquetas de conversa (chatwoot_label), notas privadas são ignoradas pela regra de negócio
+        if is_bulk and not chatwoot_label:
+            return
 
         resolved_conv_id = conversation_id
         if not resolved_conv_id:
@@ -183,10 +191,19 @@ async def send_smart_message(
     contact_name: str = None,
     chatwoot_label: list = None,
     contact_labels: list = None,
-    conversation_id: int = None
+    conversation_id: int = None,
+    contact_vars: dict = None,
+    is_bulk: bool = None
 ):
     try:
         effective_components = components
+        clean_components = sanitize_template_components(
+            effective_components or [],
+            contact_name=contact_name,
+            contact_phone=phone,
+            contact_vars=contact_vars,
+            template_body=template_body_cache
+        )
 
         # Se o cliente ou sistema estiver em modo simulação (ou se for teste de estresse), retorna sucesso imediato
         if getattr(chatwoot, "simulate", False) is True:
@@ -201,10 +218,11 @@ async def send_smart_message(
         if template_name and c_id:
             from database import SessionLocal
             from services.template_history_service import is_template_sent_in_last_24h, record_template_dispatch
-            with SessionLocal() as db_chk:
-                if is_template_sent_in_last_24h(db_chk, c_id, phone, template_name):
-                    logger.info(f"⏭️ [24h Check] Ignorado para {phone}: Template '{template_name}' já enviado nas últimas 24h.")
-                    return {"error": True, "detail": "Pulado: Template já enviado nas últimas 24h", "skipped_24h": True, "success": False}
+            async with _BULK_DB_SEMAPHORE:
+                with SessionLocal() as db_chk:
+                    if is_template_sent_in_last_24h(db_chk, c_id, phone, template_name):
+                        logger.info(f"⏭️ [24h Check] Ignorado para {phone}: Template '{template_name}' já enviado nas últimas 24h.")
+                        return {"error": True, "detail": "Pulado: Template já enviado nas últimas 24h", "skipped_24h": True, "success": False}
 
         # 1. Verificação Local da Janela 24h
         can_use_smart_send = True
@@ -223,11 +241,11 @@ async def send_smart_message(
             if diff < safety_limit:
                 logger.info(f"🟢 [Smart Send] Janela ABERTA para {phone} (Última: {diff.total_seconds()/3600:.2f}h atrás).")
 
-                free_text = render_template_body(direct_message, effective_components or [], contact_name=contact_name) if direct_message else None
+                free_text = render_template_body(direct_message, clean_components, contact_name=contact_name) if direct_message else None
 
                 if not free_text and template_body_cache:
                     try:
-                        free_text = render_template_body(template_body_cache, effective_components or [], contact_name=contact_name)
+                        free_text = render_template_body(template_body_cache, clean_components, contact_name=contact_name)
                         logger.info(f"📝 [Smart Send] Renderização Automática para {phone}: {free_text[:80]}...")
                     except Exception as render_err:
                         logger.warning(f"⚠️ [Smart Send] Falha na renderização automática: {render_err}. Tentando template oficial.")
@@ -274,15 +292,16 @@ async def send_smart_message(
                         if template_name and getattr(chatwoot, "client_id", None):
                             from database import SessionLocal
                             from services.template_history_service import record_template_dispatch
-                            with SessionLocal() as db_rec:
-                                record_template_dispatch(db_rec, chatwoot.client_id, phone, template_name, trigger_id)
+                            async with _BULK_DB_SEMAPHORE:
+                                with SessionLocal() as db_rec:
+                                    record_template_dispatch(db_rec, chatwoot.client_id, phone, template_name, trigger_id)
 
                         free_wamid = None
                         if isinstance(res, dict):
                             msgs = res.get("messages") or []
                             if msgs: free_wamid = msgs[0].get("id")
                             if not free_wamid: free_wamid = res.get("id")
-                        asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, free_text, chatwoot_label, trigger_id, wamid=free_wamid, contact_labels=contact_labels))
+                        asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, free_text, chatwoot_label, trigger_id, wamid=free_wamid, contact_labels=contact_labels, is_bulk=is_bulk))
                         return {"result": res, "type": "FREE_MESSAGE", "success": True}
 
                     err_msg = str(res.get("detail", "")).lower() if isinstance(res, dict) else str(res).lower()
@@ -296,18 +315,18 @@ async def send_smart_message(
             now_br = datetime.now(BRAZIL_TZ).strftime("%d/%m/%Y %H:%M:%S")
             logger.info(f"🚀 [DISPARO] [Trigger {trigger_id}] [{now_br}] [{phone}] Tipo: TEMPLATE ({template_name})")
 
-            clean_components = sanitize_template_components(effective_components or [], contact_name=contact_name, contact_phone=phone)
             res = await chatwoot.send_template(phone, template_name, language, components=clean_components)
             if res and not res.get("error"):
                 if getattr(chatwoot, "client_id", None):
                     from database import SessionLocal
                     from services.template_history_service import record_template_dispatch
-                    with SessionLocal() as db_rec:
-                        record_template_dispatch(db_rec, chatwoot.client_id, phone, template_name, trigger_id)
+                    async with _BULK_DB_SEMAPHORE:
+                        with SessionLocal() as db_rec:
+                            record_template_dispatch(db_rec, chatwoot.client_id, phone, template_name, trigger_id)
 
                 # Prioridade 1: Renderizar o body do cache com as variáveis do contato
                 if template_body_cache:
-                    note_content = render_template_body(template_body_cache, effective_components or [], contact_name=contact_name)
+                    note_content = render_template_body(template_body_cache, clean_components, contact_name=contact_name)
                 else:
                     # Prioridade 2: Extrair diretamente dos components preenchidos (já têm valores reais)
                     note_content = extract_body_from_components(clean_components)
@@ -321,7 +340,7 @@ async def send_smart_message(
                 if isinstance(res, dict):
                     msgs = res.get("messages") or []
                     if msgs: tpl_wamid = msgs[0].get("id")
-                asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, note_content, chatwoot_label, trigger_id, wamid=tpl_wamid, contact_labels=contact_labels))
+                asyncio.create_task(_post_send(chatwoot, phone, contact_name, conversation_id, note_content, chatwoot_label, trigger_id, wamid=tpl_wamid, contact_labels=contact_labels, is_bulk=is_bulk))
                 return {"result": res, "type": "TEMPLATE"}
 
 

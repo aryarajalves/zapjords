@@ -9,6 +9,7 @@ import SearchableTemplateSelect from './components/bulk/SearchableTemplateSelect
 import SearchableTagSelect from './components/bulk/SearchableTagSelect';
 import EmailRecipientsPreview from './components/bulk/EmailRecipientsPreview';
 import EmailSchedulingSection from './components/bulk/EmailSchedulingSection';
+import EmailAudienceSelector from './components/bulk/EmailAudienceSelector';
 
 export default function EmailBulkTab({ onNavigateHistory }) {
   const { activeClient } = useClient();
@@ -17,7 +18,12 @@ export default function EmailBulkTab({ onNavigateHistory }) {
   const [loading, setLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
 
-  // Estados para pré-visualização de destinatários
+  // Audiência e Destinatários
+  const [audienceType, setAudienceType] = useState('tags'); // 'tags' | 'kanban' | 'manual'
+  const [selectedPipeline, setSelectedPipeline] = useState('');
+  const [selectedStage, setSelectedStage] = useState('');
+  const [manualText, setManualText] = useState('');
+  const [manualRecipients, setManualRecipients] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -45,10 +51,47 @@ export default function EmailBulkTab({ onNavigateHistory }) {
     fetchTags();
   }, [activeClient]);
 
-  // Efeito para carregar destinatários que receberão o e-mail sempre que a etiqueta mudar
+  // Efeito para carregar destinatários que receberão o e-mail sempre que a audiência mudar
   useEffect(() => {
-    fetchPreviewRecipients();
-  }, [formData.tag_name, activeClient]);
+    if (audienceType === 'manual') {
+      const parsed = parseManualRecipients(manualText);
+      setManualRecipients(parsed);
+      setRecipients(parsed);
+    } else {
+      fetchPreviewRecipients();
+    }
+  }, [audienceType, formData.tag_name, selectedPipeline, selectedStage, activeClient]);
+
+  const parseManualRecipients = (text) => {
+    if (!text || !text.trim()) return [];
+    const lines = text.split('\n');
+    const parsed = [];
+    const seen = new Set();
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      let name = '';
+      let email = '';
+      if (line.includes(',')) {
+        const parts = line.split(',');
+        name = parts[0].trim();
+        email = parts.slice(1).join(',').trim();
+      } else {
+        email = line;
+      }
+      if (email.includes('@') && !seen.has(email.toLowerCase())) {
+        seen.add(email.toLowerCase());
+        parsed.push({
+          id: parsed.length + 1,
+          name: name || 'Lead',
+          email,
+          phone: '',
+          tags: 'importado'
+        });
+      }
+    }
+    return parsed;
+  };
 
   const fetchTags = async () => {
     if (!activeClient) return;
@@ -87,8 +130,14 @@ export default function EmailBulkTab({ onNavigateHistory }) {
     if (!activeClient) return;
     try {
       setPreviewLoading(true);
-      const tagParam = formData.tag_name ? `?tag_name=${encodeURIComponent(formData.tag_name)}` : '';
-      const res = await fetch(`${API_URL}/email/preview-recipients${tagParam}`, { headers: getHeaders() });
+      let queryParams = `?audience_type=${audienceType}`;
+      if (audienceType === 'tags' && formData.tag_name) {
+        queryParams += `&tag_name=${encodeURIComponent(formData.tag_name)}`;
+      } else if (audienceType === 'kanban') {
+        if (selectedPipeline) queryParams += `&pipeline_id=${selectedPipeline}`;
+        if (selectedStage) queryParams += `&stage_id=${selectedStage}`;
+      }
+      const res = await fetch(`${API_URL}/email/preview-recipients${queryParams}`, { headers: getHeaders() });
 
       if (res.ok) {
         const data = await res.json();
@@ -107,7 +156,7 @@ export default function EmailBulkTab({ onNavigateHistory }) {
       return toast.error("Selecione um template de e-mail.");
     }
     if (recipients.length === 0) {
-      return toast.error("Nenhum destinatário com e-mail válido encontrado para a etiqueta selecionada.");
+      return toast.error("Nenhum destinatário com e-mail válido encontrado para a audiência selecionada.");
     }
     if (sendMode === 'scheduled') {
       if (!scheduledAt) {
@@ -121,7 +170,13 @@ export default function EmailBulkTab({ onNavigateHistory }) {
     try {
       setSendLoading(true);
       const payload = {
-        ...formData,
+        title: formData.title,
+        template_id: formData.template_id,
+        audience_type: audienceType,
+        tag_name: audienceType === 'tags' ? formData.tag_name : null,
+        pipeline_id: audienceType === 'kanban' && selectedPipeline ? Number(selectedPipeline) : null,
+        stage_id: audienceType === 'kanban' && selectedStage ? Number(selectedStage) : null,
+        manual_recipients: audienceType === 'manual' ? manualRecipients : null,
         scheduled_at: sendMode === 'scheduled' ? scheduledAt : null
       };
       const res = await fetch(`${API_URL}/email/send-bulk`, {
@@ -192,21 +247,28 @@ export default function EmailBulkTab({ onNavigateHistory }) {
             )}
           </div>
 
-          {/* Filtro por Etiqueta com Pré-visualização dos E-mails */}
+          {/* Seleção de Audiência e Destinatários */}
           <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-gray-100 dark:border-gray-800 space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
-                <FiTag className="text-blue-500" /> Etiqueta da Aba de Contatos (Opcional)
-              </label>
-              <SearchableTagSelect
-                tags={availableTags}
-                selectedTag={formData.tag_name}
-                onSelect={(tag) => setFormData(prev => ({ ...prev, tag_name: tag }))}
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Filtrando contatos da <b>Aba de Contatos</b> com a etiqueta {formData.tag_name ? <strong className="text-blue-400">"{formData.tag_name}"</strong> : <span>todas</span>}.
-              </p>
-            </div>
+            <EmailAudienceSelector
+              audienceType={audienceType}
+              setAudienceType={setAudienceType}
+              availableTags={availableTags}
+              selectedTag={formData.tag_name}
+              onSelectTag={(tag) => setFormData(prev => ({ ...prev, tag_name: tag }))}
+              selectedPipeline={selectedPipeline}
+              setSelectedPipeline={setSelectedPipeline}
+              selectedStage={selectedStage}
+              setSelectedStage={setSelectedStage}
+              manualText={manualText}
+              setManualText={setManualText}
+              onManualChange={(text) => {
+                const parsed = parseManualRecipients(text);
+                setManualRecipients(parsed);
+                setRecipients(parsed);
+              }}
+              activeClient={activeClient}
+              getHeaders={getHeaders}
+            />
 
             {/* Painel de Lista dos E-mails */}
             <EmailRecipientsPreview

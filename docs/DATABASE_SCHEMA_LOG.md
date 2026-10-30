@@ -30,6 +30,11 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 30/10/2026 | Prazo de Follow-up Individual por Contato no CRM | `sales_deals` | `custom_followup_delay_value` (INTEGER NULL), `custom_followup_delay_unit` (VARCHAR(20) DEFAULT 'hours') | `backend/scripts/database/add_deal_custom_followup_columns.py` |
+| 29/10/2026 | Sistema de Funis de E-mail Marketing e Execuções Sequenciais | email_funnels, email_funnel_executions | Tabelas novas completas com gatilhos, passos (email/delay/tag), stop_tags, stop_on_purchase e histórico | ackend/scripts/database/create_email_funnels_tables.py |
+| 29/10/2026 | Suporte à API da Brevo no E-mail Marketing Multi-tenant | `email_configs` | `brevo_api_key` (VARCHAR(255)) | `backend/scripts/database/add_brevo_api_key_to_email_configs.py` |
+| 29/10/2026 | Controle de Mensagens Não Lidas Independente por Usuário no Chat | `chat_conversations` | `user_read_states` (JSONB / JSON DEFAULT '{}') | `backend/scripts/database/add_user_read_states_column.py` |
+| 28/10/2026 | Suporte a Colunas de Follow-up com Prazo e Data de Entrada de Leads | `sales_pipeline_stages`, `sales_deals` | `is_followup` (BOOLEAN DEFAULT FALSE), `followup_delay_value` (INTEGER DEFAULT 3), `followup_delay_unit` (VARCHAR(20) DEFAULT 'hours') em `sales_pipeline_stages`; `stage_entered_at` (TIMESTAMP WITH TIME ZONE) em `sales_deals` | `backend/scripts/database/add_stage_followup_columns.py` |
 | 27/10/2026 | Suporte à Sequência de Follow-up em Disparos em Massa | `scheduled_triggers` | `followup_step_number` (INTEGER), `stop_tags` (JSONB / JSON), `schedule_type` (VARCHAR), `relative_delay_hours` (INTEGER) | `backend/scripts/database/add_followup_trigger_columns.py` |
 | 27/10/2026 | Suporte a Etiquetas no Contato em Disparos em Massa e Recorrentes | `scheduled_triggers`, `recurring_triggers` | `contact_labels` (JSONB / JSON DEFAULT '[]') | `backend/scripts/database/add_contact_labels_columns.py` |
 | 27/10/2026 | Avanço Automático de Leads para Próximo Pipeline e Etapa | `sales_pipeline_stages` | `forward_to_pipeline_id` (INTEGER, FK), `forward_to_stage_id` (INTEGER, FK) | `backend/scripts/database/add_pipeline_forward_columns.py` |

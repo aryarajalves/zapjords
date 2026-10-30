@@ -1,106 +1,13 @@
 import React from 'react';
-import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2 } from 'react-icons/fi';
-import { FaWhatsapp, FaInstagram, FaGoogle } from 'react-icons/fa';
+import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2, FiClock } from 'react-icons/fi';
+import { getChannelConfig, getFollowupStatus, getWindow24hStatus } from '../utils/kanbanCardUtils';
 
-// Mapeamento visual dos canais de origem
-const CHANNEL_BADGES = {
-    whatsapp: {
-        label: 'WhatsApp',
-        icon: FaWhatsapp,
-        className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-    },
-    kiwify: {
-        label: 'Kiwify',
-        icon: FiGlobe,
-        className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-    },
-    hotmart: {
-        label: 'Hotmart',
-        icon: FiGlobe,
-        className: 'bg-orange-500/15 text-orange-400 border-orange-500/30'
-    },
-    eduzz: {
-        label: 'Eduzz',
-        icon: FiGlobe,
-        className: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-    },
-    checkout_jords: {
-        label: 'Checkout Jords',
-        icon: FiGlobe,
-        className: 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-    },
-    checkout_presell: {
-        label: 'Checkout Jords',
-        icon: FiGlobe,
-        className: 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-    },
-    bussola_quiz: {
-        label: 'Bússola Quiz',
-        icon: FiGlobe,
-        className: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-    },
-    quiz_bussola: {
-        label: 'Bússola Quiz',
-        icon: FiGlobe,
-        className: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-    },
-    yayforms: {
-        label: 'Formulário',
-        icon: FiGlobe,
-        className: 'bg-violet-500/15 text-violet-300 border-violet-500/30'
-    },
-    elementor: {
-        label: 'Elementor',
-        icon: FiGlobe,
-        className: 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-    },
-    instagram: {
-        label: 'Instagram',
-        icon: FaInstagram,
-        className: 'bg-pink-500/15 text-pink-300 border-pink-500/30'
-    },
-    google_ads: {
-        label: 'Google Ads',
-        icon: FaGoogle,
-        className: 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-    },
-    facebook_ads: {
-        label: 'Facebook Ads',
-        icon: FiGlobe,
-        className: 'bg-blue-600/15 text-blue-300 border-blue-500/30'
-    },
-    manual_bulk: {
-        label: 'Disparo em Massa',
-        icon: FiGlobe,
-        className: 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-    },
-    importacao: {
-        label: 'Importação',
-        icon: FiGlobe,
-        className: 'bg-slate-500/15 text-slate-300 border-slate-500/30'
-    },
-    'importação': {
-        label: 'Importação',
-        icon: FiGlobe,
-        className: 'bg-slate-500/15 text-slate-300 border-slate-500/30'
-    }
-};
-
-function getChannelConfig(rawChannel) {
-    if (!rawChannel) return null;
-    const key = String(rawChannel).toLowerCase().trim();
-    if (CHANNEL_BADGES[key]) return CHANNEL_BADGES[key];
-    
-    const capitalized = key.charAt(0).toUpperCase() + key.slice(1);
-    return {
-        label: capitalized,
-        icon: FiGlobe,
-        className: 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-    };
-}
+export { getFollowupStatus, getWindow24hStatus };
 
 export function KanbanCard({
     deal,
+    stage,
+    currentTime,
     onEdit,
     onDelete,
     onOpenChat,
@@ -113,6 +20,7 @@ export function KanbanCard({
 
     const handleDragStart = (e) => {
         e.dataTransfer.setData('dealId', String(deal.id));
+        e.dataTransfer.setData('sourceStageId', String(deal.stage_id));
         e.dataTransfer.effectAllowed = 'move';
     };
 
@@ -126,6 +34,10 @@ export function KanbanCard({
         Number(deal.value) > 0
     );
 
+    const followupStatus = getFollowupStatus(deal, stage, currentTime);
+    const windowStatus = getWindow24hStatus(deal, currentTime);
+    const unreadCount = Number(deal.unread_count || 0);
+
     return (
         <div
             draggable
@@ -135,10 +47,14 @@ export function KanbanCard({
             className={`group bg-slate-900/90 hover:bg-slate-850 border rounded-2xl p-3.5 space-y-2.5 transition-all duration-150 shadow-md hover:shadow-xl cursor-pointer relative ${
                 isSelected
                     ? 'border-blue-500/80 bg-blue-950/25 shadow-blue-500/10 ring-1 ring-blue-500/40'
+                    : followupStatus?.isOverdue
+                    ? 'border-amber-500/60 bg-gradient-to-b from-amber-950/20 to-slate-900/90 ring-1 ring-amber-500/40 shadow-lg shadow-amber-500/5'
+                    : windowStatus.isOpen
+                    ? 'border-emerald-500/35 hover:border-emerald-400/60 shadow-emerald-500/5'
                     : 'border-white/10 hover:border-blue-500/50 hover:shadow-blue-500/5'
             }`}
         >
-            {/* Topo do Card: Seleção e Nome da Pessoa em Destaque */}
+            {/* Topo do Card: Seleção, Nome da Pessoa e Bolinha de Mensagens Não Lidas */}
             <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                     {onToggleSelect && (
@@ -165,20 +81,97 @@ export function KanbanCard({
                     </div>
                 </div>
 
-                {/* Status Ganho/Perdido */}
-                {deal.status === 'won' && (
-                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                        Ganho 🎉
-                    </span>
-                )}
-                {deal.status === 'lost' && (
-                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">
-                        Perdido ❌
-                    </span>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Bolinha verde indicando mensagens não lidas para o usuário logado */}
+                    {unreadCount > 0 && (
+                        <span
+                            data-testid={`deal-unread-badge-${deal.id}`}
+                            title={`${unreadCount} ${unreadCount === 1 ? 'mensagem não lida' : 'mensagens não lidas'} para o seu usuário`}
+                            className="min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.45)] shrink-0"
+                        >
+                            {unreadCount}
+                        </span>
+                    )}
+
+                    {/* Status Ganho/Perdido */}
+                    {deal.status === 'won' && (
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                            Ganho 🎉
+                        </span>
+                    )}
+                    {deal.status === 'lost' && (
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">
+                            Perdido ❌
+                        </span>
+                    )}
+                </div>
             </div>
 
-            {/* Preço do Produto em Destaque de Primeira */}
+            {/* Badge de Janela de 24h Aberta */}
+            {windowStatus.isOpen && (
+                <div
+                    data-testid={`deal-window-open-badge-${deal.id}`}
+                    title={
+                        windowStatus.timeText
+                            ? `Conversa com janela de 24h aberta (restam ${windowStatus.timeText})`
+                            : 'Conversa com janela de 24h aberta'
+                    }
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/35 text-[10px] font-black shadow-sm"
+                >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span>
+                        Janela 24h{windowStatus.timeText ? ` • ${windowStatus.timeText}` : ' Aberta'}
+                    </span>
+                </div>
+            )}
+
+            {/* Alerta de Follow-up (quando coluna é follow-up) */}
+            {followupStatus && (
+                <div className="pt-0.5">
+                    {followupStatus.isOverdue ? (
+                        <div
+                            data-testid={`deal-followup-overdue-${deal.id}`}
+                            className="w-full flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black shadow-sm"
+                            title={`Contato há mais de ${followupStatus.delayVal}${followupStatus.unit === 'hours' ? 'h' : followupStatus.unit === 'days' ? 'd' : 'm'} nesta coluna! ${followupStatus.isCustom ? '(Prazo individual) ' : ''}Precisa de retorno.`}
+                        >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                </span>
+                                <span className="truncate">
+                                    ⚠️ {followupStatus.isCustom ? 'Follow-up Individual' : 'Precisa de Follow-up'}
+                                </span>
+                            </div>
+                            <span className="text-[9px] font-mono text-amber-200 shrink-0">
+                                +{followupStatus.timeText}
+                            </span>
+                        </div>
+                    ) : (
+                        <div
+                            data-testid={`deal-followup-pending-${deal.id}`}
+                            className={`w-full flex items-center justify-between gap-1.5 px-2 py-0.5 rounded-lg text-[9px] font-bold border ${
+                                followupStatus.isCustom
+                                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                                    : 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+                            }`}
+                            title={`Prazo ${followupStatus.isCustom ? 'individual ' : ''}de follow-up: restam ${followupStatus.timeText}`}
+                        >
+                            <div className="flex items-center gap-1 min-w-0">
+                                <FiClock size={10} className={followupStatus.isCustom ? 'text-cyan-400 shrink-0' : 'text-blue-400 shrink-0'} />
+                                <span className="truncate">
+                                    {followupStatus.isCustom ? 'Follow-up individual' : 'Follow-up no prazo'}
+                                </span>
+                            </div>
+                            <span className="font-mono text-slate-300 shrink-0">
+                                restam {followupStatus.timeText}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Preço do Produto em Destaque */}
             <div className="flex items-center gap-2 flex-wrap">
                 <div className="inline-flex items-center gap-1 font-black text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg shadow-sm">
                     <FiDollarSign size={12} className="text-emerald-500 shrink-0" />
@@ -199,7 +192,6 @@ export function KanbanCard({
 
             {/* Tags: Produto e Canal de Origem */}
             <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                {/* Produto de Interesse */}
                 {deal.product_name && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
                         <FiTag size={9} className="shrink-0 text-amber-400" />
@@ -207,7 +199,6 @@ export function KanbanCard({
                     </span>
                 )}
 
-                {/* Canal de Origem */}
                 {channelConfig && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${channelConfig.className}`}>
                         <ChannelIcon size={10} className="shrink-0" />
@@ -257,10 +248,21 @@ export function KanbanCard({
                             e.stopPropagation();
                             onOpenChat(deal.contact_phone, deal.contact_name);
                         }}
-                        className="p-1.5 hover:bg-emerald-500/15 text-slate-400 hover:text-emerald-400 border border-transparent hover:border-emerald-500/30 rounded-lg transition-all cursor-pointer"
-                        title="Abrir conversa no ZapVoice"
+                        className={`relative p-1.5 border rounded-lg transition-all cursor-pointer ${
+                            unreadCount > 0
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/35 hover:bg-emerald-500/25'
+                                : 'hover:bg-emerald-500/15 text-slate-400 hover:text-emerald-400 border-transparent hover:border-emerald-500/30'
+                        }`}
+                        title={
+                            unreadCount > 0
+                                ? `Abrir conversa no ZapVoice (${unreadCount} não lida(s))`
+                                : 'Abrir conversa no ZapVoice'
+                        }
                     >
                         <FiMessageSquare size={13} />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
+                        )}
                     </button>
                 </div>
             </div>

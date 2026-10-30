@@ -5,6 +5,7 @@ import { extractTemplateVariables, extractTemplateButtons } from './templateVari
 import BulkSendContactsModalHeader from './BulkSendContactsModalHeader';
 import ScheduleSection from './ScheduleSection';
 import BulkSendContactsModalFooter from './BulkSendContactsModalFooter';
+import VariablesSection from './VariablesSection';
 
 describe('BulkSendContactsModal Submodules and Helpers', () => {
   describe('templateVariableHelpers', () => {
@@ -103,6 +104,32 @@ describe('BulkSendContactsModal Submodules and Helpers', () => {
 
       const sendBtn = screen.getByRole('button', { name: 'Enviar Disparo' });
       expect(sendBtn).toBeDisabled();
+    });
+  });
+
+  describe('VariablesSection', () => {
+    it('renders dynamic variable shortcut buttons and calls handleParamChange on click', () => {
+      const handleParamChange = vi.fn();
+      const variables = [
+        { key: 'BODY_0', label: 'Variável do Corpo {{1}}', isMedia: false }
+      ];
+
+      render(
+        <VariablesSection
+          variables={variables}
+          templateParams={{ BODY_0: '{{primeiro_nome}}' }}
+          handleParamChange={handleParamChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '+primeiro_nome' }));
+      expect(handleParamChange).toHaveBeenCalledWith('BODY_0', '{{primeiro_nome}}');
+
+      fireEvent.click(screen.getByRole('button', { name: '+nome' }));
+      expect(handleParamChange).toHaveBeenCalledWith('BODY_0', '{{nome}}');
+
+      fireEvent.click(screen.getByRole('button', { name: '+telefone' }));
+      expect(handleParamChange).toHaveBeenCalledWith('BODY_0', '{{telefone}}');
     });
   });
 });

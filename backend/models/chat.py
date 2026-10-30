@@ -15,6 +15,7 @@ class ChatConversation(Base):
     last_message_at = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, default="open", index=True)  # open, resolved, archived
     unread_count = Column(Integer, default=0)
+    user_read_states = Column(JSON, default=dict)  # Mapeamento {str(user_id): unread_count_no_momento_da_leitura}
     assigned_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     labels = Column(JSON, default=list)  # Lista de strings: ["importante", "suporte", etc]
     last_contact_message_at = Column(DateTime(timezone=True), nullable=True)

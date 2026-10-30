@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { useSalesKanban } from './hooks/useSalesKanban';
+import { useStageReorder } from './hooks/useStageReorder';
+import { useKanbanWebSocketSync } from './hooks/useKanbanWebSocketSync';
 import { useDragScroll } from './hooks/useDragScroll';
 import { useCrmProducts } from './hooks/useCrmProducts';
 import { useBulkDeals } from './hooks/useBulkDeals';
@@ -12,24 +14,35 @@ import { BulkEditDealsModal } from './components/BulkEditDealsModal';
 import { PipelineModal } from './components/PipelineModal';
 import { StageModal } from './components/StageModal';
 import { DealModal } from './components/DealModal';
+import KanbanLoadingModal from './components/KanbanLoadingModal';
 import { ProductManagerModal } from './components/ProductManagerModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { LostReasonModal } from './components/LostReasonModal';
+import BulkTemplateModal from '../ChatConversations/Modals/BulkTemplateModal/BulkTemplateModal';
 
 export default function SalesKanban({ onViewChange }) {
     const { isDragging, dragScrollProps } = useDragScroll();
     const { products, createProduct, updateProduct, deleteProduct } = useCrmProducts();
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+    const [isBulkTemplateModalOpen, setIsBulkTemplateModalOpen] = useState(false);
     const {
         pipelines,
         selectedPipelineId,
         setSelectedPipelineId,
         boardData,
+        setBoardData,
         filteredStages,
         isLoading,
+        isBoardLoading,
         isSyncing,
         searchTerm,
         setSearchTerm,
+        filterWindowOpenOnly,
+        setFilterWindowOpenOnly,
+        filterUnreadOnly,
+        setFilterUnreadOnly,
+        filterProduct,
+        setFilterProduct,
         isPipelineModalOpen,
         setIsPipelineModalOpen,
         pipelineToEdit,
@@ -59,10 +72,28 @@ export default function SalesKanban({ onViewChange }) {
         handleDeleteStage,
         handleOpenChat,
         fetchBoard
-    } = useSalesKanban({ onViewChange });
+    } = useSalesKanban({ onViewChange, products });
 
     const { activeClient } = useClient();
     const clientId = activeClient?.id;
+
+    const { currentTime } = useKanbanWebSocketSync({
+        activeClient,
+        selectedPipelineId,
+        onRefreshBoard: fetchBoard
+    });
+
+    const {
+        draggedStageId,
+        handleStageDragStart,
+        handleStageDragEnd,
+        handleMoveStage
+    } = useStageReorder({
+        boardData,
+        setBoardData,
+        selectedPipelineId,
+        clientId
+    });
 
     const {
         selectedDealIds,
@@ -93,44 +124,17 @@ export default function SalesKanban({ onViewChange }) {
         return ids;
     }, [filteredStages]);
 
-    const openNewPipeline = () => {
-        setPipelineToEdit(null);
-        setIsPipelineModalOpen(true);
-    };
-
-    const openEditPipeline = (pipe) => {
-        setPipelineToEdit(pipe);
-        setIsPipelineModalOpen(true);
-    };
-
-    const openNewDeal = (stageId = null) => {
-        setDealToEdit(null);
-        setInitialStageForNewDeal(stageId);
-        setIsDealModalOpen(true);
-    };
-
-    const openEditDeal = (deal) => {
-        setDealToEdit(deal);
-        setIsDealModalOpen(true);
-    };
-
-    const openNewStage = () => {
-        setStageToEdit(null);
-        setIsStageModalOpen(true);
-    };
-
-    const openEditStage = (stage) => {
-        setStageToEdit(stage);
-        setIsStageModalOpen(true);
-    };
+    const openNewPipeline = () => { setPipelineToEdit(null); setIsPipelineModalOpen(true); };
+    const openEditPipeline = (pipe) => { setPipelineToEdit(pipe); setIsPipelineModalOpen(true); };
+    const openNewDeal = (stageId = null) => { setDealToEdit(null); setInitialStageForNewDeal(stageId); setIsDealModalOpen(true); };
+    const openEditDeal = (deal) => { setDealToEdit(deal); setIsDealModalOpen(true); };
+    const openNewStage = () => { setStageToEdit(null); setIsStageModalOpen(true); };
+    const openEditStage = (stage) => { setStageToEdit(stage); setIsStageModalOpen(true); };
 
     const confirmDeleteStage = (stageId, stageName) => {
         setIsStageModalOpen(false);
         setDeleteModal({
-            isOpen: true,
-            type: 'stage',
-            id: stageId,
-            title: 'Excluir Coluna?',
+            isOpen: true, type: 'stage', id: stageId, title: 'Excluir Coluna?',
             message: `Tem certeza que deseja excluir a coluna "${stageName}"? Se houver oportunidades nela, serão movidas automaticamente para a etapa anterior.`
         });
     };
@@ -138,10 +142,7 @@ export default function SalesKanban({ onViewChange }) {
     const confirmDeletePipeline = (pipelineId, pipelineName) => {
         setIsPipelineModalOpen(false);
         setDeleteModal({
-            isOpen: true,
-            type: 'pipeline',
-            id: pipelineId,
-            title: 'Excluir Pipeline?',
+            isOpen: true, type: 'pipeline', id: pipelineId, title: 'Excluir Pipeline?',
             message: `Tem certeza que deseja excluir o pipeline "${pipelineName}"? Todas as colunas e oportunidades vinculadas a ele serão excluídas permanentemente.`
         });
     };
@@ -149,10 +150,7 @@ export default function SalesKanban({ onViewChange }) {
     const confirmDeleteDeal = (dealId, contactName) => {
         setIsDealModalOpen(false);
         setDeleteModal({
-            isOpen: true,
-            type: 'deal',
-            id: dealId,
-            title: 'Excluir Oportunidade?',
+            isOpen: true, type: 'deal', id: dealId, title: 'Excluir Oportunidade?',
             message: `Tem certeza que deseja excluir o lead "${contactName}" deste pipeline?`
         });
     };
@@ -169,14 +167,12 @@ export default function SalesKanban({ onViewChange }) {
         }
     };
 
-    if (isLoading) {
+    if (isLoading && !boardData) {
         return (
-            <div className="flex-1 p-8 flex items-center justify-center min-h-[500px]">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                    <p className="text-xs font-bold text-slate-400">Carregando Kanban de Vendas...</p>
-                </div>
-            </div>
+            <KanbanLoadingModal 
+                isOpen={true} 
+                pipelineName={pipelines?.find(p => p.id === selectedPipelineId)?.name} 
+            />
         );
     }
 
@@ -190,6 +186,13 @@ export default function SalesKanban({ onViewChange }) {
                 boardData={boardData}
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
+                filterWindowOpenOnly={filterWindowOpenOnly}
+                onToggleFilterWindowOpen={() => setFilterWindowOpenOnly(prev => !prev)}
+                filterUnreadOnly={filterUnreadOnly}
+                onToggleFilterUnread={() => setFilterUnreadOnly(prev => !prev)}
+                filterProduct={filterProduct}
+                onFilterProductChange={setFilterProduct}
+                products={products}
                 onOpenNewPipeline={openNewPipeline}
                 onOpenEditPipeline={openEditPipeline}
                 onDeletePipeline={(pipe) => confirmDeletePipeline(pipe.id, pipe.name)}
@@ -197,8 +200,6 @@ export default function SalesKanban({ onViewChange }) {
                 onOpenNewStage={openNewStage}
                 onOpenProducts={() => setIsProductModalOpen(true)}
                 productsCount={products.length}
-                onSyncHistory={handleSyncHistory}
-                isSyncing={isSyncing}
             />
 
             {/* Barra de Ações em Massa */}
@@ -211,6 +212,7 @@ export default function SalesKanban({ onViewChange }) {
                 onSelectStage={toggleSelectStage}
                 onOpenBulkEdit={() => setIsBulkEditModalOpen(true)}
                 onOpenBulkDelete={openBulkDeleteConfirm}
+                onOpenBulkTemplate={() => setIsBulkTemplateModalOpen(true)}
             />
 
             {/* Quadro Kanban com Colunas Horizontais e Scroll por Arraste com Mouse */}
@@ -226,7 +228,12 @@ export default function SalesKanban({ onViewChange }) {
                         <KanbanColumn
                             key={stage.id}
                             stage={stage}
+                            currentTime={currentTime}
                             onMoveDeal={handleMoveDeal}
+                            onMoveStage={handleMoveStage}
+                            onStageDragStart={handleStageDragStart}
+                            onStageDragEnd={handleStageDragEnd}
+                            draggedStageId={draggedStageId}
                             onOpenNewDeal={openNewDeal}
                             onEditDeal={openEditDeal}
                             onDeleteDeal={confirmDeleteDeal}
@@ -238,7 +245,6 @@ export default function SalesKanban({ onViewChange }) {
                         />
                     ))}
 
-                    {/* Botão Card para Criar Nova Coluna ao Final */}
                     <button
                         type="button"
                         onClick={openNewStage}
@@ -267,7 +273,7 @@ export default function SalesKanban({ onViewChange }) {
                 </div>
             </div>
 
-            {/* Modais */}
+            {/* Modais do Kanban */}
             <PipelineModal
                 isOpen={isPipelineModalOpen}
                 onClose={() => setIsPipelineModalOpen(false)}
@@ -276,7 +282,6 @@ export default function SalesKanban({ onViewChange }) {
                 pipelineToEdit={pipelineToEdit}
                 products={products}
             />
-
             <StageModal
                 isOpen={isStageModalOpen}
                 onClose={() => setIsStageModalOpen(false)}
@@ -286,7 +291,6 @@ export default function SalesKanban({ onViewChange }) {
                 pipelineId={selectedPipelineId}
                 pipelines={pipelines}
             />
-
             <DealModal
                 isOpen={isDealModalOpen}
                 onClose={() => setIsDealModalOpen(false)}
@@ -300,7 +304,6 @@ export default function SalesKanban({ onViewChange }) {
                 products={products}
                 onOpenChat={handleOpenChat}
             />
-
             <ProductManagerModal
                 isOpen={isProductModalOpen}
                 onClose={() => setIsProductModalOpen(false)}
@@ -309,7 +312,6 @@ export default function SalesKanban({ onViewChange }) {
                 onUpdateProduct={updateProduct}
                 onDeleteProduct={deleteProduct}
             />
-
             <BulkEditDealsModal
                 isOpen={isBulkEditModalOpen}
                 onClose={() => setIsBulkEditModalOpen(false)}
@@ -317,7 +319,15 @@ export default function SalesKanban({ onViewChange }) {
                 selectedCount={selectedDealIds.length}
                 products={products}
             />
-
+            <BulkTemplateModal
+                isOpen={isBulkTemplateModalOpen}
+                onClose={() => setIsBulkTemplateModalOpen(false)}
+                source="kanban"
+                dealIds={selectedDealIds}
+                selectedCount={selectedDealIds.length}
+                activeClientId={clientId}
+                onSuccess={clearSelectedDeals}
+            />
             <DeleteConfirmModal
                 isOpen={deleteModal.isOpen}
                 title={deleteModal.title}
@@ -326,12 +336,15 @@ export default function SalesKanban({ onViewChange }) {
                 onCancel={() => setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' })}
                 isProcessing={isProcessingBulk}
             />
-
             <LostReasonModal
                 isOpen={lostReasonModal.isOpen}
                 deal={lostReasonModal.deal}
                 onClose={() => setLostReasonModal({ isOpen: false, deal: null, targetStageId: null })}
                 onConfirm={handleConfirmLostReason}
+            />
+            <KanbanLoadingModal
+                isOpen={Boolean(isLoading || isBoardLoading)}
+                pipelineName={boardData?.pipeline?.name || pipelines?.find(p => p.id === selectedPipelineId)?.name}
             />
         </div>
     );

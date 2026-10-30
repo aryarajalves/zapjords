@@ -19,7 +19,9 @@ export default function EmailConfigTab() {
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    provider: 'ses',
+    provider: 'brevo',
+    brevo_api_key: '',
+    has_brevo_key: false,
     aws_access_key_id: '',
     aws_secret_access_key: '',
     aws_region: 'us-east-1',
@@ -61,6 +63,8 @@ export default function EmailConfigTab() {
           setFormData(prev => ({
             ...prev,
             ...data.config,
+            brevo_api_key: data.config.brevo_api_key || '',
+            has_brevo_key: data.config.has_brevo_key || false,
             aws_secret_access_key: data.config.aws_secret_access_key || '',
             smtp_password: data.config.smtp_password || '',
             resend_api_key: data.config.resend_api_key || ''

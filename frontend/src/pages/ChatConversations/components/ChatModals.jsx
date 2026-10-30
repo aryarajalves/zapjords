@@ -16,6 +16,7 @@ import ClearChatConfirmModal from '../Modals/ClearChatConfirmModal';
 import ExportConversationModal from '../Modals/ExportConversationModal';
 import AddChatToCrmModal from '../Modals/AddChatToCrmModal';
 import BulkPipelineModal from '../Modals/BulkPipelineModal';
+import BulkTemplateModal from '../Modals/BulkTemplateModal';
 
 export default function ChatModals({
     engine,
@@ -43,6 +44,8 @@ export default function ChatModals({
     setIsCrmModalOpen,
     isBulkPipelineModalOpen,
     setIsBulkPipelineModalOpen,
+    isBulkTemplateModalOpen,
+    setIsBulkTemplateModalOpen,
     filterParams
 }) {
     const effectiveSelectedCount = selectAllPages
@@ -144,6 +147,9 @@ export default function ChatModals({
                 onSendSuccess={(sentMsg) => {
                     engine.setMessages(prev => [...prev, sentMsg]);
                     engine.setShouldScrollToBottom(true);
+                    if (selectedConvo?.id && engine.setConversations) {
+                        engine.setConversations(prev => prev.map(c => c.id === selectedConvo.id ? { ...c, unread_count: 0 } : c));
+                    }
                 }}
             />
 
@@ -308,6 +314,27 @@ export default function ChatModals({
                 filterParams={filterParams}
                 activeClientId={activeClient?.id}
                 pipelines={engine.pipelines || []}
+                onSuccess={() => {
+                    engine.setSelectedConvoIds([]);
+                    if (selectAllPages && setExcludedConvoIds) {
+                        setExcludedConvoIds([]);
+                    }
+                    if (engine.loadConversations) {
+                        engine.loadConversations();
+                    }
+                }}
+            />
+
+            <BulkTemplateModal
+                isOpen={isBulkTemplateModalOpen}
+                onClose={() => setIsBulkTemplateModalOpen && setIsBulkTemplateModalOpen(false)}
+                selectedCount={effectiveSelectedCount}
+                selectAllPages={selectAllPages}
+                selectedConvoIds={engine.selectedConvoIds}
+                excludedConvoIds={excludedConvoIds}
+                filterParams={filterParams}
+                activeClientId={activeClient?.id}
+                chatwootLabels={engine.chatLabels || []}
                 onSuccess={() => {
                     engine.setSelectedConvoIds([]);
                     if (selectAllPages && setExcludedConvoIds) {

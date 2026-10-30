@@ -2,7 +2,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 import models
 from core.deps import get_db, get_current_user
@@ -10,7 +10,7 @@ from core.logger import setup_logger
 from core.clients.whatsapp.client import WhatsAppClient
 from chatwoot_client import ChatwootClient
 from services.chat_media_service import upload_media_to_meta_from_url
-from .common import get_client_id
+from .common import get_client_id, mark_conversation_read_for_user, mark_conversation_read_for_all, get_user_display_name
 
 # Import sub-routers
 from .message_media_routes import (
@@ -68,10 +68,9 @@ async def list_messages(
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
 
-    convo.unread_count = 0
-    db.commit()
-
-    query = db.query(models.ChatMessage).filter(
+    query = db.query(models.ChatMessage).options(
+        joinedload(models.ChatMessage.user)
+    ).filter(
         models.ChatMessage.conversation_id == conversation_id
     )
 
@@ -140,11 +139,14 @@ async def list_messages(
             flag_modified(m, "meta_data")
             has_updates = True
 
+        sender_name = get_user_display_name(getattr(m, "user", None)) or (meta.get("sender_name") if isinstance(meta, dict) else None)
+
         result.append({
             "id": m.id,
             "conversation_id": m.conversation_id,
             "sender_type": m.sender_type,
             "user_id": m.user_id,
+            "sender_name": sender_name,
             "message_type": m.message_type,
             "content": m.content,
             "media_url": m.media_url,
@@ -249,7 +251,10 @@ async def send_chat_message(
     if not is_private:
         convo.last_message_content = content
         convo.last_message_at = datetime.now(timezone.utc)
+        mark_conversation_read_for_all(convo)
     db.commit()
+
+    sender_name = get_user_display_name(current_user)
 
     if not is_private:
         try:
@@ -275,6 +280,8 @@ async def send_chat_message(
             "id": new_message.id,
             "conversation_id": new_message.conversation_id,
             "sender_type": new_message.sender_type,
+            "user_id": new_message.user_id,
+            "sender_name": sender_name,
             "message_type": new_message.message_type,
             "content": new_message.content,
             "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else datetime.now().isoformat(),
@@ -284,6 +291,19 @@ async def send_chat_message(
             "client_id": client_id
         }
         await rabbitmq.publish_event("new_message", payload_ws)
+
+        if not is_private:
+            try:
+                await rabbitmq.publish_event("conversation_updated", {
+                    "id": convo.id,
+                    "client_id": client_id,
+                    "unread_count": 0,
+                    "user_read_states": {},
+                    "last_message_content": convo.last_message_content,
+                    "last_message_at": convo.last_message_at.isoformat() if convo.last_message_at else None
+                })
+            except Exception as e_up:
+                logger.error(f"Erro no broadcast de conversation_updated no envio: {e_up}")
     except Exception as e_ws:
         logger.error(f"Erro no broadcast de mensagem enviada: {e_ws}")
 
@@ -292,8 +312,10 @@ async def send_chat_message(
         "conversation_id": new_message.conversation_id,
         "sender_type": new_message.sender_type,
         "user_id": new_message.user_id,
+        "sender_name": sender_name,
         "message_type": new_message.message_type,
         "content": new_message.content,
+        "unread_count": 0,
         "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else datetime.now().isoformat(),
         "wa_message_id": new_message.wa_message_id,
         "status": "sent",

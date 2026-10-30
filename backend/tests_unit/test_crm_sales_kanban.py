@@ -846,3 +846,183 @@ def test_pipeline_update_permissions_and_single_default():
     assert pipe2_db.is_default is True
 
     db.close()
+
+
+def test_pipeline_board_window_24h_and_per_user_unread_indicators():
+    """Valida que get_pipeline_board retorna indicadores de janela de 24h aberta,
+    contagem de mensagens não lidas independente por usuário e porcentagens por etapa e geral."""
+    db, client, user = setup_crm_test_db()
+    user2 = models.User(id=2, email="atendente2@crm.com", role="user", client_id=1)
+    db.add(user2)
+    db.commit()
+
+    pipe = crm_service.get_or_create_default_pipeline(db, 1)
+    stages = db.query(SalesPipelineStage).filter(SalesPipelineStage.pipeline_id == pipe.id).order_by(SalesPipelineStage.order_index.asc()).all()
+    stage_prospect = stages[0]
+    stage_lead = stages[1]
+
+    d1 = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id, stage_id=stage_prospect.id,
+            contact_phone="5511999990001", contact_name="Contato Janela Aberta 1", value=100.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    d2 = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id, stage_id=stage_prospect.id,
+            contact_phone="5511999990002", contact_name="Contato Janela Expirada", value=100.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    d3 = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id, stage_id=stage_lead.id,
+            contact_phone="5511999990003", contact_name="Contato Janela Aberta 2", value=200.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+    create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id, stage_id=stage_lead.id,
+            contact_phone="5511999990004", contact_name="Contato Sem Conversa", value=200.0
+        ),
+        client_id=1, db=db, current_user=user
+    )
+
+    now_utc = datetime.now(timezone.utc)
+    c1 = models.ChatConversation(
+        client_id=1,
+        phone="5511999990001",
+        contact_name="Contato Janela Aberta 1",
+        last_contact_message_at=now_utc - timedelta(hours=2),
+        unread_count=3,
+        user_read_states={}
+    )
+    c2 = models.ChatConversation(
+        client_id=1,
+        phone="5511999990002",
+        contact_name="Contato Janela Expirada",
+        last_contact_message_at=now_utc - timedelta(hours=30),
+        unread_count=5,
+        user_read_states={"1": 5, "2": 0}
+    )
+    c3 = models.ChatConversation(
+        client_id=1,
+        phone="5511999990003",
+        contact_name="Contato Janela Aberta 2",
+        last_contact_message_at=now_utc - timedelta(hours=5),
+        unread_count=4,
+        user_read_states={"1": 4, "2": 0}
+    )
+    db.add_all([c1, c2, c3])
+    db.commit()
+
+    board_u1 = get_pipeline_board(pipeline_id=pipe.id, client_id=1, db=db, current_user=user)
+    assert board_u1["total_deals"] == 4
+    assert board_u1["total_window_open_deals"] == 2
+    assert board_u1["window_open_percentage"] == 50.0
+    assert board_u1["total_unread_deals"] == 1
+
+    stg0_u1 = next(s for s in board_u1["stages"] if s["id"] == stage_prospect.id)
+    assert stg0_u1["total_deals"] == 2
+    assert stg0_u1["window_open_deals"] == 1
+    assert stg0_u1["window_open_percentage"] == 50.0
+    assert stg0_u1["unread_deals"] == 1
+
+    deal1_u1 = next(d for d in stg0_u1["deals"] if d["id"] == d1.id)
+    deal2_u1 = next(d for d in stg0_u1["deals"] if d["id"] == d2.id)
+    assert deal1_u1["window_open"] is True
+    assert deal1_u1["window_expires_at"] is not None
+    assert deal1_u1["window_remaining_seconds"] > 20 * 3600
+    assert deal1_u1["unread_count"] == 3
+    assert deal1_u1["conversation_id"] == c1.id
+
+    assert deal2_u1["window_open"] is False
+    assert deal2_u1["unread_count"] == 0
+
+    board_u2 = get_pipeline_board(pipeline_id=pipe.id, client_id=1, db=db, current_user=user2)
+    assert board_u2["total_window_open_deals"] == 2
+    assert board_u2["window_open_percentage"] == 50.0
+    assert board_u2["total_unread_deals"] == 3
+
+    stg0_u2 = next(s for s in board_u2["stages"] if s["id"] == stage_prospect.id)
+    assert stg0_u2["unread_deals"] == 2
+    deal2_u2 = next(d for d in stg0_u2["deals"] if d["id"] == d2.id)
+    assert deal2_u2["unread_count"] == 5
+
+    db.close()
+
+
+def test_move_deal_same_stage_does_not_update_or_create_private_note(db_session):
+    """
+    Valida que ao mover e soltar o deal na mesma coluna (mesmo stage_id):
+    1. O sistema não altera o deal
+    2. Não cria nenhuma anotação privada no chat
+    """
+    db = db_session
+    user = models.User(
+        id=1,
+        email="test_same_stage@example.com",
+        role="admin",
+        client_id=1
+    )
+    db.add(user)
+    db.commit()
+
+    pipe = SalesPipeline(name="Pipeline Teste Soltar Mesmo Estagio", client_id=1)
+    db.add(pipe)
+    db.commit()
+
+    stage1 = SalesPipelineStage(pipeline_id=pipe.id, name="Em Aberto", stage_type="lead", order_index=0, client_id=1)
+    db.add(stage1)
+    db.commit()
+
+    phone = "5511988887766"
+    convo = models.ChatConversation(
+        client_id=1,
+        phone=phone,
+        contact_name="Contato Mesmo Estagio"
+    )
+    db.add(convo)
+    db.commit()
+
+    # Cria o deal inicial
+    deal = create_deal(
+        payload=schemas_crm.SalesDealCreate(
+            pipeline_id=pipe.id,
+            stage_id=stage1.id,
+            contact_phone=phone,
+            contact_name="Contato Mesmo Estagio",
+            value=350.0
+        ),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+
+    # Conta quantas mensagens/notas existem na conversa antes
+    notes_before = db.query(models.ChatMessage).filter(
+        models.ChatMessage.conversation_id == convo.id
+    ).count()
+
+    # Executa a movimentação para o MESMO stage_id
+    updated_deal = move_deal(
+        deal_id=deal.id,
+        payload=schemas_crm.SalesDealMove(stage_id=stage1.id),
+        client_id=1,
+        db=db,
+        current_user=user
+    )
+
+    assert updated_deal.stage_id == stage1.id
+
+    # Garante que NENHUMA nova anotação privada foi gerada na conversa
+    notes_after = db.query(models.ChatMessage).filter(
+        models.ChatMessage.conversation_id == convo.id
+    ).count()
+
+    assert notes_after == notes_before
+
+    db.close()
+

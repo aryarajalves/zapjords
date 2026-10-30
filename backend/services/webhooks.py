@@ -250,6 +250,15 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
                     db.commit()
                     logger.info(f"✅ SMART_CANCEL | {len(pending_triggers)} disparos cancelados e {len(templates_to_block)} templates bloqueados por 24h com sucesso.")
 
+        # --- INTERRUPÇÃO INTELIGENTE DE FUNIS DE E-MAIL MARKETING ---
+        contact_email = variables.get("email")
+        if contact_email and history.event_type and "compra_aprovada" in str(history.event_type).lower():
+            try:
+                from services.email_funnel_service import check_and_cancel_funnels_on_purchase
+                await check_and_cancel_funnels_on_purchase(db, client_id, contact_email)
+            except Exception as e_ef:
+                logger.error(f"Erro ao cancelar funis de e-mail por compra: {e_ef}")
+
         # --- GERAÇÃO AUTOMÁTICA DE CONVITE / CADASTRO NA PLATAFORMA ---
         if getattr(mapping, "auto_create_invite", False):
             try:

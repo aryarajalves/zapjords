@@ -27,6 +27,7 @@ import HumanAgents from '../../pages/HumanAgents';
 import CheckoutPresellPage from '../../pages/CheckoutPresellPage';
 import CapturePageAdmin from '../../pages/CapturePageAdmin';
 import SalesKanban from '../../pages/SalesKanban';
+import EmailMarketingMain from '../EmailMarketing/EmailMarketingMain';
 
 export default function AppContentViewRouter({ logic }) {
   const pagesStatus = logic.user?.pages_status;
@@ -173,6 +174,14 @@ export default function AppContentViewRouter({ logic }) {
       )}
 
       {logic.currentView === 'funnels' && <FunnelsView logic={logic} />}
+
+      {logic.currentView === 'email_marketing' && (
+        <PageGuard pageKey="bulk_sender" pagesStatus={pagesStatus}>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <EmailMarketingMain />
+          </div>
+        </PageGuard>
+      )}
 
       {logic.currentView === 'templates' && (
         <PageGuard pageKey="whatsapp" pagesStatus={pagesStatus}>

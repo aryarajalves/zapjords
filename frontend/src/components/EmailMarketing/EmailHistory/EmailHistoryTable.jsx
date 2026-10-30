@@ -8,7 +8,8 @@ import {
   FiTrash2,
   FiFilter,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiUsers
 } from 'react-icons/fi';
 
 export function StatusBadge({ status }) {
@@ -41,6 +42,7 @@ export default function EmailHistoryTable({
   currentHistory,
   clearFilters,
   setDeleteTarget,
+  onViewContacts,
   currentPage,
   setCurrentPage,
   totalPages,
@@ -102,13 +104,18 @@ export default function EmailHistoryTable({
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">🚀 {item.total_contacts}</span>
+                  <button
+                    type="button"
+                    onClick={() => onViewContacts && onViewContacts(item)}
+                    title="Ver contatos deste disparo (20 por página)"
+                    className="flex items-center gap-2.5 text-xs px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-slate-700/50 hover:bg-blue-500/10 hover:text-blue-500 border border-gray-200 dark:border-white/5 transition-all cursor-pointer group"
+                  >
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-500">🚀 {item.total_contacts}</span>
                     <span className="text-green-600 dark:text-green-400 font-semibold">✅ {item.total_sent}</span>
                     {item.total_failed > 0 && (
                       <span className="text-red-500 font-semibold">❌ {item.total_failed}</span>
                     )}
-                  </div>
+                  </button>
                 </td>
                 <td className="px-6 py-4">
                   <StatusBadge status={item.status} />
@@ -127,13 +134,24 @@ export default function EmailHistoryTable({
                   )}
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={() => setDeleteTarget(item)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    title="Deletar registro do histórico"
-                  >
-                    <FiTrash2 size={16} />
-                  </button>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onViewContacts && onViewContacts(item)}
+                      className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                      title="Ver contatos do disparo (20 por página)"
+                    >
+                      <FiUsers size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(item)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                      title="Deletar registro do histórico"
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

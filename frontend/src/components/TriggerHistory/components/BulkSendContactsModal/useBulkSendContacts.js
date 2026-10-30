@@ -5,7 +5,7 @@ import { API_URL } from '../../../../config';
 import { buildComponentsPayload } from '../../../BulkSender/utils/payloadBuilder';
 import { extractTemplateVariables, extractTemplateButtons } from './templateVariableHelpers';
 
-export function useBulkSendContacts({ isOpen, onClose, selectedPhones, clientId, triggerId, onSuccess }) {
+export function useBulkSendContacts({ isOpen, onClose, selectedPhones, contacts = [], clientId, triggerId, onSuccess }) {
   const [templates, setTemplates] = useState([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
@@ -108,12 +108,42 @@ export function useBulkSendContacts({ isOpen, onClose, selectedPhones, clientId,
 
     setIsSending(true);
     try {
-      const payload = {
-        contacts_list: selectedPhones.map(phone => ({
+      const safeContacts = Array.isArray(contacts) ? contacts : [];
+      const contactsListPayload = selectedPhones.map(phone => {
+        const cleanPhone = String(phone || '').replace(/\D/g, '');
+        const match = safeContacts.find(
+          c => String(c?.phone_number || c?.phone || '').replace(/\D/g, '') === cleanPhone
+        );
+        const rawName = String(match?.contact_name || match?.name || match?.var1 || '').trim();
+        const isOnlyDigits = rawName && rawName.replace(/\D/g, '') === cleanPhone;
+        const contactName = (!isOnlyDigits && rawName) ? rawName : '';
+        const firstName = contactName ? contactName.split(/\s+/)[0] : '';
+
+        const resolvedParams = {};
+        Object.entries(templateParams).forEach(([key, val]) => {
+          let resolved = String(val ?? '');
+          if (contactName) {
+            resolved = resolved
+              .replace(/\{\{primeiro_nome\}\}/gi, firstName)
+              .replace(/\{\{first_name\}\}/gi, firstName)
+              .replace(/\{\{nome\}\}/gi, contactName)
+              .replace(/\{\{name\}\}/gi, contactName);
+          }
+          resolved = resolved
+            .replace(/\{\{telefone\}\}/gi, String(phone || ''))
+            .replace(/\{\{phone\}\}/gi, String(phone || ''));
+          resolvedParams[key] = resolved;
+        });
+
+        return {
           phone: phone,
-          name: phone,
-          components: buildComponentsPayload(selectedTemplate, templateParams)
-        })),
+          name: contactName || phone,
+          components: buildComponentsPayload(selectedTemplate, resolvedParams)
+        };
+      });
+
+      const payload = {
+        contacts_list: contactsListPayload,
         exclusion_list: [],
         delay_seconds: 1,
         concurrency_limit: 10,

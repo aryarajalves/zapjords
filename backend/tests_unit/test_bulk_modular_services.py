@@ -106,3 +106,25 @@ async def test_refresh_dynamic_label_contacts_returns_none_if_not_dynamic():
     mock_trig.is_dynamic_label = False
     result = await refresh_dynamic_label_contacts(mock_trig)
     assert result is None
+
+
+def test_sanitize_template_components_dynamic_vars_and_phone_name_guard():
+    from services.utils.bulk_helpers import sanitize_template_components
+
+    comps = [{"type": "body", "parameters": [{"type": "text", "text": "{{primeiro_nome}}"}]}]
+    resolved = sanitize_template_components(
+        comps,
+        contact_name="Maria Clara Silva",
+        contact_phone="5511999990001"
+    )
+    assert resolved[0]["parameters"][0]["text"] == "Maria"
+
+    # Quando contact_name for igual ao telefone, não deve usar os dígitos do telefone como nome
+    resolved_phone_as_name = sanitize_template_components(
+        comps,
+        contact_name="5511999990001",
+        contact_phone="5511999990001",
+        contact_vars={"nome": "Ana Paula"}
+    )
+    assert resolved_phone_as_name[0]["parameters"][0]["text"] == "Ana"
+

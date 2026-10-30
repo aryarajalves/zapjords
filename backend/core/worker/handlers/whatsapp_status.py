@@ -10,19 +10,21 @@ from config_loader import get_setting
 import core.worker.handlers.whatsapp as wah
 
 logger = setup_logger("Worker.WhatsAppStatus")
+_DEFERRED_POST_DELIVERY_SEMAPHORE = asyncio.Semaphore(4)
 
 async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, phone):
-    """
-    Processa ações pós-entrega com um pequeno delay para garantir que o Chatwoot já sincronizou.
-    """
-    # Delay de 7 segundos para dar tempo do webhook do Chatwoot criar/vincular a conversa
+    """Processa ações pós-entrega com semáforo de pool e delay para sincronização."""
     await asyncio.sleep(7)
+    async with _DEFERRED_POST_DELIVERY_SEMAPHORE:
+        await _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, phone)
+
+async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, phone):
+    db = None
     try:
         db = wah.SessionLocal()
         message_record = db.query(models.MessageStatus).get(message_id)
         if not message_record:
             logger.warning(f"⚠️ [DEFERRED_POST_DELIVERY] MessageStatus {message_id} não encontrado.")
-            db.close()
             return
             
         trigger = db.query(models.ScheduledTrigger).get(trigger_id) if trigger_id else None
@@ -39,7 +41,6 @@ async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, 
                 client_id = trigger.client_id if trigger else (int(message_record.var1) if message_record.var1 else None)
                 if not client_id:
                     logger.warning(f"⚠️ [DEFERRED_POST_DELIVERY] client_id não encontrado para salvar chat local ({phone}).")
-                    db.close()
                     return
                 # 1. Verificar se a mensagem de chat local já existe por wa_message_id
                 existing_chat_msg = db.query(models.ChatMessage).filter(
@@ -215,7 +216,6 @@ async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, 
 
         if is_bulk:
             logger.info(f"⏭️ [DEFERRED_POST_DELIVERY] Trigger #{trigger_id} é um disparo em massa. Ignorando envio de nota privada.")
-            db.close()
             return
 
         note_text = message_record.pending_private_note
@@ -263,9 +263,14 @@ async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, 
             else:
                 logger.warning(f"⚠️ [DEFERRED_POST_DELIVERY] Não foi possível encontrar/criar conversa no Chatwoot para {phone}")
                 
-        db.close()
     except Exception as e:
         logger.error(f"❌ Erro no processamento adiado (Trigger {trigger_id}): {e}")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
 
 async def handle_whatsapp_statuses(db, statuses: list, value: dict):
     """

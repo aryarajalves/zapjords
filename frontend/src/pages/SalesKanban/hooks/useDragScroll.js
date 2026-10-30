@@ -88,7 +88,7 @@ export function useDragScroll() {
         // Apenas botão principal (esquerdo)
         if (e.button !== 0) return;
 
-        // Se clicou em botão, input, select, textarea, link ou card arrastável de lead, não inicia scroll do board
+        // Se clicou em botão, input, select, textarea, link, card de lead ou cabeçalho arrastável de coluna, não inicia scroll do board
         const target = e.target;
         if (
             target.closest('button') ||
@@ -96,7 +96,9 @@ export function useDragScroll() {
             target.closest('select') ||
             target.closest('textarea') ||
             target.closest('a') ||
-            target.closest('[draggable="true"]')
+            target.closest('[draggable="true"]') ||
+            target.closest('[data-column-header="true"]') ||
+            target.closest('[data-drag-handle="column"]')
         ) {
             return;
         }

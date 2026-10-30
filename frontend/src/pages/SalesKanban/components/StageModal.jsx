@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiTrash2, FiLayers, FiCheck, FiArrowRight } from 'react-icons/fi';
+import { FiX, FiTrash2, FiLayers, FiCheck } from 'react-icons/fi';
+import { StageForwardSection } from './StageForwardSection';
+import { StageFollowupSection } from './StageFollowupSection';
 
 const COLOR_OPTIONS = [
     { id: 'blue', label: 'Azul', bg: 'bg-blue-500', border: 'border-blue-400' },
@@ -34,6 +36,9 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
     const [forwardEnabled, setForwardEnabled] = useState(false);
     const [forwardToPipelineId, setForwardToPipelineId] = useState('');
     const [forwardToStageId, setForwardToStageId] = useState('');
+    const [isFollowup, setIsFollowup] = useState(false);
+    const [followupDelayValue, setFollowupDelayValue] = useState(3);
+    const [followupDelayUnit, setFollowupDelayUnit] = useState('hours');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -46,6 +51,9 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
             setForwardEnabled(hasForward);
             setForwardToPipelineId(stageToEdit.forward_to_pipeline_id || '');
             setForwardToStageId(stageToEdit.forward_to_stage_id || '');
+            setIsFollowup(Boolean(stageToEdit.is_followup));
+            setFollowupDelayValue(stageToEdit.followup_delay_value || 3);
+            setFollowupDelayUnit(stageToEdit.followup_delay_unit || 'hours');
         } else {
             setName('');
             setColor('blue');
@@ -54,6 +62,9 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
             setForwardEnabled(false);
             setForwardToPipelineId('');
             setForwardToStageId('');
+            setIsFollowup(false);
+            setFollowupDelayValue(3);
+            setFollowupDelayUnit('hours');
         }
     }, [stageToEdit, isOpen]);
 
@@ -94,7 +105,10 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
                 stage_type: stageType,
                 webhook_event_trigger: webhookEventTrigger.trim() || null,
                 forward_to_pipeline_id: forwardEnabled && forwardToPipelineId ? Number(forwardToPipelineId) : null,
-                forward_to_stage_id: forwardEnabled && forwardToStageId ? Number(forwardToStageId) : null
+                forward_to_stage_id: forwardEnabled && forwardToStageId ? Number(forwardToStageId) : null,
+                is_followup: isFollowup,
+                followup_delay_value: isFollowup ? Number(followupDelayValue) || 3 : 3,
+                followup_delay_unit: isFollowup ? followupDelayUnit : 'hours'
             };
             await onSave(payload, stageToEdit?.id);
         } finally {
@@ -104,9 +118,9 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-up">
+            <div className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-up max-h-[92vh] flex flex-col">
                 {/* Cabeçalho */}
-                <div className="flex items-center justify-between p-6 border-b border-white/5 bg-slate-950/40">
+                <div className="flex items-center justify-between p-5 border-b border-white/5 bg-slate-950/40 shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                             <FiLayers size={18} />
@@ -129,8 +143,8 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
                     </button>
                 </div>
 
-                {/* Formulário */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                {/* Formulário com scroll interno se necessário */}
+                <form onSubmit={handleSubmit} className="p-5 space-y-3.5 overflow-y-auto flex-1 custom-scrollbar">
                     <div>
                         <label className="block text-xs font-bold text-slate-300 mb-1.5">
                             Nome da Coluna / Etapa <span className="text-rose-400">*</span>
@@ -140,7 +154,7 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
                             required
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Proposta Enviada, Follow-up 3 dias..."
+                            placeholder="Ex: Proposta Enviada, Follow-up 3 horas..."
                             className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-bold"
                         />
                     </div>
@@ -213,101 +227,27 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
                         </p>
                     </div>
 
+                    {/* Configuração de Follow-up */}
+                    <StageFollowupSection
+                        isFollowup={isFollowup}
+                        setIsFollowup={setIsFollowup}
+                        followupDelayValue={followupDelayValue}
+                        setFollowupDelayValue={setFollowupDelayValue}
+                        followupDelayUnit={followupDelayUnit}
+                        setFollowupDelayUnit={setFollowupDelayUnit}
+                    />
+
                     {/* Automação de Avanço de Pipeline */}
-                    <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-3.5 space-y-3">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                                    <FiArrowRight size={14} />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-white block">
-                                        Avançar para outro Pipeline
-                                    </label>
-                                    <p className="text-[10px] text-slate-400 leading-tight">
-                                        Ao entrar nesta coluna, envia o contato para outro pipeline automaticamente.
-                                    </p>
-                                </div>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                <input
-                                    type="checkbox"
-                                    checked={forwardEnabled}
-                                    onChange={(e) => {
-                                        const checked = e.target.checked;
-                                        setForwardEnabled(checked);
-                                        if (checked && !forwardToPipelineId && otherPipelines.length > 0) {
-                                            setForwardToPipelineId(otherPipelines[0].id);
-                                            if (otherPipelines[0].stages?.length > 0) {
-                                                setForwardToStageId(otherPipelines[0].stages[0].id);
-                                            }
-                                        }
-                                    }}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-8 h-4 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
-                            </label>
-                        </div>
-
-                        {forwardEnabled && (
-                            <div className="pt-2 border-t border-white/5 space-y-2.5 animate-fade-in">
-                                {otherPipelines.length === 0 ? (
-                                    <p className="text-[11px] text-amber-400 font-medium">
-                                        ⚠️ Crie outro pipeline primeiro para poder configurar o encaminhamento automático.
-                                    </p>
-                                ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-300 mb-1">
-                                                Pipeline Destino
-                                            </label>
-                                            <select
-                                                value={forwardToPipelineId || ''}
-                                                onChange={(e) => {
-                                                    const newPipeId = Number(e.target.value);
-                                                    setForwardToPipelineId(newPipeId);
-                                                    const pipe = otherPipelines.find(p => p.id === newPipeId);
-                                                    if (pipe?.stages?.length > 0) {
-                                                        setForwardToStageId(pipe.stages[0].id);
-                                                    } else {
-                                                        setForwardToStageId('');
-                                                    }
-                                                }}
-                                                className="w-full bg-slate-900 border border-white/10 rounded-xl px-2.5 py-2 text-white text-xs outline-none focus:border-emerald-500 font-bold cursor-pointer"
-                                            >
-                                                {otherPipelines.map(p => (
-                                                    <option key={p.id} value={p.id} className="bg-slate-900 text-white">
-                                                        {p.name} {p.product_name ? `(${p.product_name})` : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-300 mb-1">
-                                                Coluna de Destino
-                                            </label>
-                                            <select
-                                                value={forwardToStageId || ''}
-                                                onChange={(e) => setForwardToStageId(Number(e.target.value))}
-                                                className="w-full bg-slate-900 border border-white/10 rounded-xl px-2.5 py-2 text-white text-xs outline-none focus:border-emerald-500 font-bold cursor-pointer"
-                                            >
-                                                {targetStages.length === 0 ? (
-                                                    <option value="" disabled>Nenhuma coluna no destino</option>
-                                                ) : (
-                                                    targetStages.map(st => (
-                                                        <option key={st.id} value={st.id} className="bg-slate-900 text-white">
-                                                            {st.name}
-                                                        </option>
-                                                    ))
-                                                )}
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                    <StageForwardSection
+                        forwardEnabled={forwardEnabled}
+                        setForwardEnabled={setForwardEnabled}
+                        forwardToPipelineId={forwardToPipelineId}
+                        setForwardToPipelineId={setForwardToPipelineId}
+                        forwardToStageId={forwardToStageId}
+                        setForwardToStageId={setForwardToStageId}
+                        otherPipelines={otherPipelines}
+                        targetStages={targetStages}
+                    />
 
                     {/* Rodapé / Ações */}
                     <div className="flex items-center justify-between pt-4 border-t border-white/5">

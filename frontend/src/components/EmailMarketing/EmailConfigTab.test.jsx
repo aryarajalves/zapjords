@@ -35,11 +35,10 @@ describe('EmailConfigTab Component', () => {
           Promise.resolve({
             configured: true,
             config: {
-              provider: 'ses',
+              provider: 'brevo',
               from_email: 'contato@zapvoice.test',
               from_name: 'ZapVoice',
-              aws_access_key_id: 'AKIA_TEST',
-              aws_region: 'us-east-1'
+              brevo_api_key: 'xkeysib-12345'
             }
           })
       })
@@ -50,6 +49,7 @@ describe('EmailConfigTab Component', () => {
     render(<EmailConfigTab />);
 
     expect(await screen.findByText('Provedor de Envio de E-mail')).toBeInTheDocument();
+    expect(screen.getAllByText(/Brevo/i).length).toBeGreaterThan(0);
     expect(screen.getByText('⚡ Amazon SES')).toBeInTheDocument();
     expect(screen.getByText('🚀 Resend')).toBeInTheDocument();
     expect(screen.getByText('⚙️ SMTP Customizado')).toBeInTheDocument();
@@ -59,8 +59,12 @@ describe('EmailConfigTab Component', () => {
   it('permite alternar entre os provedores e renderiza os campos correspondentes', async () => {
     render(<EmailConfigTab />);
 
-    // Inicia com SES
-    expect(await screen.findByText(/Configuração Amazon SES/i)).toBeInTheDocument();
+    // Provedor Brevo
+    expect(await screen.findByText(/Configuração Brevo/i)).toBeInTheDocument();
+
+    // Clica em Amazon SES
+    fireEvent.click(screen.getByText('⚡ Amazon SES'));
+    expect(screen.getByText(/Configuração Amazon SES/i)).toBeInTheDocument();
 
     // Clica em Resend
     fireEvent.click(screen.getByText('🚀 Resend'));

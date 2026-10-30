@@ -76,6 +76,13 @@ def calculate_next_run(base_date: datetime, frequency: str, days_of_week: list =
                     potential_dates.append(candidate)
                     found = True
                     break
+
+    elif frequency == 'daily':
+        t_obj = parse_time(scheduled_time_str)
+        candidate = datetime.combine(base_date.date(), t_obj).replace(tzinfo=BRT)
+        if candidate <= base_date:
+            candidate += timedelta(days=1)
+        potential_dates.append(candidate)
     
     if not potential_dates:
         return None

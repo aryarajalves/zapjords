@@ -166,6 +166,8 @@ export function useChatMediaUploader({ engine, selectedConvo, activeClient, repl
                 const sentMsg = await sendRes.json();
                 engine.setMessages(prev => appendOrUpdateMessage(prev, sentMsg));
                 engine.setShouldScrollToBottom(true);
+                engine.setConversations?.(prev => prev.map(c => c.id === selectedConvo.id ? { ...c, unread_count: 0 } : c));
+                engine.setSelectedConvo?.(prev => (prev && prev.id === selectedConvo.id) ? { ...prev, unread_count: 0 } : prev);
                 engine.loadConversationMedia(selectedConvo.id);
                 toast.success('Mídia enviada com sucesso!', { id: toastId });
                 engine.loadConversations(false);
@@ -308,6 +310,8 @@ export function useChatMediaUploader({ engine, selectedConvo, activeClient, repl
                 const sentMsg = await sendRes.json();
                 engine.setMessages(prev => appendOrUpdateMessage(prev, sentMsg));
                 engine.setShouldScrollToBottom(true);
+                engine.setConversations?.(prev => prev.map(c => c.id === selectedConvo.id ? { ...c, unread_count: 0 } : c));
+                engine.setSelectedConvo?.(prev => (prev && prev.id === selectedConvo.id) ? { ...prev, unread_count: 0 } : prev);
                 engine.loadConversationMedia(selectedConvo.id);
                 discardRecordedAudio();
                 if (setReplyingTo) setReplyingTo(null);

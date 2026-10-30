@@ -17,6 +17,9 @@ export function useChatFilterState() {
     const [filterLastMessageUnread, setFilterLastMessageUnread] = useState(false);
     const [filterNoPipeline, setFilterNoPipeline] = useState(false);
     const [filterNotInPipelineId, setFilterNotInPipelineId] = useState(null);
+    const [filterInPipeline, setFilterInPipeline] = useState(false);
+    const [filterPipelineId, setFilterPipelineId] = useState(null);
+    const [filterPipelineStageId, setFilterPipelineStageId] = useState(null);
     const [filterBlockStatus, setFilterBlockStatus] = useState(null);
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
@@ -42,6 +45,9 @@ export function useChatFilterState() {
         filterLastMessageUnread, setFilterLastMessageUnread,
         filterNoPipeline, setFilterNoPipeline,
         filterNotInPipelineId, setFilterNotInPipelineId,
+        filterInPipeline, setFilterInPipeline,
+        filterPipelineId, setFilterPipelineId,
+        filterPipelineStageId, setFilterPipelineStageId,
         filterBlockStatus, setFilterBlockStatus,
         filterStartDate, setFilterStartDate,
         filterEndDate, setFilterEndDate,

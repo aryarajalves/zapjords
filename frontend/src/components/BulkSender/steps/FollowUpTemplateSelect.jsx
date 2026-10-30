@@ -4,10 +4,19 @@ import { FiSearch, FiChevronDown, FiX, FiCheck, FiBookmark } from 'react-icons/f
 export default function FollowUpTemplateSelect({
     selectedTemplateName = '',
     templates = [],
-    onSelectTemplate
+    onSelectTemplate,
+    placeholder = 'Selecione o template do follow-up...',
+    onOpenChange
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+
+    const setOpenState = (open) => {
+        setIsOpen(open);
+        if (onOpenChange) {
+            onOpenChange(open);
+        }
+    };
 
     const selectedTemplateObj = useMemo(() => {
         return (templates || []).find(t => t?.name === selectedTemplateName) || null;
@@ -31,7 +40,7 @@ export default function FollowUpTemplateSelect({
         });
     }, [templates, searchQuery]);
 
-    // Separação em Pinned (Fixados) e Outros, ordenados alfabeticamente
+    // Separação em Pinned (Fixados) e Outros, ordenados pelos criados por último (mais recentes primeiro)
     const { pinnedTemplates, otherTemplates } = useMemo(() => {
         const pinned = [];
         const other = [];
@@ -44,8 +53,30 @@ export default function FollowUpTemplateSelect({
             }
         });
 
-        pinned.sort((a, b) => a.name.localeCompare(b.name));
-        other.sort((a, b) => a.name.localeCompare(b.name));
+        const sortRecentFirst = (a, b) => {
+            // 1. Mais recentes primeiro por created_at
+            if (a.created_at && b.created_at) {
+                const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                if (diff !== 0) return diff;
+            } else if (a.created_at && !b.created_at) {
+                return -1;
+            } else if (!a.created_at && b.created_at) {
+                return 1;
+            }
+
+            // 2. Por ID decrescente (caso ID seja numérico, maiores IDs foram criados por último)
+            const numA = Number(a.id);
+            const numB = Number(b.id);
+            if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+                return numB - numA;
+            }
+
+            // 3. Mantém a ordem original da lista
+            return 0;
+        };
+
+        pinned.sort(sortRecentFirst);
+        other.sort(sortRecentFirst);
 
         return { pinnedTemplates: pinned, otherTemplates: other };
     }, [filteredTemplates]);
@@ -56,7 +87,7 @@ export default function FollowUpTemplateSelect({
         } else {
             onSelectTemplate(tpl.name, tpl.language || 'pt_BR');
         }
-        setIsOpen(false);
+        setOpenState(false);
         setSearchQuery('');
     };
 
@@ -65,7 +96,7 @@ export default function FollowUpTemplateSelect({
             {/* Gatilho do Dropdown */}
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => setOpenState(!isOpen)}
                 className={`w-full bg-slate-900 border rounded-2xl px-4 py-3 text-left flex items-center justify-between gap-3 transition-all ${
                     isOpen 
                         ? 'border-violet-500 ring-2 ring-violet-500/20' 
@@ -89,7 +120,7 @@ export default function FollowUpTemplateSelect({
                         </>
                     ) : (
                         <span className="text-xs font-bold text-slate-500">
-                            Selecione o template do follow-up...
+                            {placeholder}
                         </span>
                     )}
                 </div>
@@ -105,11 +136,11 @@ export default function FollowUpTemplateSelect({
                 <>
                     <div 
                         className="fixed inset-0 z-40" 
-                        onClick={() => setIsOpen(false)} 
+                        onClick={() => setOpenState(false)} 
                     />
-                    <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-80">
+                    <div className="absolute left-0 right-0 top-full mt-2 bg-[#0d1527] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-80 w-full">
                         {/* Campo de Busca */}
-                        <div className="p-3 border-b border-white/10 bg-slate-950/60 sticky top-0 z-10">
+                        <div className="p-3 border-b border-white/10 bg-slate-950/90 sticky top-0 z-10 w-full">
                             <div className="relative">
                                 <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <input
@@ -133,7 +164,7 @@ export default function FollowUpTemplateSelect({
                         </div>
 
                         {/* Lista de Resultados */}
-                        <div className="overflow-y-auto p-2 space-y-3">
+                        <div className="overflow-y-auto overflow-x-hidden p-2 space-y-3 w-full custom-scrollbar">
                             {/* Opção para Desmarcar */}
                             <button
                                 type="button"

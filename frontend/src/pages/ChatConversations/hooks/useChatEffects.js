@@ -27,6 +27,9 @@ export function useChatEffects({
     filterLastMessageUnread,
     filterNoPipeline,
     filterNotInPipelineId,
+    filterInPipeline,
+    filterPipelineId,
+    filterPipelineStageId,
     orderBy,
     activeClient,
     setIsSearchMode,
@@ -55,7 +58,7 @@ export function useChatEffects({
     useEffect(() => {
         setSelectAllPages(false);
         if (setExcludedConvoIds) setExcludedConvoIds([]);
-    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, filterNoPipeline, filterNotInPipelineId, orderBy]);
+    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, filterNoPipeline, filterNotInPipelineId, filterInPipeline, filterPipelineId, filterPipelineStageId, orderBy]);
 
     // Polling de conversas e labels
     useEffect(() => {
@@ -66,7 +69,7 @@ export function useChatEffects({
             engine.loadAvailableLabels();
         }, 5000);
         return () => clearInterval(convoInterval);
-    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, activeClient, engine.page, engine.limit, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, filterNoPipeline, filterNotInPipelineId, orderBy]);
+    }, [activeTab, statusFilter, searchQuery, selectedLabelFilter, filterBlockStatus, filterHasNote, filterStartDate, filterEndDate, activeClient, engine.page, engine.limit, filterUnread, filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel, filterLastMessageRead, filterLastMessageUnread, filterNoPipeline, filterNotInPipelineId, filterInPipeline, filterPipelineId, filterPipelineStageId, orderBy]);
 
     // Carregamento de mensagens da conversa selecionada e polling
     useEffect(() => {
@@ -165,7 +168,7 @@ export function useChatEffects({
 
     // Bloqueia scroll do body se algum modal estiver aberto
     useEffect(() => {
-        const isModalOpen = noteAndAi.isNoteModalMaximized || isMaximizedInputOpen || !!noteAndAi.deleteNoteConfirmMsgId || chatOps.isBulkTagModalOpen || noteAndAi.isAiReportModalOpen || showTemplateModal || showFunnelModal || !!engine?.confirmDeleteConvos || !!engine?.mediaPreview || engine?.isClearChatModalOpen;
+        const isModalOpen = noteAndAi?.isNoteModalMaximized || isMaximizedInputOpen || !!noteAndAi?.deleteNoteConfirmMsgId || chatOps?.isBulkTagModalOpen || noteAndAi?.isAiReportModalOpen || showTemplateModal || showFunnelModal || !!engine?.confirmDeleteConvos || !!engine?.mediaPreview || engine?.isClearChatModalOpen;
         if (isModalOpen) {
             const originalOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
@@ -173,5 +176,5 @@ export function useChatEffects({
                 document.body.style.overflow = originalOverflow;
             };
         }
-    }, [noteAndAi.isNoteModalMaximized, isMaximizedInputOpen, noteAndAi.deleteNoteConfirmMsgId, chatOps.isBulkTagModalOpen, noteAndAi.isAiReportModalOpen, showTemplateModal, showFunnelModal, engine?.confirmDeleteConvos, engine?.mediaPreview, engine?.isClearChatModalOpen]);
+    }, [noteAndAi?.isNoteModalMaximized, isMaximizedInputOpen, noteAndAi?.deleteNoteConfirmMsgId, chatOps?.isBulkTagModalOpen, noteAndAi?.isAiReportModalOpen, showTemplateModal, showFunnelModal, engine?.confirmDeleteConvos, engine?.mediaPreview, engine?.isClearChatModalOpen]);
 }

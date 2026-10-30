@@ -101,6 +101,17 @@ class TestInfrastructureService:
         assert "pool_overflow" in db_m
         assert db_m["pool_overflow"] == 20
         assert "occupancy_percent" in db_m
+        assert db_m["occupancy_percent"] <= 100.0
+        assert db_m["in_use"] + db_m["idle_in_pool"] == db_m["pool_total"]
+
+    def test_get_database_metrics_caps_at_pool_total(self):
+        """Garante que conexões de múltiplos processos não distorçam a ocupação do pool acima de 100%."""
+        mock_db = MagicMock()
+        mock_db.execute.return_value.scalar.return_value = 62  # Simula pico de 62 conexões somadas
+        db_m = InfrastructureService.get_database_metrics(mock_db)
+        assert db_m["in_use"] <= db_m["pool_total"]
+        assert db_m["occupancy_percent"] <= 100.0
+        assert db_m["idle_in_pool"] == max(db_m["pool_total"] - db_m["in_use"], 0)
 
     def test_record_and_get_peak_history(self, db_session: Session):
         """Valida o registro de picos e histórico nas últimas 24h."""

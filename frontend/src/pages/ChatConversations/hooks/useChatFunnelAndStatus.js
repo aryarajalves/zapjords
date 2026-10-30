@@ -7,12 +7,76 @@ export function useChatFunnelAndStatus({
   activeClient,
   selectedConvo,
   setSelectedConvo,
+  setConversations,
   loadConversations,
   loadMessages,
   isSending,
   setIsSending,
   setTimeLeft24h
 }) {
+  const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
+
+  const handleMarkAsRead = async (targetConvo = selectedConvo) => {
+    const convoId = targetConvo?.id || selectedConvo?.id;
+    if (!convoId || !activeClient || isMarkingAsRead) return false;
+    setIsMarkingAsRead(true);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/chat/conversations/${convoId}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }, activeClient.id);
+
+      if (res.ok) {
+        toast.success('Conversa marcada como lida!');
+        setSelectedConvo(prev => (prev && prev.id === convoId) ? { ...prev, unread_count: 0 } : prev);
+        if (typeof setConversations === 'function') {
+          setConversations(prev => prev.map(c => c.id === convoId ? { ...c, unread_count: 0 } : c));
+        }
+        await loadConversations();
+        return true;
+      } else {
+        toast.error('Falha ao marcar conversa como lida.');
+        return false;
+      }
+    } catch (err) {
+      toast.error('Erro de conexão ao marcar conversa como lida.');
+      return false;
+    } finally {
+      setIsMarkingAsRead(false);
+    }
+  };
+
+  const handleMarkAsUnread = async (targetConvo = selectedConvo) => {
+    const convoId = targetConvo?.id || selectedConvo?.id;
+    if (!convoId || !activeClient || isMarkingAsRead) return false;
+    setIsMarkingAsRead(true);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/chat/conversations/${convoId}/unread`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }, activeClient.id);
+
+      if (res.ok) {
+        const data = await res.json();
+        const restoredCount = data?.unread_count || 1;
+        toast.success(`Conversa marcada como não lida (${restoredCount})!`);
+        setSelectedConvo(prev => (prev && prev.id === convoId) ? { ...prev, unread_count: restoredCount } : prev);
+        if (typeof setConversations === 'function') {
+          setConversations(prev => prev.map(c => c.id === convoId ? { ...c, unread_count: restoredCount } : c));
+        }
+        await loadConversations();
+        return true;
+      } else {
+        toast.error('Falha ao marcar conversa como não lida.');
+        return false;
+      }
+    } catch (err) {
+      toast.error('Erro de conexão ao marcar conversa como não lida.');
+      return false;
+    } finally {
+      setIsMarkingAsRead(false);
+    }
+  };
   const handleToggleStatus = async () => {
     if (!selectedConvo) return;
     const newStatus = selectedConvo.status === 'open' ? 'resolved' : 'open';
@@ -248,6 +312,9 @@ export function useChatFunnelAndStatus({
   };
 
   return {
+    handleMarkAsRead,
+    handleMarkAsUnread,
+    isMarkingAsRead,
     handleToggleStatus,
     handleToggleArchive,
     handleBulkArchive,

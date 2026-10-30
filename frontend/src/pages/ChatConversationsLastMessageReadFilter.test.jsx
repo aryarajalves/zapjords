@@ -48,7 +48,7 @@ describe('ChatListFilters - Filtros Viu / Não viu última mensagem', () => {
             />
         );
 
-        expect(screen.getByText('Viu última msg').className).toContain('bg-sky-500');
+        expect(screen.getByText('Viu última msg').closest('button').className).toContain('bg-sky-500');
 
         // Clicar em "Não viu última msg"
         fireEvent.click(btnNaoViu);

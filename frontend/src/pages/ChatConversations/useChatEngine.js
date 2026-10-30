@@ -28,6 +28,9 @@ export function useChatEngine({
   filterLastMessageUnread,
   filterNoPipeline,
   filterNotInPipelineId,
+  filterInPipeline,
+  filterPipelineId,
+  filterPipelineStageId,
   orderBy = 'recent',
   selectedConvo,
   setSelectedConvo
@@ -114,6 +117,9 @@ export function useChatEngine({
     filterLastMessageUnread,
     filterNoPipeline,
     filterNotInPipelineId,
+    filterInPipeline,
+    filterPipelineId,
+    filterPipelineStageId,
     orderBy,
     selectedConvo,
     setSelectedConvo
@@ -145,6 +151,9 @@ export function useChatEngine({
 
   // 3. Sub-hook de Funil, Status e Janela de 24h
   const {
+    handleMarkAsRead,
+    handleMarkAsUnread,
+    isMarkingAsRead,
     handleToggleStatus,
     handleToggleArchive,
     handleBulkArchive,
@@ -159,6 +168,7 @@ export function useChatEngine({
     activeClient,
     selectedConvo,
     setSelectedConvo,
+    setConversations,
     loadConversations,
     loadMessages,
     isSending,
@@ -287,6 +297,9 @@ export function useChatEngine({
     getLabelColor,
     loadMessages,
     handleSendMessage,
+    handleMarkAsRead,
+    handleMarkAsUnread,
+    isMarkingAsRead,
     handleToggleStatus,
     handleToggleArchive,
     handleBulkArchive,

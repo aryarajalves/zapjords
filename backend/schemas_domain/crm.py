@@ -38,6 +38,9 @@ class SalesPipelineStageBase(BaseModel):
     webhook_event_trigger: Optional[str] = None
     forward_to_pipeline_id: Optional[int] = None
     forward_to_stage_id: Optional[int] = None
+    is_followup: Optional[bool] = False
+    followup_delay_value: Optional[int] = 3
+    followup_delay_unit: Optional[str] = "hours"
 
 class SalesPipelineStageCreate(SalesPipelineStageBase):
     pipeline_id: int
@@ -50,6 +53,9 @@ class SalesPipelineStageUpdate(BaseModel):
     webhook_event_trigger: Optional[str] = None
     forward_to_pipeline_id: Optional[int] = None
     forward_to_stage_id: Optional[int] = None
+    is_followup: Optional[bool] = None
+    followup_delay_value: Optional[int] = None
+    followup_delay_unit: Optional[str] = None
 
 class SalesPipelineStageResponse(SalesPipelineStageBase):
     id: int
@@ -76,6 +82,8 @@ class SalesDealBase(BaseModel):
     status: Optional[str] = "open"  # open, won, lost
     lost_reason: Optional[str] = None
     notes: Optional[str] = None
+    custom_followup_delay_value: Optional[int] = None
+    custom_followup_delay_unit: Optional[str] = "hours"
 
 class SalesDealCreate(SalesDealBase):
     pipeline_id: int
@@ -95,6 +103,9 @@ class SalesDealUpdate(BaseModel):
     lost_reason: Optional[str] = None
     notes: Optional[str] = None
     stage_id: Optional[int] = None
+    custom_followup_delay_value: Optional[int] = None
+    custom_followup_delay_unit: Optional[str] = None
+    clear_custom_followup: Optional[bool] = False
 
 class SalesDealMove(BaseModel):
     stage_id: int
@@ -131,6 +142,15 @@ class SalesDealResponse(SalesDealBase):
     stage_id: int
     lead_id: Optional[int] = None
     last_interaction_at: Optional[datetime] = None
+    stage_entered_at: Optional[datetime] = None
+    needs_followup: Optional[bool] = None
+    followup_overdue_seconds: Optional[float] = None
+    followup_remaining_seconds: Optional[float] = None
+    conversation_id: Optional[int] = None
+    window_open: Optional[bool] = False
+    window_expires_at: Optional[datetime] = None
+    window_remaining_seconds: Optional[float] = None
+    unread_count: Optional[int] = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -176,6 +196,10 @@ class StageWithDealsResponse(SalesPipelineStageResponse):
     total_deals: int = 0
     total_value: float = 0.0
     percentage: Optional[float] = 0.0
+    followup_overdue_count: Optional[int] = 0
+    window_open_deals: Optional[int] = 0
+    window_open_percentage: Optional[float] = 0.0
+    unread_deals: Optional[int] = 0
 
 class SalesPipelineBoardResponse(BaseModel):
     pipeline: SalesPipelineResponse
@@ -185,6 +209,9 @@ class SalesPipelineBoardResponse(BaseModel):
     total_won_value: float = 0.0
     total_won_deals: int = 0
     conversion_rate: Optional[float] = 0.0
+    total_window_open_deals: Optional[int] = 0
+    window_open_percentage: Optional[float] = 0.0
+    total_unread_deals: Optional[int] = 0
 
 class CrmSyncHistoryResult(BaseModel):
     total_synced: int

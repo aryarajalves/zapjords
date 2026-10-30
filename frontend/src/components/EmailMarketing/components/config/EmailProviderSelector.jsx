@@ -2,6 +2,12 @@ import React from 'react';
 
 const PROVIDERS = [
   {
+    id: 'brevo',
+    title: '📨 Brevo (Sendinblue) API',
+    description: 'Oficial da Brevo. Alta velocidade e entrega via API Key.',
+    colorClass: 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30'
+  },
+  {
     id: 'ses',
     title: '⚡ Amazon SES',
     description: 'Custo ultra baixo ($0.10 / 1.000 e-mails) e alta entregabilidade.',
@@ -33,7 +39,7 @@ export default function EmailProviderSelector({ selectedProvider, onSelectProvid
       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
         Selecione o Provedor
       </label>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {PROVIDERS.map((prov) => {
           const isSelected = selectedProvider === prov.id;
           return (

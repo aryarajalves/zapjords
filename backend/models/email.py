@@ -8,8 +8,11 @@ class EmailConfig(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
-    provider = Column(String(50), default="ses", nullable=False)  # 'ses', 'resend', 'smtp'
+    provider = Column(String(50), default="brevo", nullable=False)  # 'brevo', 'ses', 'resend', 'smtp'
     
+    # Brevo credentials
+    brevo_api_key = Column(String(255), nullable=True)
+
     # Amazon SES credentials
     aws_access_key_id = Column(String(255), nullable=True)
     aws_secret_access_key = Column(String(255), nullable=True)
@@ -90,4 +93,50 @@ class EmailInbound(Base):
     is_read = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class EmailFunnel(Base):
+    __tablename__ = "email_funnels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    trigger_type = Column(String(50), default="tag", nullable=False)  # 'tag', 'webhook_status', 'pipeline_stage', 'manual'
+    trigger_config = Column(JSON, nullable=True)  # {"tag": "xyz"} ou {"status": "pix_gerado"} ou {"stage_id": 1}
+    stop_tags = Column(JSON, nullable=True, default=list)  # ["comprou", "cancelou"]
+    stop_on_purchase = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    steps = Column(JSON, nullable=False, default=list)  # lista sequencial de passos [email, delay, tag]
+    
+    total_enrolled = Column(Integer, default=0)
+    total_completed = Column(Integer, default=0)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    executions = relationship("EmailFunnelExecution", back_populates="funnel", cascade="all, delete-orphan")
+
+
+class EmailFunnelExecution(Base):
+    __tablename__ = "email_funnel_executions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    funnel_id = Column(Integer, ForeignKey("email_funnels.id", ondelete="CASCADE"), nullable=False, index=True)
+    lead_id = Column(Integer, ForeignKey("webhook_leads.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    contact_email = Column(String(255), nullable=False, index=True)
+    contact_name = Column(String(255), nullable=True)
+    current_step_index = Column(Integer, default=0, nullable=False)
+    status = Column(String(50), default="active", nullable=False)  # 'active', 'waiting_delay', 'completed', 'stopped_tag', 'stopped_purchase', 'cancelled', 'failed'
+    
+    scheduled_for = Column(DateTime, nullable=True, index=True)
+    history = Column(JSON, nullable=True, default=list)
+    stop_reason = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    funnel = relationship("EmailFunnel", back_populates="executions")
 

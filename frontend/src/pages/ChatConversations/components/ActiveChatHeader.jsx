@@ -1,8 +1,20 @@
 import React from 'react';
-import { FiX, FiCheckCircle, FiSidebar, FiSlash, FiLayers, FiFileText, FiRefreshCw, FiSearch, FiArchive, FiTag, FiMaximize2, FiMinimize2, FiArrowLeft, FiTrello } from 'react-icons/fi';
-import { BsPinAngle, BsPinAngleFill, BsExclamationCircle, BsExclamationCircleFill, BsStars } from 'react-icons/bs';
+import {
+    FiX,
+    FiCheckCircle,
+    FiSidebar,
+    FiSearch,
+    FiArrowLeft,
+    FiTrello
+} from 'react-icons/fi';
+import {
+    BsPinAngleFill,
+    BsExclamationCircleFill
+} from 'react-icons/bs';
+import { IoCheckmarkDone, IoMailUnreadOutline } from 'react-icons/io5';
 import { getFirstName } from '../../../utils/nameFormatter';
 import ConversationLabelsList from './ConversationLabelsList';
+import ActiveChatMoreActionsMenu from './ActiveChatMoreActionsMenu';
 
 export default function ActiveChatHeader({
     selectedConvo,
@@ -27,15 +39,24 @@ export default function ActiveChatHeader({
 }) {
     if (!selectedConvo) return null;
 
-    const isWindowClosed = !engine.timeLeft24h || engine.timeLeft24h === 'Janela Fechada' || String(engine.timeLeft24h).toLowerCase().includes('fechada');
+    const isWindowClosed =
+        !engine.timeLeft24h ||
+        engine.timeLeft24h === 'Janela Fechada' ||
+        String(engine.timeLeft24h).toLowerCase().includes('fechada');
 
     return (
-        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-white/5 flex justify-between items-center bg-gray-50/20 dark:bg-[#111827]/20 shrink-0">
-            <div className="flex items-center gap-2 min-w-0">
-                {/* Botão Voltar para lista de conversas no mobile */}
+        <div
+            data-testid="active-chat-header"
+            className="p-2.5 sm:px-4 sm:py-3 border-b border-gray-200 dark:border-white/5 flex flex-col sm:flex-row flex-wrap justify-between items-stretch sm:items-center gap-2.5 sm:gap-3 bg-gray-50/20 dark:bg-[#111827]/20 shrink-0 relative z-30"
+        >
+            {/* Lado Esquerdo / Linha Superior no Mobile: Dados do Contato */}
+            <div className="flex items-start sm:items-center gap-2 w-full sm:w-auto flex-1 overflow-hidden">
                 <button
                     type="button"
-                    onClick={() => setSelectedConvo(null)}
+                    onClick={() => {
+                        setIsChatMaximized?.(false);
+                        setSelectedConvo(null);
+                    }}
                     data-testid="chat-mobile-back-btn"
                     className="md:hidden p-2 -ml-1 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-white/5 transition-colors cursor-pointer shrink-0"
                     title="Voltar para a lista de conversas"
@@ -43,30 +64,61 @@ export default function ActiveChatHeader({
                 >
                     <FiArrowLeft size={18} />
                 </button>
-                <div className="min-w-0">
+
+                <div className="min-w-0 flex-1 overflow-hidden">
                     <h3 className="font-bold text-gray-800 dark:text-white text-sm sm:text-base flex items-center gap-2 truncate">
-                        {selectedConvo.contact_name ? getFirstName(selectedConvo.contact_name) : selectedConvo.phone}
-                        <span className="text-xs font-semibold px-2 py-0.5 bg-gray-200/60 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 rounded-lg shrink-0">
+                        <span className="truncate">
+                            {selectedConvo.contact_name ? getFirstName(selectedConvo.contact_name) : selectedConvo.phone}
+                        </span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 bg-gray-200/60 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 rounded-lg shrink-0">
                             ID: {selectedConvo.id}
                         </span>
+                        {selectedConvo.pinned && (
+                            <span
+                                title="Conversa fixada"
+                                className="inline-flex items-center justify-center p-1 rounded-md bg-blue-500/15 text-blue-400 shrink-0"
+                            >
+                                <BsPinAngleFill size={11} />
+                            </span>
+                        )}
+                        {selectedConvo.urgent && (
+                            <span
+                                title="Conversa urgente"
+                                className="inline-flex items-center justify-center p-1 rounded-md bg-red-500/15 text-red-400 shrink-0"
+                            >
+                                <BsExclamationCircleFill size={11} />
+                            </span>
+                        )}
                     </h3>
+
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span
+                            data-testid="chat-header-phone"
+                            className="text-xs font-medium text-gray-600 dark:text-gray-300 tracking-wide whitespace-nowrap"
+                        >
                             {selectedConvo.phone}
                         </span>
+
                         {!showRightSidebar && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5 border transition-colors ${
-                            isWindowClosed
-                                ? 'bg-red-500/15 text-red-500 dark:text-red-400 border-red-500/30'
-                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                        }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isWindowClosed ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
-                            <span className={isWindowClosed ? 'text-red-500 dark:text-red-400' : ''}>
-                                {isWindowClosed ? 'Janela 24h: Janela Fechada' : `Janela 24h: ${engine.timeLeft24h}`}
+                            <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5 border transition-colors ${
+                                    isWindowClosed
+                                        ? 'bg-red-500/15 text-red-500 dark:text-red-400 border-red-500/30'
+                                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                }`}
+                            >
+                                <span
+                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        isWindowClosed ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'
+                                    }`}
+                                />
+                                <span className={isWindowClosed ? 'text-red-500 dark:text-red-400' : ''}>
+                                    {isWindowClosed ? 'Janela 24h: Janela Fechada' : `Janela 24h: ${engine.timeLeft24h}`}
+                                </span>
                             </span>
-                        </span>
-                    )}
-                </div>
+                        )}
+                    </div>
+
                     <ConversationLabelsList
                         labels={selectedConvo.labels}
                         getLabelColor={engine?.getLabelColor}
@@ -76,171 +128,134 @@ export default function ActiveChatHeader({
                     />
                 </div>
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                <button
-                    onClick={handleTogglePin}
-                    title={selectedConvo.pinned ? "Desafixar conversa" : "Fixar conversa"}
-                    className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
-                        selectedConvo.pinned
-                            ? 'bg-blue-600 text-white border-transparent'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                >
-                    {selectedConvo.pinned ? <BsPinAngleFill size={16} /> : <BsPinAngle size={16} />}
-                </button>
 
-                <button
-                    onClick={() => {
-                        exportConversationToDoc(selectedConvo, engine.messages, activeClientId);
-                    }}
-                    title="Exportar Conversa (HTML / PDF)"
-                    className="hidden md:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800/30 transition-all items-center justify-center cursor-pointer"
-                >
-                    <FiFileText size={16} />
-                </button>
+            {/* Lado Direito / Linha Inferior no Mobile: Ações Principais + Menu Flutuante "Mais ações (⋯)" */}
+            <div
+                data-testid="chat-header-actions-row"
+                className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto pt-2 sm:pt-0 border-t border-gray-200/50 dark:border-white/5 sm:border-t-0 shrink-0"
+            >
+                <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-0">
+                    {Number(selectedConvo.unread_count || 0) > 0 ? (
+                        <button
+                            type="button"
+                            data-testid="chat-header-mark-read-btn"
+                            disabled={Boolean(engine.isMarkingAsRead)}
+                            onClick={() => engine.handleMarkAsRead && engine.handleMarkAsRead(selectedConvo)}
+                            title={`Marcar conversa como lida para o seu usuário (${selectedConvo.unread_count} não lida(s))`}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap bg-emerald-600 text-white border-emerald-500/40 hover:bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.28)]"
+                        >
+                            <IoCheckmarkDone size={15} />
+                            <span>Marcar como lida ({selectedConvo.unread_count})</span>
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            data-testid="chat-header-mark-unread-btn"
+                            disabled={Boolean(engine.isMarkingAsRead)}
+                            onClick={() => engine.handleMarkAsUnread && engine.handleMarkAsUnread(selectedConvo)}
+                            title="Marcar conversa como não lida novamente (restaura a quantidade anterior na bolinha)"
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap bg-slate-800/80 hover:bg-amber-500/15 text-slate-300 hover:text-amber-300 border-white/10 hover:border-amber-500/30"
+                        >
+                            <IoMailUnreadOutline size={15} className="text-amber-400" />
+                            <span>Marcar como não lida</span>
+                        </button>
+                    )}
 
-                {isOpenAiConfigured && (
                     <button
-                        onClick={handleAnalyzeSingleChatDoubts}
-                        disabled={isAnalyzingAi}
-                        title="Analisar dúvidas não respondidas pelo agente nesta conversa (IA)"
-                        className="hidden lg:flex px-3 py-1.5 rounded-xl border bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 hover:border-purple-300 transition-all items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer disabled:opacity-50"
+                        type="button"
+                        onClick={engine.handleToggleStatus}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap ${
+                            selectedConvo.status === 'resolved'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                : 'bg-blue-600 text-white border-transparent hover:bg-blue-700'
+                        }`}
                     >
-                        {isAnalyzingAi ? <FiRefreshCw className="animate-spin" size={14} /> : <BsStars size={14} />}
-                        <span>Dúvidas (IA)</span>
+                        <FiCheckCircle size={14} />
+                        <span>{selectedConvo.status === 'resolved' ? 'Resolvida' : 'Resolver'}</span>
                     </button>
-                )}
+                </div>
 
-                <button
-                    onClick={handleToggleUrgent}
-                    title={selectedConvo.urgent ? "Remover urgência" : "Marcar como urgente"}
-                    className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
-                        selectedConvo.urgent
-                            ? 'bg-red-600 text-white border-transparent'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                >
-                    {selectedConvo.urgent ? <BsExclamationCircleFill size={16} /> : <BsExclamationCircle size={16} />}
-                </button>
-
-                {engine.timeLeft24h !== 'Janela Fechada' && (
+                <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                        onClick={() => setShowFunnelModal(true)}
-                        title="Disparar Funil"
-                        className="hidden sm:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer"
+                        type="button"
+                        onClick={() => onOpenCrm && onOpenCrm()}
+                        title="Kanban de Vendas (Mover de Etapa)"
+                        data-testid="chat-header-kanban-btn"
+                        className="hidden sm:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800/30 transition-all cursor-pointer items-center justify-center"
                     >
-                        <FiLayers size={16} />
+                        <FiTrello size={16} />
                     </button>
-                )}
 
-                <button
-                    type="button"
-                    onClick={() => onOpenCrm && onOpenCrm()}
-                    title="Kanban de Vendas (Mover de Etapa)"
-                    data-testid="chat-header-kanban-btn"
-                    className="hidden sm:flex p-2 rounded-xl border bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800/30 transition-all cursor-pointer items-center justify-center"
-                >
-                    <FiTrello size={16} />
-                </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowRightSidebar(true);
+                            if (setIsSearchMode) setIsSearchMode(prev => !prev);
+                        }}
+                        title="Pesquisar mensagens nesta conversa"
+                        className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
+                            isSearchMode && showRightSidebar
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800/30'
+                        }`}
+                    >
+                        <FiSearch size={16} />
+                    </button>
 
-                <button
-                    onClick={() => {
-                        if (selectedConvo.block_status === 'blocked' || selectedConvo.block_status === 'resting') {
-                            handleUnblockContact();
-                        } else {
-                            engine.setIsBlockModalOpen(true);
-                        }
-                    }}
-                    title={
-                        selectedConvo.block_status === 'blocked'
-                            ? 'Contato bloqueado permanentemente — clique para desbloquear'
-                            : selectedConvo.block_status === 'resting'
-                            ? 'Contato em repouso temporário — clique para remover do repouso'
-                            : 'Bloquear ou colocar em repouso'
-                    }
-                    className={`hidden md:flex p-2 rounded-xl border transition-all cursor-pointer ${
-                        selectedConvo.block_status === 'blocked'
-                            ? 'bg-red-500/10 border-red-500/30 text-red-500'
-                            : selectedConvo.block_status === 'resting'
-                            ? 'bg-orange-500/10 border-orange-500/30 text-orange-500'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:border-orange-200 dark:hover:border-orange-800/30'
-                    }`}
-                >
-                    <FiSlash size={16} />
-                </button>
+                    <ActiveChatMoreActionsMenu
+                        selectedConvo={selectedConvo}
+                        engine={engine}
+                        isOpenAiConfigured={isOpenAiConfigured}
+                        isAnalyzingAi={isAnalyzingAi}
+                        handleAnalyzeSingleChatDoubts={handleAnalyzeSingleChatDoubts}
+                        setShowFunnelModal={setShowFunnelModal}
+                        handleTogglePin={handleTogglePin}
+                        handleToggleUrgent={handleToggleUrgent}
+                        exportConversationToDoc={exportConversationToDoc}
+                        activeClientId={activeClientId}
+                        handleUnblockContact={handleUnblockContact}
+                        isChatMaximized={isChatMaximized}
+                        setIsChatMaximized={setIsChatMaximized}
+                        onOpenCrm={onOpenCrm}
+                        setShowRightSidebar={setShowRightSidebar}
+                        setIsSearchMode={setIsSearchMode}
+                    />
 
-                <button
-                    onClick={engine.handleToggleStatus}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
-                        selectedConvo.status === 'resolved'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                            : 'bg-blue-600 text-white border-transparent hover:bg-blue-700'
-                    }`}
-                >
-                    <FiCheckCircle size={14} />
-                    {selectedConvo.status === 'resolved' ? 'Resolvida' : 'Resolver'}
-                </button>
+                    <button
+                        type="button"
+                        data-testid="toggle-chat-details-btn"
+                        onClick={() => {
+                            if (isChatMaximized && !showRightSidebar) {
+                                setIsChatMaximized?.(false);
+                                setShowRightSidebar(true);
+                            } else {
+                                setShowRightSidebar(!showRightSidebar);
+                            }
+                        }}
+                        title={showRightSidebar ? 'Fechar detalhes' : 'Abrir detalhes'}
+                        className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                            showRightSidebar
+                                ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                                : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                        <FiSidebar size={16} />
+                    </button>
 
-                <button
-                    onClick={() => engine.handleToggleArchive && engine.handleToggleArchive()}
-                    title={selectedConvo.status === 'archived' ? "Desarquivar conversa" : "Arquivar conversa"}
-                    className={`hidden md:flex p-2 rounded-xl border transition-all cursor-pointer ${
-                        selectedConvo.status === 'archived'
-                            ? 'bg-amber-500/20 text-amber-500 dark:text-amber-400 border-amber-500/40 shadow-sm'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 dark:hover:border-amber-800/30'
-                    }`}
-                >
-                    <FiArchive size={16} />
-                </button>
-
-                <button
-                    onClick={() => {
-                        setShowRightSidebar(true);
-                        if (setIsSearchMode) setIsSearchMode(prev => !prev);
-                    }}
-                    title="Pesquisar mensagens nesta conversa"
-                    className={`hidden sm:flex p-2 rounded-xl border transition-all cursor-pointer ${
-                        isSearchMode && showRightSidebar
-                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800/30'
-                    }`}
-                >
-                    <FiSearch size={16} />
-                </button>
-
-                <button
-                    onClick={() => setIsChatMaximized?.(!isChatMaximized)}
-                    title={isChatMaximized ? "Restaurar layout" : "Maximizar conversa"}
-                    className={`hidden lg:flex p-2 rounded-xl border transition-all cursor-pointer ${
-                        isChatMaximized
-                            ? 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 dark:hover:border-amber-800/30'
-                    }`}
-                >
-                    {isChatMaximized ? <FiMinimize2 size={16} /> : <FiMaximize2 size={16} />}
-                </button>
-
-                <button
-                    data-testid="toggle-chat-details-btn"
-                    onClick={() => setShowRightSidebar(!showRightSidebar)}
-                    title={showRightSidebar ? "Fechar detalhes" : "Abrir detalhes"}
-                    className={`p-2 rounded-xl border transition-all ${
-                        showRightSidebar
-                            ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
-                            : 'bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                >
-                    <FiSidebar size={16} />
-                </button>
-
-                <button
-                    onClick={() => setSelectedConvo(null)}
-                    title="Fechar conversa"
-                    aria-label="Fechar conversa"
-                    className="p-2 rounded-xl border transition-all bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800/30 flex items-center justify-center"
-                >
-                    <FiX size={16} />
-                </button>
+                    <button
+                        type="button"
+                        data-testid="chat-header-close-btn"
+                        onClick={() => {
+                            setIsChatMaximized?.(false);
+                            setSelectedConvo(null);
+                        }}
+                        title="Fechar conversa"
+                        aria-label="Fechar conversa"
+                        className="p-2 rounded-xl border transition-all bg-white dark:bg-[#1e293b] border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800/30 flex items-center justify-center cursor-pointer"
+                    >
+                        <FiX size={16} />
+                    </button>
+                </div>
             </div>
         </div>
     );

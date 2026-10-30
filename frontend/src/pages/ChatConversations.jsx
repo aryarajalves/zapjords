@@ -50,6 +50,9 @@ export default function ChatConversations({ onClose, onNavigate }) {
         filterLastMessageUnread, setFilterLastMessageUnread,
         filterNoPipeline, setFilterNoPipeline,
         filterNotInPipelineId, setFilterNotInPipelineId,
+        filterInPipeline, setFilterInPipeline,
+        filterPipelineId, setFilterPipelineId,
+        filterPipelineStageId, setFilterPipelineStageId,
         filterBlockStatus, setFilterBlockStatus,
         filterStartDate, setFilterStartDate,
         filterEndDate, setFilterEndDate,
@@ -78,6 +81,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
 
     const [isCrmModalOpen, setIsCrmModalOpen] = useState(false);
     const [isBulkPipelineModalOpen, setIsBulkPipelineModalOpen] = useState(false);
+    const [isBulkTemplateModalOpen, setIsBulkTemplateModalOpen] = useState(false);
 
     const filterParams = {
         tab: activeTab,
@@ -98,6 +102,9 @@ export default function ChatConversations({ onClose, onNavigate }) {
         last_message_unread_only: filterLastMessageUnread || undefined,
         no_pipeline: filterNoPipeline || undefined,
         not_in_pipeline_id: filterNotInPipelineId || undefined,
+        in_pipeline: filterInPipeline || undefined,
+        pipeline_id: filterPipelineId || undefined,
+        pipeline_stage_id: filterPipelineStageId || undefined,
         order_by: orderBy || undefined
     };
 
@@ -108,6 +115,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
         filterWindowOpen, filterTemplate24h, filterUrgent, filterHasReplied, filterHasActiveFunnel,
         filterLastMessageRead, filterLastMessageUnread,
         filterNoPipeline, filterNotInPipelineId,
+        filterInPipeline, filterPipelineId, filterPipelineStageId,
         orderBy, selectedConvo, setSelectedConvo
     });
 
@@ -157,6 +165,9 @@ export default function ChatConversations({ onClose, onNavigate }) {
         filterLastMessageUnread,
         filterNoPipeline,
         filterNotInPipelineId,
+        filterInPipeline,
+        filterPipelineId,
+        filterPipelineStageId,
         orderBy,
         activeClient,
         setIsSearchMode,
@@ -201,6 +212,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
                 setIsCrmModalOpen={setIsCrmModalOpen}
                 isBulkPipelineModalOpen={isBulkPipelineModalOpen}
                 setIsBulkPipelineModalOpen={setIsBulkPipelineModalOpen}
+                isBulkTemplateModalOpen={isBulkTemplateModalOpen}
+                setIsBulkTemplateModalOpen={setIsBulkTemplateModalOpen}
                 filterParams={filterParams}
             />
 
@@ -213,7 +226,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                 />
 
                 <div className="flex flex-1 min-h-0 bg-white dark:bg-[#1e293b] overflow-hidden">
-                {!isChatMaximized && (
+                {(!isChatMaximized || !selectedConvo) && (
                     <div className={`h-full shrink-0 ${selectedConvo ? 'hidden md:flex' : 'flex w-full md:w-auto'}`}>
                         <ChatListSidebar
                             activeTab={activeTab}
@@ -248,6 +261,12 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             setFilterNoPipeline={setFilterNoPipeline}
                             filterNotInPipelineId={filterNotInPipelineId}
                             setFilterNotInPipelineId={setFilterNotInPipelineId}
+                            filterInPipeline={filterInPipeline}
+                            setFilterInPipeline={setFilterInPipeline}
+                            filterPipelineId={filterPipelineId}
+                            setFilterPipelineId={setFilterPipelineId}
+                            filterPipelineStageId={filterPipelineStageId}
+                            setFilterPipelineStageId={setFilterPipelineStageId}
                             filterBlockStatus={filterBlockStatus}
                             setFilterBlockStatus={setFilterBlockStatus}
                             filterStartDate={filterStartDate}
@@ -265,6 +284,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             setExcludedConvoIds={setExcludedConvoIds}
                             setIsBulkTagModalOpen={chatOps.setIsBulkTagModalOpen}
                             setIsBulkPipelineModalOpen={setIsBulkPipelineModalOpen}
+                            setIsBulkTemplateModalOpen={setIsBulkTemplateModalOpen}
                             handleBulkUnblock={chatOps.handleBulkUnblock}
                             isOpenAiConfigured={noteAndAi.isOpenAiConfigured}
                             isAnalyzingAi={noteAndAi.isAnalyzingAi}

@@ -23,6 +23,9 @@ export function useChatConversationsFetch({
   filterLastMessageUnread,
   filterNoPipeline,
   filterNotInPipelineId,
+  filterInPipeline,
+  filterPipelineId,
+  filterPipelineStageId,
   orderBy = 'recent',
   selectedConvo,
   setSelectedConvo
@@ -65,6 +68,9 @@ export function useChatConversationsFetch({
     filterLastMessageUnread,
     filterNoPipeline,
     filterNotInPipelineId,
+    filterInPipeline,
+    filterPipelineId,
+    filterPipelineStageId,
     orderBy
   ]);
 
@@ -108,6 +114,9 @@ export function useChatConversationsFetch({
       if (filterLastMessageUnread) url.searchParams.append('last_message_unread_only', 'true');
       if (filterNoPipeline) url.searchParams.append('no_pipeline', 'true');
       if (filterNotInPipelineId) url.searchParams.append('not_in_pipeline_id', String(filterNotInPipelineId));
+      if (filterInPipeline) url.searchParams.append('in_pipeline', 'true');
+      if (filterPipelineId) url.searchParams.append('pipeline_id', String(filterPipelineId));
+      if (filterPipelineStageId) url.searchParams.append('pipeline_stage_id', String(filterPipelineStageId));
       if (orderBy) url.searchParams.append('order_by', orderBy);
 
       const res = await fetchWithAuth(url.toString(), {}, activeClient.id);
@@ -126,6 +135,7 @@ export function useChatConversationsFetch({
             updated.last_contact_message_at !== prev.last_contact_message_at ||
             updated.last_message_content !== prev.last_message_content ||
             updated.status !== prev.status ||
+            updated.unread_count !== prev.unread_count ||
             JSON.stringify(updated.labels || []) !== JSON.stringify(prev.labels || [])
           ) {
             return { ...prev, ...updated };

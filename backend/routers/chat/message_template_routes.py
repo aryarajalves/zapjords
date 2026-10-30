@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 import models
 from core.deps import get_db, get_current_user
 from core.logger import setup_logger
-from .common import get_client_id
+from .common import get_client_id, mark_conversation_read_for_user, mark_conversation_read_for_all, get_user_display_name
 
 logger = setup_logger("ChatRouter.Messages.Template")
 
@@ -143,7 +143,7 @@ async def send_chat_template(
 
     convo.last_message_content = content
     convo.last_message_at = datetime.now(timezone.utc)
-    convo.unread_count = 0
+    mark_conversation_read_for_all(convo)
     db.commit()
     db.refresh(new_message)
 
@@ -187,12 +187,16 @@ async def send_chat_template(
     except Exception as e_mem:
         logger.error(f"⚠️ [CHAT_TEMPLATE] Falha ao enviar para o webhook de memória: {e_mem}")
 
+    sender_name = get_user_display_name(current_user)
+
     try:
         from rabbitmq_client import rabbitmq
         payload_ws = {
             "id": new_message.id,
             "conversation_id": new_message.conversation_id,
             "sender_type": new_message.sender_type,
+            "user_id": new_message.user_id,
+            "sender_name": sender_name,
             "message_type": new_message.message_type,
             "content": new_message.content,
             "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else datetime.now().isoformat(),
@@ -202,6 +206,18 @@ async def send_chat_template(
             "client_id": client_id
         }
         await rabbitmq.publish_event("new_message", payload_ws)
+
+        try:
+            await rabbitmq.publish_event("conversation_updated", {
+                "id": convo.id,
+                "client_id": client_id,
+                "unread_count": 0,
+                "user_read_states": {},
+                "last_message_content": convo.last_message_content,
+                "last_message_at": convo.last_message_at.isoformat() if convo.last_message_at else None
+            })
+        except Exception as e_up:
+            logger.error(f"Erro no broadcast de conversation_updated no template: {e_up}")
     except Exception as e_ws:
         logger.error(f"Erro no broadcast de template enviado: {e_ws}")
 
@@ -210,6 +226,7 @@ async def send_chat_template(
         "conversation_id": new_message.conversation_id,
         "sender_type": new_message.sender_type,
         "user_id": new_message.user_id,
+        "sender_name": sender_name,
         "message_type": new_message.message_type,
         "content": new_message.content,
         "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else datetime.now().isoformat(),

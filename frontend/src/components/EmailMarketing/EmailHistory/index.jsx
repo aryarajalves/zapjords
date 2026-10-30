@@ -4,6 +4,7 @@ import EmailHistoryHeader from './EmailHistoryHeader';
 import EmailHistoryFilters from './EmailHistoryFilters';
 import EmailHistoryTable, { StatusBadge, formatDate } from './EmailHistoryTable';
 import DeleteDispatchModal from './DeleteDispatchModal';
+import EmailDispatchContactsModal from './EmailDispatchContactsModal';
 
 export {
   useEmailHistory,
@@ -11,11 +12,13 @@ export {
   EmailHistoryFilters,
   EmailHistoryTable,
   DeleteDispatchModal,
+  EmailDispatchContactsModal,
   StatusBadge,
   formatDate
 };
 
 export default function EmailHistoryTab() {
+  const [viewingContactsDispatch, setViewingContactsDispatch] = React.useState(null);
   const {
     history,
     loading,
@@ -77,6 +80,7 @@ export default function EmailHistoryTab() {
         currentHistory={currentHistory}
         clearFilters={clearFilters}
         setDeleteTarget={setDeleteTarget}
+        onViewContacts={setViewingContactsDispatch}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         totalPages={totalPages}
@@ -89,6 +93,11 @@ export default function EmailHistoryTab() {
         setDeleteTarget={setDeleteTarget}
         deleting={deleting}
         handleDeleteDispatch={handleDeleteDispatch}
+      />
+
+      <EmailDispatchContactsModal
+        dispatch={viewingContactsDispatch}
+        onClose={() => setViewingContactsDispatch(null)}
       />
     </div>
   );

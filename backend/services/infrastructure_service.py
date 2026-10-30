@@ -85,20 +85,19 @@ class InfrastructureService:
             pool_overflow = pool._max_overflow if pool and hasattr(pool, '_max_overflow') else 20
             pool_total = pool_base + pool_overflow
 
-            checkedout = pool.checkedout() if pool and hasattr(pool, 'checkedout') else 0
-            overflow_in_use = pool.overflow() if pool and hasattr(pool, 'overflow') else 0
-            checkedin = pool.checkedin() if pool and hasattr(pool, 'checkedin') else 5
+            checkedout = max(pool.checkedout(), 0) if pool and hasattr(pool, 'checkedout') else 0
 
-            # Conexões ativas no PostgreSQL
+            # Conexões ativas no PostgreSQL (apenas queries em execução ou transações ativas, sem somar overflow duplicado)
             pg_active_connections = 0
             try:
-                res = db.execute(text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state != 'idle'")).scalar()
+                res = db.execute(text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state IN ('active', 'idle in transaction')")).scalar()
                 pg_active_connections = int(res or 0)
             except Exception:
-                pg_active_connections = checkedout + overflow_in_use
+                pg_active_connections = checkedout
 
-            connections_in_use = max(checkedout + overflow_in_use, pg_active_connections, 1)
-            occupancy_percent = round((connections_in_use / pool_total) * 100, 1)
+            connections_in_use = min(max(checkedout, pg_active_connections, 1), pool_total)
+            occupancy_percent = round(min((connections_in_use / pool_total) * 100, 100.0), 1)
+            idle_in_pool = max(pool_total - connections_in_use, 0)
 
             pool_status = "Saudável" if occupancy_percent < 60 else ("Alerta" if occupancy_percent < 85 else "Crítico")
 
@@ -107,7 +106,7 @@ class InfrastructureService:
                 "pool_total": pool_total,
                 "pool_base": pool_base,
                 "pool_overflow": pool_overflow,
-                "idle_in_pool": max(checkedin, 0),
+                "idle_in_pool": idle_in_pool,
                 "occupancy_percent": occupancy_percent,
                 "status": pool_status
             }
@@ -187,10 +186,12 @@ class InfrastructureService:
         max_conn_time = format_brasilia_time(b_now)
 
         for l in recent_logs:
+            capped_peak = min(l.peak_connections, db_metrics["pool_total"])
+            capped_occ = round(min((capped_peak / db_metrics["pool_total"]) * 100, 100.0), 1)
             history_rows.append({
                 "period": l.hour_period,
-                "peak_connections": f"{l.peak_connections} ativas",
-                "occupancy_percent": f"{l.occupancy_percent}%",
+                "peak_connections": f"{capped_peak} ativas",
+                "occupancy_percent": f"{capped_occ}%",
                 "status": l.status
             })
             if l.peak_ram_percent > max_ram_pct:
@@ -200,8 +201,8 @@ class InfrastructureService:
             if l.peak_cpu_percent > max_cpu_pct:
                 max_cpu_pct = l.peak_cpu_percent
                 max_cpu_time = format_brasilia_time(l.timestamp)
-            if l.peak_connections > max_conn_today:
-                max_conn_today = l.peak_connections
+            if capped_peak > max_conn_today:
+                max_conn_today = capped_peak
                 max_conn_time = format_brasilia_time(l.timestamp)
 
         # Se tiver poucos registros (banco novo), completa com horas anteriores vazias para UI ficar idêntica

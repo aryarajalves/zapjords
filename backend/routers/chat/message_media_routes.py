@@ -12,7 +12,7 @@ from core.deps import get_db, get_current_user
 from core.logger import setup_logger
 from core.security import SECRET_KEY, ALGORITHM
 from config_loader import get_setting
-from .common import get_client_id
+from .common import get_client_id, mark_conversation_read_for_user, mark_conversation_read_for_all, get_user_display_name
 
 logger = setup_logger("ChatRouter.Messages.Media")
 
@@ -385,9 +385,11 @@ async def send_chat_media_message(
     db.add(new_message)
 
     convo.last_message_content = content_text
-    convo.unread_count = 0
+    mark_conversation_read_for_all(convo)
     convo.last_message_at = datetime.now(timezone.utc)
     db.commit()
+
+    sender_name = get_user_display_name(current_user)
 
     try:
         from rabbitmq_client import rabbitmq
@@ -395,6 +397,8 @@ async def send_chat_media_message(
             "id": new_message.id,
             "conversation_id": new_message.conversation_id,
             "sender_type": new_message.sender_type,
+            "user_id": new_message.user_id,
+            "sender_name": sender_name,
             "message_type": new_message.message_type,
             "content": new_message.content,
             "media_url": new_message.media_url,
@@ -404,6 +408,18 @@ async def send_chat_media_message(
             "client_id": client_id
         }
         await rabbitmq.publish_event("new_message", payload_ws)
+
+        try:
+            await rabbitmq.publish_event("conversation_updated", {
+                "id": convo.id,
+                "client_id": client_id,
+                "unread_count": 0,
+                "user_read_states": {},
+                "last_message_content": convo.last_message_content,
+                "last_message_at": convo.last_message_at.isoformat() if convo.last_message_at else None
+            })
+        except Exception as e_up:
+            logger.error(f"Erro no broadcast de conversation_updated na mídia: {e_up}")
     except Exception as e_ws:
         logger.error(f"Erro no broadcast de mídia enviada: {e_ws}")
 
@@ -412,6 +428,7 @@ async def send_chat_media_message(
         "conversation_id": new_message.conversation_id,
         "sender_type": new_message.sender_type,
         "user_id": new_message.user_id,
+        "sender_name": sender_name,
         "message_type": new_message.message_type,
         "content": new_message.content,
         "media_url": new_message.media_url,

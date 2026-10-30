@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { FiSend } from 'react-icons/fi';
 import { BsPinAngleFill, BsStarFill } from 'react-icons/bs';
 import { IoCheckmarkDone } from 'react-icons/io5';
+import { useAuth } from '../../../AuthContext';
 import { renderLinkedText } from '../utils/linkifyText';
 import SystemMessageBubble from './SystemMessageBubble';
 import {
@@ -17,7 +18,7 @@ import {
     getReactionsList
 } from './ChatMessageBubble/index';
 
-export default function ChatMessageBubble({
+const ChatMessageBubble = React.memo(function ChatMessageBubble({
     msg,
     selectedConvo,
     allMessages = [],
@@ -45,6 +46,44 @@ export default function ChatMessageBubble({
     const isHighlighted = highlightedMsgId === msg.id;
     const touchTimerRef = useRef(null);
     const [isRetryingTemplate, setIsRetryingTemplate] = useState(false);
+
+    let authUser = null;
+    try {
+        const auth = useAuth();
+        authUser = auth?.user || null;
+    } catch {
+        authUser = null;
+    }
+    const currentUser = authUser || engine?.currentUser || null;
+
+    const resolveSenderLabel = () => {
+        if (!isMe) return null;
+        if (msg.user_id != null && currentUser?.id != null) {
+            if (Number(msg.user_id) === Number(currentUser.id)) {
+                return 'Eu';
+            }
+            const explicitName = msg.sender_name || msg.user_name || msg.meta_data?.sender_name;
+            if (explicitName) return explicitName;
+            if (Array.isArray(engine?.availableAgents)) {
+                const agent = engine.availableAgents.find(a => Number(a.id) === Number(msg.user_id));
+                if (agent) return agent.full_name || agent.email || 'Atendente';
+            }
+            return 'Atendente';
+        }
+        const explicitName = msg.sender_name || msg.user_name || msg.meta_data?.sender_name;
+        if (explicitName) {
+            if (currentUser && (explicitName === currentUser.full_name || explicitName === currentUser.email)) {
+                return 'Eu';
+            }
+            return explicitName;
+        }
+        if (msg.user_id == null && (msg.meta_data?.is_template || msg.meta_data?.funnel_id || msg.meta_data?.trigger_id || msg.meta_data?.is_automation)) {
+            return 'Automação';
+        }
+        return 'Eu';
+    };
+
+    const senderLabel = resolveSenderLabel();
 
     const handleRetry = async (targetMsg) => {
         setIsRetryingTemplate(true);
@@ -127,6 +166,19 @@ export default function ChatMessageBubble({
                     chatInputRef={chatInputRef}
                     onOpenContextMenu={onOpenContextMenu}
                 />
+
+                {/* Identificação interna de quem enviou a mensagem (invisível ao contato final) */}
+                {isMe && senderLabel && (
+                    <div
+                        data-testid="message-sender-label"
+                        className="flex items-center justify-between gap-2 mb-1 pb-0.5 border-b border-white/10 text-[11px] font-bold tracking-wide text-blue-100/95 select-none"
+                    >
+                        <span className="flex items-center gap-1.5 truncate">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />
+                            <span>{senderLabel}</span>
+                        </span>
+                    </div>
+                )}
 
                 {/* Citação de mensagem respondida (Quote Box) */}
                 <MessageQuotedBox
@@ -242,4 +294,6 @@ export default function ChatMessageBubble({
             </div>
         </div>
     );
-}
+});
+
+export default ChatMessageBubble;

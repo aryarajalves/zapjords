@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiCheckSquare, FiSquare, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
+import { FiCheckSquare, FiSquare, FiEdit2, FiTrash2, FiX, FiSend } from 'react-icons/fi';
 
 export function BulkActionsBar({
     selectedCount,
@@ -9,7 +9,8 @@ export function BulkActionsBar({
     onClearSelection,
     onSelectStage,
     onOpenBulkEdit,
-    onOpenBulkDelete
+    onOpenBulkDelete,
+    onOpenBulkTemplate
 }) {
     if (!selectedCount || selectedCount <= 0) return null;
 
@@ -97,6 +98,19 @@ export function BulkActionsBar({
 
             {/* Lado Direito: Ações em Massa */}
             <div className="flex items-center gap-2">
+                {onOpenBulkTemplate && (
+                    <button
+                        type="button"
+                        data-testid="kanban-bulk-template-btn"
+                        onClick={onOpenBulkTemplate}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-black transition-all cursor-pointer shadow-sm hover:shadow-emerald-500/10"
+                        title="Disparar template do WhatsApp para os contatos selecionados"
+                    >
+                        <FiSend size={13} />
+                        <span>Disparar Template</span>
+                    </button>
+                )}
+
                 <button
                     type="button"
                     onClick={onOpenBulkEdit}

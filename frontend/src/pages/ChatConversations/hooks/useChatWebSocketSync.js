@@ -39,7 +39,7 @@ export function useChatWebSocketSync({
               const msg = payload.id ? payload : (data.payload || data);
               const convoId = Number(msg.conversation_id);
 
-              // 1. Atualiza lista de conversas
+              // 1. Atualiza lista de conversas (incrementa não lidas mesmo se a conversa estiver aberta, pois exige confirmação manual ou resposta)
               setConversations(prev => {
                 const index = prev.findIndex(c => Number(c.id) === convoId);
                 if (index !== -1) {
@@ -47,8 +47,10 @@ export function useChatWebSocketSync({
                   const target = { ...updated[index] };
                   target.last_message_content = msg.content || (msg.media_url ? '[Mídia]' : '');
                   target.last_message_at = msg.timestamp || new Date().toISOString();
-                  if (Number(selectedConvo?.id) !== convoId && msg.sender_type === 'contact') {
+                  if (msg.sender_type === 'contact') {
                     target.unread_count = (target.unread_count || 0) + 1;
+                  } else if (msg.sender_type === 'user') {
+                    target.unread_count = 0;
                   }
                   updated.splice(index, 1);
                   return [target, ...updated];
@@ -60,6 +62,11 @@ export function useChatWebSocketSync({
               if (selectedConvo?.id && Number(selectedConvo.id) === convoId) {
                 setMessages(prev => appendOrUpdateMessage(prev, msg));
                 setShouldScrollToBottom(true);
+                if (msg.sender_type === 'contact') {
+                  setSelectedConvo(prev => prev ? { ...prev, unread_count: (prev.unread_count || 0) + 1 } : prev);
+                } else if (msg.sender_type === 'user') {
+                  setSelectedConvo(prev => prev ? { ...prev, unread_count: 0 } : prev);
+                }
 
                 // SE tiver mídia, link, documento ou anotação privada, atualiza mediaData na hora!
                 const isMediaMsg = msg.media_url ||

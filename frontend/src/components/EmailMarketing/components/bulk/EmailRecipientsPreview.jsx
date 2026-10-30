@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FiUsers, FiChevronDown, FiAlertTriangle, FiSearch, FiMail } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiUsers, FiChevronDown, FiAlertTriangle, FiSearch, FiMail, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 export default function EmailRecipientsPreview({
   recipients,
@@ -7,6 +7,12 @@ export default function EmailRecipientsPreview({
 }) {
   const [showRecipientsList, setShowRecipientsList] = useState(true);
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [recipientSearch, recipients]);
 
   const filteredRecipients = recipients.filter(r => {
     const q = recipientSearch.toLowerCase().trim();
@@ -16,6 +22,11 @@ export default function EmailRecipientsPreview({
       (r.name && r.name.toLowerCase().includes(q))
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecipients.length / PAGE_SIZE));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, filteredRecipients.length);
+  const paginatedRecipients = filteredRecipients.slice(startIndex, endIndex);
 
   return (
     <div className="mt-3 bg-white dark:bg-slate-800/90 rounded-xl border border-gray-200 dark:border-white/10 p-3 shadow-inner space-y-3">
@@ -69,10 +80,10 @@ export default function EmailRecipientsPreview({
               </div>
             )}
 
-            {/* Lista scrollável de e-mails */}
-            <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/40 pr-1">
-              {filteredRecipients.map(r => (
-                <div key={r.id} className="py-1.5 flex items-center justify-between text-xs">
+            {/* Lista de e-mails paginada (20 por página) */}
+            <div className="divide-y divide-gray-100 dark:divide-gray-700/40 pr-1">
+              {paginatedRecipients.map(r => (
+                <div key={r.id || r.email} className="py-1.5 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 truncate">
                     <FiMail className="text-blue-400 shrink-0" size={12} />
                     <span className="font-bold text-gray-800 dark:text-white truncate">{r.email}</span>
@@ -88,6 +99,38 @@ export default function EmailRecipientsPreview({
                 </div>
               ))}
             </div>
+
+            {/* Barra de Paginação dos Contatos (20 por vez) */}
+            {filteredRecipients.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700/40 text-[11px] text-gray-500">
+                <span>
+                  Exibindo {startIndex + 1} a {endIndex} de {filteredRecipients.length}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Página anterior"
+                  >
+                    <FiChevronLeft size={14} />
+                  </button>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Próxima página"
+                  >
+                    <FiChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )
       )}

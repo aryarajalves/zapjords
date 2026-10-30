@@ -452,3 +452,205 @@ def test_email_history_after_dispatch_contains_record(app_client, auth_headers, 
     assert campanha is not None
     assert campanha["total_sent"] == 1
     assert campanha["status"] == "completed"
+
+
+def test_save_and_get_email_config_brevo(app_client, auth_headers):
+    """Deve salvar e recuperar configuração da Brevo com API Key mascarada/decifrada."""
+    payload = {
+        "provider": "brevo",
+        "from_email": "contato@empresa.com",
+        "from_name": "Empresa Brevo",
+        "brevo_api_key": "xkeysib-1234567890abcdef"
+    }
+    resp = app_client.post("/api/email/config", json=payload, headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+
+    # Verificar get config
+    resp_get = app_client.get("/api/email/config", headers=auth_headers)
+    assert resp_get.status_code == 200
+    data = resp_get.json()
+    assert data["configured"] is True
+    assert data["config"]["provider"] == "brevo"
+    assert data["config"]["from_email"] == "contato@empresa.com"
+    assert data["config"]["has_brevo_key"] is True
+
+
+def test_send_bulk_brevo_api(app_client, auth_headers, db, client_obj):
+    """Deve realizar disparo em massa usando o provedor Brevo."""
+    cfg = EmailConfig(
+        client_id=client_obj.id,
+        provider="brevo",
+        brevo_api_key="encrypted_key",
+        from_email="noreply@brevo.com",
+        from_name="ZapVoice Brevo"
+    )
+    db.add(cfg)
+    tmpl = EmailTemplate(
+        client_id=client_obj.id,
+        name="Template Brevo",
+        subject="Disparo Brevo {{nome}}",
+        body_html="<p>Olá {{nome}}, oferta especial!</p>"
+    )
+    db.add(tmpl)
+    lead = WebhookLead(
+        client_id=client_obj.id,
+        phone="5511999990001",
+        name="Cliente Brevo",
+        email="cliente@brevo.com",
+        tags="lead_brevo"
+    )
+    db.add(lead)
+    db.commit()
+
+    payload = {
+        "template_id": tmpl.id,
+        "title": "Campanha Brevo",
+        "tag_name": "lead_brevo"
+    }
+
+    with patch("routers.email_marketing.send_single_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"success": True, "message_id": "brevo_123"}
+        resp = app_client.post("/api/email/send-bulk", json=payload, headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["total_sent"] == 1
+        assert mock_send.call_count == 1
+
+
+def test_send_bulk_kanban_audience(app_client, auth_headers, db, client_obj):
+    """Deve disparar e-mail para contatos originados do Kanban de Vendas."""
+    from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal
+
+    pipeline = SalesPipeline(client_id=client_obj.id, name="Funil Teste Email")
+    db.add(pipeline)
+    db.commit()
+    db.refresh(pipeline)
+
+    stage = SalesPipelineStage(pipeline_id=pipeline.id, client_id=client_obj.id, name="Proposta", order_index=0)
+    db.add(stage)
+    db.commit()
+    db.refresh(stage)
+
+    deal = SalesDeal(
+        client_id=client_obj.id,
+        pipeline_id=pipeline.id,
+        stage_id=stage.id,
+        contact_name="Lead Kanban Deal",
+        contact_email="leaddeal@kanban.com",
+        contact_phone="5511988887777",
+        title="Oportunidade VIP"
+    )
+    db.add(deal)
+
+    cfg = EmailConfig(
+        client_id=client_obj.id,
+        provider="brevo",
+        from_email="crm@empresa.com",
+        from_name="CRM Brevo"
+    )
+    db.add(cfg)
+    tmpl = EmailTemplate(
+        client_id=client_obj.id,
+        name="Template Kanban",
+        subject="Proposta Enviada",
+        body_html="<p>Aqui está sua proposta</p>"
+    )
+    db.add(tmpl)
+    db.commit()
+
+    payload = {
+        "template_id": tmpl.id,
+        "title": "Disparo Funil CRM",
+        "audience_type": "kanban",
+        "pipeline_id": pipeline.id,
+        "stage_id": stage.id
+    }
+
+    with patch("routers.email_marketing.send_single_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"success": True, "message_id": "kanban_deal_msg"}
+        resp = app_client.post("/api/email/send-bulk", json=payload, headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["total_sent"] == 1
+        assert mock_send.call_count == 1
+        call_kwargs = mock_send.call_args[1]
+        assert call_kwargs["to_email"] == "leaddeal@kanban.com"
+
+
+def test_send_bulk_manual_audience(app_client, auth_headers, db, client_obj):
+    """Deve disparar e-mail para contatos importados manualmente ou via CSV."""
+    cfg = EmailConfig(
+        client_id=client_obj.id,
+        provider="brevo",
+        from_email="crm@empresa.com",
+        from_name="ZapVoice"
+    )
+    db.add(cfg)
+    tmpl = EmailTemplate(
+        client_id=client_obj.id,
+        name="Template Manual",
+        subject="Novidades",
+        body_html="<p>Novidades especiais</p>"
+    )
+    db.add(tmpl)
+    db.commit()
+
+    payload = {
+        "template_id": tmpl.id,
+        "title": "Disparo CSV Manual",
+        "audience_type": "manual",
+        "manual_recipients": [
+            {"name": "Fulano CSV", "email": "fulano@csv.com"},
+            {"name": "Ciclano CSV", "email": "ciclano@csv.com"}
+        ]
+    }
+
+    with patch("routers.email_marketing.send_single_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"success": True, "message_id": "manual_msg"}
+        resp = app_client.post("/api/email/send-bulk", json=payload, headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["total_sent"] == 2
+        assert mock_send.call_count == 2
+
+
+def test_preview_recipients_kanban(app_client, auth_headers, db, client_obj):
+    """Deve pré-visualizar destinatários filtrados por Pipeline/Stage do Kanban."""
+    from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal
+
+    pipeline = SalesPipeline(client_id=client_obj.id, name="Funil Preview")
+    db.add(pipeline)
+    db.commit()
+    db.refresh(pipeline)
+
+    stage = SalesPipelineStage(pipeline_id=pipeline.id, client_id=client_obj.id, name="Etapa Preview", order_index=0)
+    db.add(stage)
+    db.commit()
+    db.refresh(stage)
+
+    deal = SalesDeal(
+        client_id=client_obj.id,
+        pipeline_id=pipeline.id,
+        stage_id=stage.id,
+        contact_name="Contato Preview",
+        contact_email="preview@kanban.com",
+        contact_phone="5511999998888",
+        title="Deal Preview"
+    )
+    db.add(deal)
+    db.commit()
+
+    resp = app_client.get(
+        f"/api/email/preview-recipients?audience_type=kanban&pipeline_id={pipeline.id}",
+        headers=auth_headers
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_valid"] >= 1
+    found = any(r["email"] == "preview@kanban.com" for r in data["recipients"])
+    assert found is True
+

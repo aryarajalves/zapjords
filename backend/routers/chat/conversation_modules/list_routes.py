@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import models
 from core.deps import get_db, get_current_user
 from core.logger import setup_logger
-from ..common import get_client_id
+from ..common import get_client_id, get_user_unread_count
 from .conversation_filter_helpers import (
     build_conversation_filter_query,
     get_blocked_and_resting_data,
@@ -19,11 +19,18 @@ logger = setup_logger("ChatRouter.ConversationList")
 router = APIRouter()
 
 
-def _format_conversation_dict(c: models.ChatConversation, blocked_suffixes, resting_map, active_funnels_map):
+def _format_conversation_dict(
+    c: models.ChatConversation,
+    blocked_suffixes,
+    resting_map,
+    active_funnels_map,
+    current_user_id: Optional[int] = None
+):
     block_type, resting_until = get_block_info(c.phone, blocked_suffixes, resting_map)
     digits = "".join(filter(str.isdigit, c.phone or ""))
     suffix_key = digits[-8:] if len(digits) >= 8 else None
     active_funnel = active_funnels_map.get(suffix_key) if suffix_key else None
+    user_unread = get_user_unread_count(c, current_user_id)
 
     return {
         "id": c.id,
@@ -33,7 +40,7 @@ def _format_conversation_dict(c: models.ChatConversation, blocked_suffixes, rest
         "last_message_content": c.last_message_content,
         "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
         "status": c.status,
-        "unread_count": c.unread_count,
+        "unread_count": user_unread,
         "assigned_user_id": c.assigned_user_id,
         "assigned_user_name": c.assigned_user.full_name if c.assigned_user else None,
         "labels": c.labels or [],
@@ -64,7 +71,10 @@ async def get_conversation_by_id(
 
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
-    return _format_conversation_dict(convo, blocked_suffixes, resting_map, active_funnels_map)
+    return _format_conversation_dict(
+        convo, blocked_suffixes, resting_map, active_funnels_map,
+        current_user_id=getattr(current_user, "id", None)
+    )
 
 
 @router.post("/chat/conversations/get-or-create")
@@ -106,7 +116,10 @@ async def get_or_create_conversation(
 
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
-    return _format_conversation_dict(convo, blocked_suffixes, resting_map, active_funnels_map)
+    return _format_conversation_dict(
+        convo, blocked_suffixes, resting_map, active_funnels_map,
+        current_user_id=getattr(current_user, "id", None)
+    )
 
 
 @router.get("/chat/conversations")
@@ -135,6 +148,9 @@ async def list_conversations(
     last_message_unread_only: Optional[bool] = None,
     no_pipeline: Optional[bool] = None,
     not_in_pipeline_id: Optional[int] = None,
+    in_pipeline: Optional[bool] = None,
+    pipeline_id: Optional[int] = None,
+    pipeline_stage_id: Optional[int] = None,
     order_by: str = "recent",
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1),
@@ -166,6 +182,9 @@ async def list_conversations(
         last_message_unread_only=last_message_unread_only,
         no_pipeline=no_pipeline,
         not_in_pipeline_id=not_in_pipeline_id,
+        in_pipeline=in_pipeline,
+        pipeline_id=pipeline_id,
+        pipeline_stage_id=pipeline_stage_id,
         start_date=start_date,
         end_date=end_date,
         search=search,
@@ -189,9 +208,13 @@ async def list_conversations(
 
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
+    current_user_id = getattr(current_user, "id", None)
 
     result = []
     for c in conversations:
+        if unread_only and get_user_unread_count(c, current_user_id) <= 0:
+            continue
+
         block_type, resting_until = get_block_info(c.phone, blocked_suffixes, resting_map)
 
         if block_status:
@@ -201,7 +224,22 @@ async def list_conversations(
             elif block_type != block_status:
                 continue
 
-        result.append(_format_conversation_dict(c, blocked_suffixes, resting_map, active_funnels_map))
+        result.append(
+            _format_conversation_dict(
+                c, blocked_suffixes, resting_map, active_funnels_map,
+                current_user_id=current_user_id
+            )
+        )
+
+    if order_by == "unread_desc":
+        result.sort(
+            key=lambda item: (
+                bool(item.get("pinned")),
+                int(item.get("unread_count") or 0),
+                item.get("last_message_at") or ""
+            ),
+            reverse=True
+        )
 
     total_count = len(result)
     start_idx = (page - 1) * limit

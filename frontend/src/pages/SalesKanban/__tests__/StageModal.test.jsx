@@ -72,7 +72,7 @@ describe('StageModal Component', () => {
         fireEvent.change(nameInput, { target: { value: 'Venda Concluída' } });
 
         // Ativa o toggle de avançar para outro pipeline
-        const toggleCheckbox = screen.getByRole('checkbox');
+        const toggleCheckbox = screen.getByTestId('stage-forward-toggle');
         fireEvent.click(toggleCheckbox);
 
         // Verifica que os selects de pipeline destino e coluna destino aparecem
@@ -126,7 +126,7 @@ describe('StageModal Component', () => {
         expect(screen.getByDisplayValue('Venda Aprovada')).toBeInTheDocument();
 
         // O checkbox deve estar ativo
-        const toggleCheckbox = screen.getByRole('checkbox');
+        const toggleCheckbox = screen.getByTestId('stage-forward-toggle');
         expect(toggleCheckbox).toBeChecked();
 
         // Deve exibir os campos selecionados
@@ -147,6 +147,49 @@ describe('StageModal Component', () => {
                     forward_to_stage_id: 202
                 }),
                 102
+            );
+        });
+    });
+
+    test('permite ativar coluna de follow-up com tempo e unidade personalizados', async () => {
+        const onSave = vi.fn();
+        render(
+            <StageModal
+                isOpen={true}
+                onClose={vi.fn()}
+                onSave={onSave}
+                pipelineId={1}
+                pipelines={mockPipelines}
+            />
+        );
+
+        // Preenche nome
+        const nameInput = screen.getByPlaceholderText(/Ex: Proposta Enviada/i);
+        fireEvent.change(nameInput, { target: { value: 'Aguardando Follow-up' } });
+
+        // Ativa o toggle de follow-up
+        const followupToggle = screen.getByTestId('stage-followup-toggle');
+        expect(followupToggle).not.toBeChecked();
+        fireEvent.click(followupToggle);
+        expect(followupToggle).toBeChecked();
+
+        // Altera o tempo para 4 horas
+        const valueInput = screen.getByTestId('stage-followup-value-input');
+        fireEvent.change(valueInput, { target: { value: '4' } });
+
+        // Submete formulário
+        const submitBtn = screen.getByRole('button', { name: /Criar Coluna/i });
+        fireEvent.click(submitBtn);
+
+        await waitFor(() => {
+            expect(onSave).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'Aguardando Follow-up',
+                    is_followup: true,
+                    followup_delay_value: 4,
+                    followup_delay_unit: 'hours'
+                }),
+                undefined
             );
         });
     });

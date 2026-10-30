@@ -55,6 +55,9 @@ const mockBoard = {
             stage_type: 'initial',
             total_deals: 1,
             percentage: 33.3,
+            window_open_deals: 1,
+            window_open_percentage: 100.0,
+            unread_deals: 1,
             total_value: 500.0,
             deals: [
                 {
@@ -65,10 +68,15 @@ const mockBoard = {
                     contact_name: 'Carlos Oliveira',
                     contact_phone: '5511999998888',
                     channel: 'kiwify',
+                    product_id: 1,
+                    product_name: 'Curso Python',
                     title: 'Oportunidade Curso',
                     value: 500.0,
                     status: 'open',
-                    notes: 'Interessado no módulo 2'
+                    notes: 'Interessado no módulo 2',
+                    window_open: true,
+                    window_remaining_seconds: 72000,
+                    unread_count: 2
                 }
             ]
         },
@@ -132,7 +140,10 @@ const mockBoard = {
     total_value: 1500.0,
     total_won_value: 1000.0,
     total_won_deals: 1,
-    conversion_rate: 33.33
+    conversion_rate: 33.33,
+    total_window_open_deals: 1,
+    window_open_percentage: 33.3,
+    total_unread_deals: 1
 };
 
 describe('SalesKanban Component Tests', () => {
@@ -149,7 +160,9 @@ describe('SalesKanban Component Tests', () => {
             if (strUrl.includes('/api/crm/products')) {
                 return Promise.resolve({
                     ok: true,
-                    json: () => Promise.resolve([])
+                    json: () => Promise.resolve([
+                        { id: 1, name: 'Curso Python', price: 500.0 }
+                    ])
                 });
             }
             if (strUrl.includes('/board')) {
@@ -485,5 +498,159 @@ describe('SalesKanban Component Tests', () => {
         fireEvent.click(deselectAllBtn);
 
         expect(screen.queryByTestId('kanban-bulk-actions-bar')).not.toBeInTheDocument();
+    });
+
+    it('restaura o último pipeline selecionado salvo no localStorage mesmo se não for o padrão', async () => {
+        // Simula que o usuário selecionou anteriormente a pipeline ID 2 ('Funil Mentoria VIP')
+        localStorage.setItem('kanban_selected_pipeline_1', '2');
+
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        // Deve carregar o board da pipeline 2 ao invés da pipeline 1 (que é a padrão)
+        await waitFor(() => {
+            const select = screen.getByTestId('kanban-pipeline-select');
+            expect(select.value).toBe('2');
+        });
+    });
+
+    it('salva a seleção de pipeline no localStorage quando o usuário altera o dropdown', async () => {
+        localStorage.clear();
+
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('kanban-pipeline-select')).toBeInTheDocument();
+        });
+
+        const select = screen.getByTestId('kanban-pipeline-select');
+        fireEvent.change(select, { target: { value: '2' } });
+
+        await waitFor(() => {
+            expect(localStorage.getItem('kanban_selected_pipeline_1')).toBe('2');
+        });
+    });
+
+    it('exibe porcentagens de janela 24h aberta no cabeçalho geral, nas colunas e permite filtrar por Janela 24h ou Não lidas', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        // Resumo geral de Janela 24h na barra de Distribuição do Funil
+        const summaryBadge = screen.getByTestId('board-window-24h-summary');
+        expect(summaryBadge).toBeInTheDocument();
+        expect(summaryBadge.textContent).toContain('33.3% (1/3)');
+
+        // Indicador de Janela 24h na coluna Novo Lead (stage 10)
+        const stage10WindowStats = screen.getByTestId('stage-window-24h-stats-10');
+        expect(stage10WindowStats).toBeInTheDocument();
+        expect(stage10WindowStats.textContent).toContain('1/1 (100%)');
+
+        // Filtra apenas cards com Janela 24h Aberta
+        const filterWindowBtn = screen.getByTestId('kanban-filter-window-24h-btn');
+        fireEvent.click(filterWindowBtn);
+
+        expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        expect(screen.queryByText('Mariana Silva')).not.toBeInTheDocument();
+
+        // Desativa filtro de Janela 24h e ativa filtro de Não lidas
+        fireEvent.click(filterWindowBtn);
+        expect(screen.getByText('Mariana Silva')).toBeInTheDocument();
+
+        const filterUnreadBtn = screen.getByTestId('kanban-filter-unread-btn');
+        fireEvent.click(filterUnreadBtn);
+
+        expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        expect(screen.queryByText('Mariana Silva')).not.toBeInTheDocument();
+    });
+
+    it('não deve exibir o botão "Sincronizar" no cabeçalho do Kanban', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        expect(screen.queryByText(/Sincronizar/i)).not.toBeInTheDocument();
+    });
+
+    it('permite filtrar contatos sem produto, com produto e por tipo de produto no Kanban', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+            expect(screen.getByText('Mariana Silva')).toBeInTheDocument();
+        });
+
+        const productSelect = screen.getByTestId('kanban-filter-product-select');
+        expect(productSelect).toBeInTheDocument();
+
+        // 1. Filtrar por "Sem produto atribuído"
+        fireEvent.change(productSelect, { target: { value: 'without_product' } });
+        await waitFor(() => {
+            expect(screen.getByText('Mariana Silva')).toBeInTheDocument();
+            expect(screen.getByText('Lucas Ferreira')).toBeInTheDocument();
+            expect(screen.queryByText('Carlos Oliveira')).not.toBeInTheDocument();
+        });
+
+        // 2. Filtrar por "Com produto atribuído"
+        fireEvent.change(productSelect, { target: { value: 'with_product' } });
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+            expect(screen.queryByText('Mariana Silva')).not.toBeInTheDocument();
+            expect(screen.queryByText('Lucas Ferreira')).not.toBeInTheDocument();
+        });
+
+        // 3. Filtrar pelo tipo de produto específico (prod_1 -> Curso Python)
+        fireEvent.change(productSelect, { target: { value: 'prod_1' } });
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+            expect(screen.queryByText('Mariana Silva')).not.toBeInTheDocument();
+            expect(screen.queryByText('Lucas Ferreira')).not.toBeInTheDocument();
+        });
+
+        // 4. Voltar para "Todos os produtos"
+        fireEvent.change(productSelect, { target: { value: 'all' } });
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+            expect(screen.getByText('Mariana Silva')).toBeInTheDocument();
+            expect(screen.getByText('Lucas Ferreira')).toBeInTheDocument();
+        });
+    });
+
+    it('NÃO atualiza nada nem chama PATCH quando o card é movido e solto na mesma coluna', async () => {
+        render(<SalesKanban onViewChange={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
+        });
+
+        // Carlos Oliveira está no estágio 10 (Novo Lead, id: 10)
+        const stage10Column = screen.getByTestId('kanban-column-10');
+        expect(stage10Column).toBeInTheDocument();
+
+        const patchCallsBefore = global.fetch.mock.calls.filter(call => 
+            call[0]?.includes('/api/crm/deals/') && call[1]?.method === 'PATCH'
+        ).length;
+
+        // Simula soltar o card no mesmo estágio (stage 10)
+        fireEvent.drop(stage10Column, {
+            dataTransfer: {
+                getData: (key) => {
+                    if (key === 'dealId') return '101';
+                    if (key === 'sourceStageId') return '10';
+                    return '';
+                }
+            }
+        });
+
+        const patchCallsAfter = global.fetch.mock.calls.filter(call => 
+            call[0]?.includes('/api/crm/deals/') && call[1]?.method === 'PATCH'
+        ).length;
+
+        // Nenhuma requisição PATCH foi realizada
+        expect(patchCallsAfter).toBe(patchCallsBefore);
+        expect(screen.getByText('Carlos Oliveira')).toBeInTheDocument();
     });
 });

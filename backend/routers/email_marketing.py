@@ -16,7 +16,8 @@ router = APIRouter()
 
 # Schemas
 class EmailConfigSchema(BaseModel):
-    provider: str = Field(default="ses", description="ses, resend, smtp")
+    provider: str = Field(default="brevo", description="brevo, ses, resend, smtp, direct")
+    brevo_api_key: Optional[str] = None
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_region: Optional[str] = "us-east-1"
@@ -40,7 +41,11 @@ class EmailTemplateSchema(BaseModel):
 class EmailBulkSendPayload(BaseModel):
     template_id: int
     title: str
+    audience_type: Optional[str] = "tag"  # "tag", "kanban", "manual"
     tag_name: Optional[str] = None
+    pipeline_id: Optional[int] = None
+    stage_id: Optional[int] = None
+    manual_recipients: Optional[List[dict]] = None  # [{"email": "...", "name": "..."}]
     scheduled_at: Optional[str] = None  # ISO 8601 datetime string; se fornecido, agenda o disparo
 
 
@@ -58,7 +63,8 @@ def get_email_config(
         "configured": True,
         "config": {
             "id": config.id,
-            "provider": config.provider,
+            "provider": config.provider or "brevo",
+            "brevo_api_key": decrypt_token(getattr(config, "brevo_api_key", None)) or "",
             "aws_access_key_id": config.aws_access_key_id,
             "aws_secret_access_key": decrypt_token(config.aws_secret_access_key) or "",
             "aws_region": config.aws_region,
@@ -70,6 +76,7 @@ def get_email_config(
             "smtp_encryption": config.smtp_encryption,
             "from_email": config.from_email,
             "from_name": config.from_name,
+            "has_brevo_key": bool(getattr(config, "brevo_api_key", None)),
             "has_aws_secret": bool(config.aws_secret_access_key),
             "has_smtp_password": bool(config.smtp_password),
         }
@@ -93,6 +100,8 @@ def save_email_config(
     config.from_email = payload.from_email
     config.from_name = payload.from_name
     
+    if payload.brevo_api_key is not None and payload.brevo_api_key != "":
+        config.brevo_api_key = encrypt_token(payload.brevo_api_key)
     if payload.aws_access_key_id is not None: config.aws_access_key_id = payload.aws_access_key_id
     if payload.aws_secret_access_key is not None and payload.aws_secret_access_key != "":
         config.aws_secret_access_key = encrypt_token(payload.aws_secret_access_key)
@@ -212,6 +221,96 @@ def delete_email_template(
     return {"status": "success", "message": "Template excluído com sucesso."}
 
 
+def _resolve_recipients(
+    db: Session,
+    client_id: int,
+    audience_type: Optional[str] = "tags",
+    tag_name: Optional[str] = None,
+    pipeline_id: Optional[int] = None,
+    stage_id: Optional[int] = None,
+    manual_recipients: Optional[list] = None
+) -> list:
+    """Resolve os destinatários com base no tipo de audiência (tags, kanban, manual/csv)."""
+    target_contacts = []
+    seen_emails = set()
+
+    # 1. Audiência Manual / CSV
+    if audience_type == "manual" or manual_recipients:
+        for item in (manual_recipients or []):
+            if isinstance(item, dict):
+                email = (item.get("email") or "").strip()
+                name = (item.get("name") or "").strip()
+                phone = (item.get("phone") or "").strip()
+            elif isinstance(item, str):
+                email = item.strip()
+                name = ""
+                phone = ""
+            else:
+                continue
+
+            if email and "@" in email and email.lower() not in seen_emails:
+                seen_emails.add(email.lower())
+                target_contacts.append({
+                    "email": email,
+                    "name": name,
+                    "phone": phone,
+                    "product_name": "",
+                    "platform": "manual",
+                    "price": "",
+                    "payment_method": "",
+                    "tags": "importado"
+                })
+        return target_contacts
+
+    # 2. Audiência Kanban
+    if audience_type == "kanban" or pipeline_id:
+        query = db.query(models.SalesDeal).filter(models.SalesDeal.client_id == client_id)
+        if pipeline_id:
+            query = query.filter(models.SalesDeal.pipeline_id == pipeline_id)
+        if stage_id:
+            query = query.filter(models.SalesDeal.stage_id == stage_id)
+        deals = query.all()
+        for d in deals:
+            email = (d.contact_email or "").strip()
+            if email and "@" in email and email.lower() not in seen_emails:
+                seen_emails.add(email.lower())
+                target_contacts.append({
+                    "email": email,
+                    "name": d.contact_name or d.title or "",
+                    "phone": d.contact_phone or "",
+                    "product_name": d.product_name or "",
+                    "platform": d.channel or "kanban",
+                    "price": str(d.value) if d.value else "",
+                    "payment_method": "",
+                    "tags": f"kanban_stage_{d.stage_id}"
+                })
+        return target_contacts
+
+    # 3. Audiência Padrão: WebhookLead filtrado por tag_name (ou todos)
+    query = db.query(models.WebhookLead).filter(models.WebhookLead.client_id == client_id)
+    if tag_name and tag_name.strip():
+        tag_clean = tag_name.strip()
+        query = query.filter(models.WebhookLead.tags.ilike(f"%{tag_clean}%"))
+
+    leads = query.all()
+    for l in leads:
+        email = (l.email or "").strip()
+        if email and "@" in email and email.lower() not in seen_emails:
+            seen_emails.add(email.lower())
+            target_contacts.append({
+                "email": email,
+                "name": l.name or "",
+                "phone": l.phone or "",
+                "product_name": l.product_name or "",
+                "platform": l.platform or "",
+                "price": l.price or "",
+                "payment_method": l.payment_method or "",
+                "tags": l.tags or ""
+            })
+
+    return target_contacts
+
+
 # --- DISPARO EM MASSA DE E-MAIL ---
 
 @router.post("/send-bulk", summary="Criar Disparo em Massa de E-mail")
@@ -229,33 +328,16 @@ async def create_bulk_email_dispatch(
     if not template:
         raise HTTPException(status_code=404, detail="Template de e-mail não encontrado.")
 
-
-    # 1. Obter contatos filtrados da Aba de Contatos (WebhookLead) pela etiqueta
-    from sqlalchemy import func
-    query = db.query(models.WebhookLead).filter(models.WebhookLead.client_id == client_id)
-    if payload.tag_name and payload.tag_name.strip():
-        tag_clean = payload.tag_name.strip()
-        query = query.filter(
-            func.concat(',', func.replace(func.coalesce(models.WebhookLead.tags, ''), ', ', ','), ',').ilike(f"%,{tag_clean},%")
-        )
-
-    leads = query.all()
-    target_contacts = []
-    seen_emails = set()
-
-    for l in leads:
-        if l.email and "@" in l.email and l.email.lower() not in seen_emails:
-            seen_emails.add(l.email.lower())
-            target_contacts.append({
-                "email": l.email,
-                "name": l.name or "",
-                "phone": l.phone or "",
-                "product_name": l.product_name or "",
-                "platform": l.platform or "",
-                "price": l.price or "",
-                "payment_method": l.payment_method or "",
-                "tags": l.tags or ""
-            })
+    # 1. Obter contatos filtrados com base no audience_type
+    target_contacts = _resolve_recipients(
+        db=db,
+        client_id=client_id,
+        audience_type=payload.audience_type,
+        tag_name=payload.tag_name,
+        pipeline_id=payload.pipeline_id,
+        stage_id=payload.stage_id,
+        manual_recipients=payload.manual_recipients
+    )
 
     if not target_contacts:
         raise HTTPException(status_code=400, detail="Nenhum contato com e-mail válido encontrado para os filtros selecionados.")
@@ -362,31 +444,24 @@ def delete_email_dispatch(
     return {"status": "success", "message": "Registro de disparo excluído com sucesso."}
 
 
-@router.get("/preview-recipients", summary="Pré-visualizar Destinatários de E-mail por Etiqueta")
+@router.get("/preview-recipients", summary="Pré-visualizar Destinatários de E-mail")
 def preview_email_recipients(
     tag_name: Optional[str] = Query(None),
+    audience_type: Optional[str] = Query("tags"),
+    pipeline_id: Optional[int] = Query(None),
+    stage_id: Optional[int] = Query(None),
     client_id: int = Depends(get_validated_client_id),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    from sqlalchemy import func
-    query = db.query(models.WebhookLead).filter(models.WebhookLead.client_id == client_id)
-    if tag_name and tag_name.strip():
-        tag_clean = tag_name.strip()
-        query = query.filter(
-            func.concat(',', func.replace(func.coalesce(models.WebhookLead.tags, ''), ', ', ','), ',').ilike(f"%,{tag_clean},%")
-        )
-    leads = query.all()
-    recipients = []
-    for l in leads:
-        if l.email and "@" in str(l.email).strip():
-            recipients.append({
-                "id": l.id,
-                "name": l.name or "Sem nome",
-                "email": l.email.strip(),
-                "phone": l.phone or "",
-                "tags": l.tags or ""
-            })
+    recipients = _resolve_recipients(
+        db=db,
+        client_id=client_id,
+        audience_type=audience_type,
+        tag_name=tag_name,
+        pipeline_id=pipeline_id,
+        stage_id=stage_id
+    )
     return {
         "total_valid": len(recipients),
         "recipients": recipients

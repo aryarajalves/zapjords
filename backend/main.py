@@ -69,12 +69,14 @@ from routers import (
     chat_labels,      # Etiquetas e marcadores do chat
     api_keys,         # Gerenciamento de chaves de API (Tokens de API)
     reminders,        # Lembretes de agendamento (Re-disparos de calendário)
-    # email_marketing, # Desativado - migrando para ferramenta independente
+    email_marketing,  # Disparador e Gestão de E-mail Marketing (Brevo, SES, Resend, SMTP)
+    email_marketing_funnels, # Funis de E-mail Marketing e Sequências Inteligentes
     waba_payment,     # Métodos de pagamento e faturas da Meta WABA
     quick_messages,   # Respostas e mensagens rápidas
     checkout_presell, # Páginas de pré-venda e checkout
     capture_page,     # Páginas de captura de leads
     crm,              # Kanban de Vendas e CRM Multi-Produto
+    crm_stage_order,  # Reordenação de Colunas do Kanban via Drag & Drop
     crm_products,     # Catálogo de Produtos do CRM
     infrastructure    # Infraestrutura & Recursos do Servidor
 )
@@ -98,7 +100,7 @@ from routers.triggers import router as triggers_router
 # Tarefa de agendamento que roda em background (dispara mensagens nos horários certos)
 from services.scheduler import scheduler_task
 from services.admin_seed_service import seed_super_admin
-from services.background_tasks import system_monitor_task, backup_scheduler_task, event_listener
+from services.background_tasks import system_monitor_task, backup_scheduler_task, email_funnel_scheduler_task, event_listener
 from services.websocket_service import handle_websocket_connection
 from services.spa_service import (
     get_index_with_cache_busting,
@@ -327,7 +329,8 @@ app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(chat_labels.router, prefix="/api", tags=["Chat Labels"])
 app.include_router(api_keys.router, prefix="/api")
 app.include_router(reminders.router, prefix="/api")
-# app.include_router(email_marketing.router, prefix="/api/email", tags=["Email Marketing"])
+app.include_router(email_marketing.router, prefix="/api/email", tags=["Email Marketing"])
+app.include_router(email_marketing_funnels.router, prefix="/api", tags=["Email Marketing Funnels"])
 app.include_router(waba_payment.router, prefix="/api", tags=["WABA Payment"])
 app.include_router(quick_messages.router, prefix="/api", tags=["QuickMessages"])
 
@@ -337,6 +340,7 @@ app.include_router(leads_public_router, prefix="/api", tags=["Leads Public API"]
 app.include_router(checkout_presell.router)
 app.include_router(capture_page.router, prefix="/api")
 app.include_router(crm.router, prefix="/api")
+app.include_router(crm_stage_order.router, prefix="/api")
 app.include_router(crm_products.router, prefix="/api")
 app.include_router(infrastructure.router, prefix="/api")
 
@@ -438,6 +442,8 @@ async def startup_event():
         asyncio.create_task(system_monitor_task())
         # Inicia a task de backup agendado
         asyncio.create_task(backup_scheduler_task())
+        # Inicia a task de funis de e-mail marketing
+        asyncio.create_task(email_funnel_scheduler_task())
         await asyncio.sleep(3)
         try:
             from services.pg_realtime_listener import start_pg_listener

@@ -129,9 +129,19 @@ export function DatabaseConnectionsTab({ metrics }) {
             </div>
             <div className="flex justify-between items-center text-slate-300">
               <span className="text-slate-400">Margem de Segurança:</span>
-              <span className="font-semibold text-emerald-400 flex items-center gap-1">
-                <FiCheckCircle className="w-3.5 h-3.5" /> Pool com Folga
-              </span>
+              {peaks.occupancy_percent >= 85 ? (
+                <span className="font-semibold text-rose-400 flex items-center gap-1">
+                  Pico Crítico
+                </span>
+              ) : peaks.occupancy_percent >= 60 ? (
+                <span className="font-semibold text-amber-400 flex items-center gap-1">
+                  Atenção no Pico
+                </span>
+              ) : (
+                <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                  <FiCheckCircle className="w-3.5 h-3.5" /> Pool com Folga
+                </span>
+              )}
             </div>
           </div>
         </div>

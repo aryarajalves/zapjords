@@ -14,6 +14,7 @@ const BulkSendContactsModal = ({
   isOpen,
   onClose,
   selectedPhones = [],
+  contacts = [],
   clientId,
   triggerId,
   onSuccess
@@ -43,6 +44,7 @@ const BulkSendContactsModal = ({
     isOpen,
     onClose,
     selectedPhones,
+    contacts,
     clientId,
     triggerId,
     onSuccess

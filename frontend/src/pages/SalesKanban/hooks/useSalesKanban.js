@@ -2,17 +2,31 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { resolveUrl } from '../../../config';
 import { useClient } from '../../../contexts/ClientContext';
+import { filterKanbanStages, apiRequestJson } from '../utils/kanbanApiActions';
 
-export function useSalesKanban({ onViewChange }) {
+export function useSalesKanban({ onViewChange, products = [] }) {
     const { activeClient } = useClient();
     const clientId = activeClient?.id;
 
     const [pipelines, setPipelines] = useState([]);
-    const [selectedPipelineId, setSelectedPipelineId] = useState(null);
+
+    const [selectedPipelineId, setSelectedPipelineId] = useState(() => {
+        if (typeof window === 'undefined' || !clientId) return null;
+        try {
+            const saved = localStorage.getItem('kanban_selected_pipeline_' + clientId);
+            return saved ? Number(saved) : null;
+        } catch {
+            return null;
+        }
+    });
     const [boardData, setBoardData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isBoardLoading, setIsBoardLoading] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterWindowOpenOnly, setFilterWindowOpenOnly] = useState(false);
+    const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
+    const [filterProduct, setFilterProduct] = useState('all');
 
     // Modais
     const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
@@ -20,14 +34,9 @@ export function useSalesKanban({ onViewChange }) {
     const [isDealModalOpen, setIsDealModalOpen] = useState(false);
     const [dealToEdit, setDealToEdit] = useState(null);
     const [initialStageForNewDeal, setInitialStageForNewDeal] = useState(null);
-
-    // Modal de Coluna / Estágio
     const [isStageModalOpen, setIsStageModalOpen] = useState(false);
     const [stageToEdit, setStageToEdit] = useState(null);
-
-    // Modal de Motivo de Desistência
     const [lostReasonModal, setLostReasonModal] = useState({ isOpen: false, deal: null, targetStageId: null });
-
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: null, id: null, title: '', message: '' });
 
     const getAuthHeaders = useCallback(() => {
@@ -39,23 +48,25 @@ export function useSalesKanban({ onViewChange }) {
         };
     }, [clientId]);
 
-    // Buscar lista de pipelines
     const fetchPipelines = useCallback(async () => {
         if (!clientId) return;
         try {
             setIsLoading(true);
-            const res = await fetch(resolveUrl('/api/crm/pipelines'), {
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error('Falha ao carregar pipelines');
-            const data = await res.json();
+            const data = await apiRequestJson('/api/crm/pipelines', 'GET', getAuthHeaders(), undefined, 'Falha ao carregar pipelines');
             setPipelines(data);
 
             if (data.length > 0) {
-                // Manter o selecionado se ainda existir, ou selecionar o primeiro
                 setSelectedPipelineId(prev => {
-                    const exists = data.some(p => p.id === prev);
-                    return exists ? prev : data[0].id;
+                    if (prev && data.some(p => p.id === prev)) return prev;
+                    try {
+                        const saved = localStorage.getItem('kanban_selected_pipeline_' + clientId);
+                        const savedId = saved ? Number(saved) : null;
+                        if (savedId && data.some(p => p.id === savedId)) return savedId;
+                    } catch {
+                        // ignore
+                    }
+                    const defaultPipe = data.find(p => p.is_default) || data[0];
+                    return defaultPipe.id;
                 });
             }
         } catch (err) {
@@ -66,19 +77,17 @@ export function useSalesKanban({ onViewChange }) {
         }
     }, [clientId, getAuthHeaders]);
 
-    // Buscar quadro do pipeline selecionado
     const fetchBoard = useCallback(async (pipelineId) => {
         if (!clientId || !pipelineId) return;
         try {
-            const res = await fetch(resolveUrl(`/api/crm/pipelines/${pipelineId}/board`), {
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error('Falha ao carregar quadro');
-            const data = await res.json();
+            setIsBoardLoading(true);
+            const data = await apiRequestJson(`/api/crm/pipelines/${pipelineId}/board`, 'GET', getAuthHeaders(), undefined, 'Falha ao carregar quadro');
             setBoardData(data);
         } catch (err) {
             console.error('Erro ao carregar quadro do CRM:', err);
             toast.error('Erro ao carregar colunas do Kanban.');
+        } finally {
+            setIsBoardLoading(false);
         }
     }, [clientId, getAuthHeaders]);
 
@@ -89,14 +98,35 @@ export function useSalesKanban({ onViewChange }) {
     useEffect(() => {
         if (selectedPipelineId) {
             fetchBoard(selectedPipelineId);
+            try {
+                if (clientId) {
+                    localStorage.setItem('kanban_selected_pipeline_' + clientId, String(selectedPipelineId));
+                }
+            } catch {
+                // ignore
+            }
         }
-    }, [selectedPipelineId, fetchBoard]);
+    }, [selectedPipelineId, fetchBoard, clientId]);
 
-    // Movimentação de Deal (Drag & Drop)
     const handleMoveDeal = async (dealId, targetStageId, optionalLostReason = null) => {
         if (!boardData) return;
 
-        // Verifica se a etapa de destino é de desistência e se ainda não há motivo fornecido
+        // Se o card já está na mesma coluna (mesmo estágio), não atualiza nada
+        let currentStageId = null;
+        let foundDeal = null;
+        for (const stg of boardData.stages || []) {
+            const d = stg.deals?.find(item => item.id === dealId);
+            if (d) {
+                foundDeal = d;
+                currentStageId = stg.id;
+                break;
+            }
+        }
+
+        if (currentStageId !== null && Number(currentStageId) === Number(targetStageId)) {
+            return;
+        }
+
         const targetStage = boardData.stages?.find(s => s.id === targetStageId);
         const isLostStage = targetStage && (
             targetStage.stage_type === 'lost' ||
@@ -106,28 +136,14 @@ export function useSalesKanban({ onViewChange }) {
         );
 
         if (isLostStage && optionalLostReason === null) {
-            let foundDeal = null;
-            for (const stg of boardData.stages) {
-                const d = stg.deals?.find(item => item.id === dealId);
-                if (d) {
-                    foundDeal = d;
-                    break;
-                }
-            }
             if (foundDeal) {
-                setLostReasonModal({
-                    isOpen: true,
-                    deal: foundDeal,
-                    targetStageId
-                });
+                setLostReasonModal({ isOpen: true, deal: foundDeal, targetStageId });
                 return;
             }
         }
 
-        // Fecha modal se estava aberto
         setLostReasonModal({ isOpen: false, deal: null, targetStageId: null });
 
-        // Otimistic update no state local
         setBoardData(prev => {
             if (!prev) return prev;
             let movedDeal = null;
@@ -148,12 +164,9 @@ export function useSalesKanban({ onViewChange }) {
             });
 
             if (movedDeal) {
-                const finalStages = updatedStages.map(stage => {
-                    if (stage.id === targetStageId) {
-                        return { ...stage, deals: [movedDeal, ...stage.deals] };
-                    }
-                    return stage;
-                });
+                const finalStages = updatedStages.map(stage => (
+                    stage.id === targetStageId ? { ...stage, deals: [movedDeal, ...stage.deals] } : stage
+                ));
                 return { ...prev, stages: finalStages };
             }
             return prev;
@@ -164,7 +177,6 @@ export function useSalesKanban({ onViewChange }) {
             if (optionalLostReason !== null && optionalLostReason !== undefined) {
                 bodyPayload.lost_reason = optionalLostReason;
             }
-
             const res = await fetch(resolveUrl(`/api/crm/deals/${dealId}/move`), {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
@@ -173,7 +185,6 @@ export function useSalesKanban({ onViewChange }) {
             if (!res.ok) throw new Error('Falha ao mover card');
             await res.json();
             toast.success('Oportunidade atualizada!');
-            // Re-sincronizar board com métricas
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
         } catch (err) {
             console.error('Erro ao mover deal:', err);
@@ -184,25 +195,15 @@ export function useSalesKanban({ onViewChange }) {
 
     const handleConfirmLostReason = (lostReasonText) => {
         if (lostReasonModal.deal && lostReasonModal.targetStageId) {
-            handleMoveDeal(
-                lostReasonModal.deal.id,
-                lostReasonModal.targetStageId,
-                lostReasonText || 'Desistência informada'
-            );
+            handleMoveDeal(lostReasonModal.deal.id, lostReasonModal.targetStageId, lostReasonText || 'Desistência informada');
         }
     };
 
-    // Sincronizar Histórico Retroativo
     const handleSyncHistory = async () => {
         if (!selectedPipelineId) return;
         setIsSyncing(true);
         try {
-            const res = await fetch(resolveUrl(`/api/crm/pipelines/${selectedPipelineId}/sync-history`), {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error('Falha ao sincronizar');
-            const result = await res.json();
+            const result = await apiRequestJson(`/api/crm/pipelines/${selectedPipelineId}/sync-history`, 'POST', getAuthHeaders(), undefined, 'Falha ao sincronizar');
             toast.success(result.message || 'Histórico sincronizado com sucesso!');
             fetchBoard(selectedPipelineId);
             fetchPipelines();
@@ -214,25 +215,11 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Salvar / Criar Pipeline
     const handleSavePipeline = async (payload) => {
         try {
             const isEditing = Boolean(pipelineToEdit?.id);
-            const url = isEditing
-                ? resolveUrl(`/api/crm/pipelines/${pipelineToEdit.id}`)
-                : resolveUrl('/api/crm/pipelines');
-            const method = isEditing ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: getAuthHeaders(),
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || (isEditing ? 'Falha ao atualizar pipeline' : 'Falha ao criar pipeline'));
-            }
-            const saved = await res.json();
+            const path = isEditing ? `/api/crm/pipelines/${pipelineToEdit.id}` : '/api/crm/pipelines';
+            const saved = await apiRequestJson(path, isEditing ? 'PUT' : 'POST', getAuthHeaders(), payload, isEditing ? 'Falha ao atualizar pipeline' : 'Falha ao criar pipeline');
             toast.success(isEditing ? 'Pipeline atualizado!' : 'Novo Pipeline de Vendas criado com sucesso!');
             setIsPipelineModalOpen(false);
             setPipelineToEdit(null);
@@ -244,17 +231,9 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Deletar Pipeline
     const handleDeletePipeline = async (pipelineId) => {
         try {
-            const res = await fetch(resolveUrl(`/api/crm/pipelines/${pipelineId}`), {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Falha ao excluir pipeline');
-            }
+            await apiRequestJson(`/api/crm/pipelines/${pipelineId}`, 'DELETE', getAuthHeaders(), undefined, 'Falha ao excluir pipeline');
             toast.success('Pipeline excluído com sucesso.');
             setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' });
             await fetchPipelines();
@@ -264,24 +243,11 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Salvar Deal (Criar ou Editar)
     const handleSaveDeal = async (payload) => {
         try {
             const isEditing = Boolean(dealToEdit?.id);
-            const url = isEditing
-                ? resolveUrl(`/api/crm/deals/${dealToEdit.id}`)
-                : resolveUrl('/api/crm/deals');
-            const method = isEditing ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: getAuthHeaders(),
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Falha ao salvar oportunidade');
-            }
+            const path = isEditing ? `/api/crm/deals/${dealToEdit.id}` : '/api/crm/deals';
+            await apiRequestJson(path, isEditing ? 'PUT' : 'POST', getAuthHeaders(), payload, 'Falha ao salvar oportunidade');
             toast.success(isEditing ? 'Oportunidade atualizada!' : 'Oportunidade criada com sucesso!');
             setIsDealModalOpen(false);
             setDealToEdit(null);
@@ -292,14 +258,9 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Deletar Deal
     const handleDeleteDeal = async (dealId) => {
         try {
-            const res = await fetch(resolveUrl(`/api/crm/deals/${dealId}`), {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error('Falha ao excluir deal');
+            await apiRequestJson(`/api/crm/deals/${dealId}`, 'DELETE', getAuthHeaders(), undefined, 'Falha ao excluir deal');
             toast.success('Oportunidade removida.');
             setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' });
             if (selectedPipelineId) fetchBoard(selectedPipelineId);
@@ -309,24 +270,11 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Salvar / Criar Coluna (Stage)
     const handleSaveStage = async (payload, stageId = null) => {
         try {
             const isEditing = Boolean(stageId);
-            const url = isEditing
-                ? resolveUrl(`/api/crm/stages/${stageId}`)
-                : resolveUrl('/api/crm/stages');
-            const method = isEditing ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: getAuthHeaders(),
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Falha ao salvar coluna');
-            }
+            const path = isEditing ? `/api/crm/stages/${stageId}` : '/api/crm/stages';
+            await apiRequestJson(path, isEditing ? 'PUT' : 'POST', getAuthHeaders(), payload, 'Falha ao salvar coluna');
             toast.success(isEditing ? 'Coluna atualizada!' : 'Nova coluna criada com sucesso!');
             setIsStageModalOpen(false);
             setStageToEdit(null);
@@ -337,14 +285,9 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Deletar Coluna (Stage)
     const handleDeleteStage = async (stageId) => {
         try {
-            const res = await fetch(resolveUrl(`/api/crm/stages/${stageId}`), {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error('Falha ao excluir coluna');
+            await apiRequestJson(`/api/crm/stages/${stageId}`, 'DELETE', getAuthHeaders(), undefined, 'Falha ao excluir coluna');
             toast.success('Coluna excluída com sucesso.');
             setDeleteModal({ isOpen: false, type: null, id: null, title: '', message: '' });
             setIsStageModalOpen(false);
@@ -356,7 +299,6 @@ export function useSalesKanban({ onViewChange }) {
         }
     };
 
-    // Ação Rápida: Abrir conversa no Chat com o contato
     const handleOpenChat = (phone, contactName = '') => {
         if (!phone) return;
         localStorage.setItem('crm_target_chat_phone', phone);
@@ -374,40 +316,28 @@ export function useSalesKanban({ onViewChange }) {
         }, 150);
     };
 
-    // Filtragem de deals por termo de busca
     const filteredStages = useMemo(() => {
-        if (!boardData?.stages) return [];
-        if (!searchTerm.trim()) return boardData.stages;
-
-        const term = searchTerm.toLowerCase().trim();
-        return boardData.stages.map(stage => {
-            const filteredDeals = stage.deals.filter(deal => {
-                const name = (deal.contact_name || '').toLowerCase();
-                const phone = (deal.contact_phone || '').toLowerCase();
-                const title = (deal.title || '').toLowerCase();
-                const email = (deal.contact_email || '').toLowerCase();
-                const channelStr = (deal.channel || '').toLowerCase();
-                return name.includes(term) || phone.includes(term) || title.includes(term) || email.includes(term) || channelStr.includes(term);
-            });
-            return {
-                ...stage,
-                deals: filteredDeals,
-                total_deals: filteredDeals.length,
-                total_value: filteredDeals.reduce((acc, cur) => acc + (cur.value || 0), 0)
-            };
-        });
-    }, [boardData, searchTerm]);
+        return filterKanbanStages(boardData, searchTerm, filterWindowOpenOnly, filterUnreadOnly, null, filterProduct, products);
+    }, [boardData, searchTerm, filterWindowOpenOnly, filterUnreadOnly, filterProduct, products]);
 
     return {
         pipelines,
         selectedPipelineId,
         setSelectedPipelineId,
         boardData,
+        setBoardData,
         filteredStages,
         isLoading,
+        isBoardLoading,
         isSyncing,
         searchTerm,
         setSearchTerm,
+        filterWindowOpenOnly,
+        setFilterWindowOpenOnly,
+        filterUnreadOnly,
+        setFilterUnreadOnly,
+        filterProduct,
+        setFilterProduct,
         isPipelineModalOpen,
         setIsPipelineModalOpen,
         pipelineToEdit,

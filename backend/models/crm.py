@@ -41,6 +41,9 @@ class SalesPipelineStage(Base):
     webhook_event_trigger = Column(String(100), nullable=True)  # carrinho_abandonado, compra_aprovada, etc.
     forward_to_pipeline_id = Column(Integer, ForeignKey("sales_pipelines.id", ondelete="SET NULL"), nullable=True)
     forward_to_stage_id = Column(Integer, ForeignKey("sales_pipeline_stages.id", ondelete="SET NULL"), nullable=True)
+    is_followup = Column(Boolean, default=False)
+    followup_delay_value = Column(Integer, default=3)
+    followup_delay_unit = Column(String(20), default="hours")  # minutes, hours, days
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -84,7 +87,10 @@ class SalesDeal(Base):
     status = Column(String(50), default="open")  # open, won, lost
     lost_reason = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
+    custom_followup_delay_value = Column(Integer, nullable=True, default=None)  # Prazo de follow-up individual do contato
+    custom_followup_delay_unit = Column(String(20), nullable=True, default="hours")  # minutes, hours, days
     last_interaction_at = Column(DateTime(timezone=True), nullable=True)
+    stage_entered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

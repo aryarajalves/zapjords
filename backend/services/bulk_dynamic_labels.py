@@ -60,6 +60,20 @@ async def refresh_dynamic_label_contacts(init_trig, db=None) -> list:
             or_(*inclusion_filters)
         ).all()
 
+        # Mapa de contatos já existentes no trigger (para preservar components e vars mapeados no frontend)
+        existing_map = {}
+        existing_suffix_map = {}
+        for ex_c in (getattr(init_trig, "contacts_list", None) or []):
+            if isinstance(ex_c, dict):
+                ex_p = "".join(filter(str.isdigit, str(ex_c.get("phone") or ex_c.get("telefone") or "")))
+                if ex_p:
+                    existing_map[ex_p] = ex_c
+                    if len(ex_p) >= 8:
+                        existing_suffix_map[ex_p[-8:]] = ex_c
+
+        base_template_components = getattr(init_trig, "template_components", None)
+        from services.utils.bulk_helpers import sanitize_template_components
+
         raw_contacts = []
         seen_phones = set()
         for l in leads:
@@ -67,11 +81,39 @@ async def refresh_dynamic_label_contacts(init_trig, db=None) -> list:
                 phone_digits = "".join(filter(str.isdigit, str(l.phone)))
                 if len(phone_digits) >= 8 and phone_digits not in seen_phones:
                     seen_phones.add(phone_digits)
-                    raw_contacts.append({
+                    lead_name = getattr(l, "name", "") or ""
+                    lead_email = getattr(l, "email", "") or ""
+                    lead_first_name = lead_name.strip().split()[0] if lead_name.strip() else ""
+                    lead_vars = {
+                        "nome": lead_name,
+                        "primeiro_nome": lead_first_name,
+                        "telefone": phone_digits,
+                        "email": lead_email,
+                        "produto": getattr(l, "product_name", "") or "",
+                    }
+
+                    prev_c = existing_map.get(phone_digits) or existing_suffix_map.get(phone_digits[-8:])
+                    prev_vars = prev_c.get("vars") if isinstance(prev_c, dict) and isinstance(prev_c.get("vars"), dict) else {}
+                    merged_vars = {**lead_vars, **prev_vars}
+
+                    contact_comps = prev_c.get("components") if isinstance(prev_c, dict) and prev_c.get("components") else None
+                    if not contact_comps and base_template_components:
+                        contact_comps = sanitize_template_components(
+                            base_template_components,
+                            contact_name=lead_name,
+                            contact_phone=phone_digits,
+                            contact_vars=merged_vars
+                        )
+
+                    contact_entry = {
                         "phone": phone_digits,
-                        "name": getattr(l, "name", "") or "",
-                        "email": getattr(l, "email", "") or ""
-                    })
+                        "name": lead_name,
+                        "email": lead_email,
+                        "vars": merged_vars,
+                    }
+                    if contact_comps:
+                        contact_entry["components"] = contact_comps
+                    raw_contacts.append(contact_entry)
 
         # 3. Coletar números a serem excluídos dinamicamente
         excluded_phones = set()

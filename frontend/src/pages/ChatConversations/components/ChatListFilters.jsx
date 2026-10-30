@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiTag, FiRefreshCw, FiSlash, FiCalendar, FiClock, FiSliders, FiChevronLeft, FiChevronRight, FiCheckCircle } from 'react-icons/fi';
 import ChatLabelFilterDropdown from './ChatLabelFilterDropdown';
-import PipelineFilterControl from './PipelineFilterControl';
+import ChatStatusFilterPopover from './ChatStatusFilterPopover';
+import ChatOrderFilterPopover from './ChatOrderFilterPopover';
 
 export default function ChatListFilters({
     activeTab,
@@ -39,6 +40,12 @@ export default function ChatListFilters({
     setFilterNoPipeline,
     filterNotInPipelineId,
     setFilterNotInPipelineId,
+    filterInPipeline,
+    setFilterInPipeline,
+    filterPipelineId,
+    setFilterPipelineId,
+    filterPipelineStageId,
+    setFilterPipelineStageId,
     pipelines = [],
     filterBlockStatus,
     setFilterBlockStatus,
@@ -138,7 +145,7 @@ export default function ChatListFilters({
             </div>
 
             {/* Filtros extra com scroll horizontal suave */}
-            <div className="border-b border-gray-200 dark:border-white/5 bg-gray-50/10 dark:bg-black/10">
+            <div className="border-b border-gray-200 dark:border-white/5 bg-gray-50/10 dark:bg-black/10 relative">
                 <div className="flex items-center px-2 py-2 gap-1 relative">
                     {canScrollLeft && (
                         <button
@@ -155,32 +162,60 @@ export default function ChatListFilters({
                         ref={filtersContainerRef}
                         onScroll={checkScroll}
                         onWheel={handleWheel}
-                        className="flex items-center px-1 gap-1.5 overflow-x-auto no-scrollbar scroll-smooth flex-1"
+                        className="flex items-center px-1.5 py-1.5 gap-1.5 overflow-x-auto no-scrollbar scroll-smooth flex-1"
                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                     >
-                        {[
-                            { key: 'marcador', label: 'Marcador', icon: FiTag, active: !!(selectedLabelFilter && (typeof selectedLabelFilter === 'string' ? selectedLabelFilter : selectedLabelFilter.labels?.length > 0)) },
-                            { key: 'status', label: 'Status', icon: FiRefreshCw, active: filterWindowOpen || filterTemplate24h || filterUnread || filterHasNote || filterUrgent || filterHasReplied || filterHasActiveFunnel || filterLastMessageRead || filterLastMessageUnread || filterNoPipeline || !!filterNotInPipelineId },
-                            { 
-                                key: 'bloqueio', 
-                                label: filterBlockStatus === 'unblocked' ? 'Não Bloqueados' : filterBlockStatus === 'blocked' ? 'Bloqueados' : filterBlockStatus === 'resting' ? 'Em Repouso' : 'Bloqueio', 
-                                icon: filterBlockStatus === 'unblocked' ? FiCheckCircle : FiSlash, 
-                                active: !!filterBlockStatus 
-                            },
-                            { key: 'data', label: 'Data', icon: FiCalendar, active: !!filterStartDate || !!filterEndDate },
-                            { key: 'ordem', label: 'Ordem', icon: FiSliders, active: !!orderBy && orderBy !== 'recent' }
-                        ].map(f => (
-                            <button
-                                key={f.key}
-                                onClick={e => handleFilterTabClick(f.key, e)}
-                                className={`relative shrink-0 min-w-max flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border whitespace-nowrap transition-all ${
-                                    activeFilterTab === f.key ? 'bg-blue-600 text-white border-blue-500 shadow-sm' : 'bg-white dark:bg-[#1e293b] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
-                                }`}
-                            >
-                                <f.icon size={12} className="shrink-0" /> <span>{f.label}</span>
-                                {f.active && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-blue-400 ring-2 ring-white" />}
-                            </button>
-                        ))}
+                        {(() => {
+                            const activeStatusCount = [
+                                filterWindowOpen,
+                                filterTemplate24h,
+                                filterUnread,
+                                filterHasNote,
+                                filterUrgent,
+                                filterHasReplied,
+                                filterHasActiveFunnel,
+                                filterLastMessageRead,
+                                filterLastMessageUnread,
+                                filterNoPipeline,
+                                !!filterNotInPipelineId,
+                                filterInPipeline,
+                                !!filterPipelineId,
+                                !!filterPipelineStageId
+                            ].filter(Boolean).length;
+
+                            const filterTabs = [
+                                { key: 'marcador', label: 'Marcador', icon: FiTag, active: !!(selectedLabelFilter && (typeof selectedLabelFilter === 'string' ? selectedLabelFilter : selectedLabelFilter.labels?.length > 0)) },
+                                { key: 'status', label: activeStatusCount > 0 ? `Status (${activeStatusCount})` : 'Status', icon: FiRefreshCw, active: activeStatusCount > 0 },
+                                { 
+                                    key: 'bloqueio', 
+                                    label: filterBlockStatus === 'unblocked' ? 'Não Bloqueados' : filterBlockStatus === 'blocked' ? 'Bloqueados' : filterBlockStatus === 'resting' ? 'Em Repouso' : 'Bloqueio', 
+                                    icon: filterBlockStatus === 'unblocked' ? FiCheckCircle : FiSlash, 
+                                    active: !!filterBlockStatus 
+                                },
+                                { key: 'data', label: 'Data', icon: FiCalendar, active: !!filterStartDate || !!filterEndDate },
+                                { key: 'ordem', label: 'Ordem', icon: FiSliders, active: !!orderBy && orderBy !== 'recent' }
+                            ];
+
+                            return filterTabs.map(f => (
+                                <button
+                                    key={f.key}
+                                    data-testid={`filter-tab-${f.key}`}
+                                    onClick={e => handleFilterTabClick(f.key, e)}
+                                    className={`relative shrink-0 min-w-max flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border whitespace-nowrap transition-all ${
+                                        activeFilterTab === f.key
+                                            ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                                            : f.active
+                                            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/35 hover:border-blue-500/50'
+                                            : 'bg-white dark:bg-[#1e293b] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
+                                    }`}
+                                >
+                                    <f.icon size={12} className="shrink-0" /> <span>{f.label}</span>
+                                    {f.active && (
+                                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-white dark:ring-[#111827] shadow-sm" />
+                                    )}
+                                </button>
+                            ));
+                        })()}
                         <span className="shrink-0 ml-1 bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">
                             {visibleCount}
                         </span>
@@ -211,83 +246,40 @@ export default function ChatListFilters({
                     </div>
                 )}
 
-                {activeFilterTab === 'status' && (
-                    <div className="px-4 pb-3 grid grid-cols-3 gap-1.5">
-                        <button
-                            onClick={() => setFilterWindowOpen(!filterWindowOpen)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterWindowOpen ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                        >
-                            Janela 24h
-                        </button>
-                        <button
-                            onClick={() => setFilterTemplate24h(!filterTemplate24h)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterTemplate24h ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                            title="Filtrar conversas que receberam mensagem de modelo (template) nas últimas 24h"
-                        >
-                            Template 24h
-                        </button>
-                        <button
-                            onClick={() => setFilterUnread(!filterUnread)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterUnread ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                        >
-                            Não lidas
-                        </button>
-                        <button
-                            onClick={() => setFilterHasNote(!filterHasNote)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterHasNote ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                        >
-                            Anotações
-                        </button>
-                        <button
-                            onClick={() => setFilterUrgent(!filterUrgent)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterUrgent ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                        >
-                            Urgentes
-                        </button>
-                        <button
-                            onClick={() => setFilterHasReplied(!filterHasReplied)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterHasReplied ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                            title="Filtrar contatos que enviaram pelo menos 1 mensagem"
-                        >
-                            Respondeu
-                        </button>
-                        <button
-                            onClick={() => setFilterHasActiveFunnel(!filterHasActiveFunnel)}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterHasActiveFunnel ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 font-bold ring-1 ring-cyan-500/40' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                            title="Filtrar contatos que possuem um funil em execução no momento"
-                        >
-                            Funil Ativo
-                        </button>
-                        <button
-                            onClick={() => {
-                                setFilterLastMessageRead(!filterLastMessageRead);
-                                if (!filterLastMessageRead) setFilterLastMessageUnread(false);
-                            }}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterLastMessageRead ? 'bg-sky-500/20 text-sky-400 border-sky-500/40 font-bold ring-1 ring-sky-500/40' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                            title="Filtrar conversas onde o contato visualizou a última mensagem que enviamos"
-                        >
-                            Viu última msg
-                        </button>
-                        <button
-                            onClick={() => {
-                                setFilterLastMessageUnread(!filterLastMessageUnread);
-                                if (!filterLastMessageUnread) setFilterLastMessageRead(false);
-                            }}
-                            className={`py-1.5 px-1 rounded-lg border text-[10px] font-semibold text-center truncate transition ${filterLastMessageUnread ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold ring-1 ring-amber-500/40' : 'text-gray-400 border-gray-200 dark:border-white/5 bg-white dark:bg-[#1e293b]'}`}
-                            title="Filtrar conversas onde o contato ainda não visualizou a última mensagem que enviamos"
-                        >
-                            Não viu última msg
-                        </button>
-
-                        <PipelineFilterControl
-                            filterNoPipeline={filterNoPipeline}
-                            setFilterNoPipeline={setFilterNoPipeline}
-                            filterNotInPipelineId={filterNotInPipelineId}
-                            setFilterNotInPipelineId={setFilterNotInPipelineId}
-                            pipelines={pipelines}
-                        />
-                    </div>
-                )}
+                {/* Popover Flutuante de Status (não empurra a lista de conversas) */}
+                <ChatStatusFilterPopover
+                    isOpen={activeFilterTab === 'status'}
+                    onClose={() => setActiveFilterTab(null)}
+                    filterWindowOpen={filterWindowOpen}
+                    setFilterWindowOpen={setFilterWindowOpen}
+                    filterTemplate24h={filterTemplate24h}
+                    setFilterTemplate24h={setFilterTemplate24h}
+                    filterUnread={filterUnread}
+                    setFilterUnread={setFilterUnread}
+                    filterHasNote={filterHasNote}
+                    setFilterHasNote={setFilterHasNote}
+                    filterUrgent={filterUrgent}
+                    setFilterUrgent={setFilterUrgent}
+                    filterHasReplied={filterHasReplied}
+                    setFilterHasReplied={setFilterHasReplied}
+                    filterHasActiveFunnel={filterHasActiveFunnel}
+                    setFilterHasActiveFunnel={setFilterHasActiveFunnel}
+                    filterLastMessageRead={filterLastMessageRead}
+                    setFilterLastMessageRead={setFilterLastMessageRead}
+                    filterLastMessageUnread={filterLastMessageUnread}
+                    setFilterLastMessageUnread={setFilterLastMessageUnread}
+                    filterNoPipeline={filterNoPipeline}
+                    setFilterNoPipeline={setFilterNoPipeline}
+                    filterNotInPipelineId={filterNotInPipelineId}
+                    setFilterNotInPipelineId={setFilterNotInPipelineId}
+                    filterInPipeline={filterInPipeline}
+                    setFilterInPipeline={setFilterInPipeline}
+                    filterPipelineId={filterPipelineId}
+                    setFilterPipelineId={setFilterPipelineId}
+                    filterPipelineStageId={filterPipelineStageId}
+                    setFilterPipelineStageId={setFilterPipelineStageId}
+                    pipelines={pipelines}
+                />
 
                 {activeFilterTab === 'bloqueio' && (
                     <div className="px-4 pb-3 flex gap-2">
@@ -365,32 +357,13 @@ export default function ChatListFilters({
                     </div>
                 )}
 
-                {activeFilterTab === 'ordem' && (
-                    <div className="px-4 pb-3 grid grid-cols-2 gap-1.5 animate-in fade-in duration-200">
-                        {[
-                            { key: 'recent', label: 'Mais recentes', desc: 'Última msg' },
-                            { key: 'oldest', label: 'Mais antigas', desc: 'Primeira msg' },
-                            { key: 'name_asc', label: 'Nome (A → Z)', desc: 'Alfabética' },
-                            { key: 'name_desc', label: 'Nome (Z → A)', desc: 'Inversa' },
-                            { key: 'messages_desc', label: 'Mais mensagens', desc: 'Maior volume' },
-                            { key: 'messages_asc', label: 'Menos mensagens', desc: 'Menor volume' },
-                            { key: 'unread_desc', label: 'Mais não lidas', desc: 'Não lidas no topo' }
-                        ].map(opt => (
-                            <button
-                                key={opt.key}
-                                onClick={() => setOrderBy(opt.key)}
-                                className={`py-1.5 px-2 rounded-lg border text-left flex flex-col justify-center transition-all ${
-                                    (orderBy || 'recent') === opt.key
-                                        ? 'bg-blue-600/15 border-blue-500 text-blue-500 dark:text-blue-400 font-bold shadow-sm'
-                                        : 'bg-white dark:bg-[#1e293b] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
-                                }`}
-                            >
-                                <span className="text-[11px] font-semibold tracking-tight">{opt.label}</span>
-                                <span className="text-[9px] opacity-70 font-normal">{opt.desc}</span>
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {/* Popover Flutuante de Ordenação (não empurra a lista de conversas) */}
+                <ChatOrderFilterPopover
+                    isOpen={activeFilterTab === 'ordem'}
+                    onClose={() => setActiveFilterTab(null)}
+                    orderBy={orderBy}
+                    setOrderBy={setOrderBy}
+                />
             </div>
         </>
     );

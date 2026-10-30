@@ -25,6 +25,8 @@ async def system_monitor_task():
                 try:
                     stats = global_stats.copy()
                     client_id = metadata.get("client_id")
+                    now_iso = datetime.now(timezone.utc).isoformat()
+                    stats["server_time"] = now_iso
                     
                     if client_id:
                         stats["client_stats"] = await SystemMonitor.get_client_stats(client_id)
@@ -33,6 +35,17 @@ async def system_monitor_task():
                         "event": "system_stats",
                         "data": stats
                     }, ws)
+
+                    # Envia pulso de sincronização de tempo para o Kanban (atualização de follow-up em tempo real)
+                    if client_id:
+                        await manager.send_personal_message({
+                            "event": "kanban_followup_tick",
+                            "client_id": client_id,
+                            "data": {
+                                "server_time": now_iso,
+                                "client_id": client_id
+                            }
+                        }, ws)
                 except Exception as e:
                     logger.warning(f"Erro ao enviar stats individual: {e}")
                     
@@ -77,6 +90,28 @@ async def backup_scheduler_task():
             logger.error(f"❌ [BACKUP-SCHEDULER] Erro na verificação de agendamento: {e}")
 
         await asyncio.sleep(60)
+
+async def email_funnel_scheduler_task():
+    """Varre execuções de funil de e-mail em delay a cada 30 segundos."""
+    from database import SessionLocal
+    from services.email_funnel_service import process_due_email_funnels
+
+    await asyncio.sleep(15)  # Aguarda o boot
+    logger.info("📧 [EMAIL-FUNNEL-SCHEDULER] Task de funis de e-mail iniciada.")
+
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                processed = await process_due_email_funnels(db)
+                if processed > 0:
+                    logger.info(f"📧 [EMAIL-FUNNEL-SCHEDULER] {processed} execuções de funil de e-mail avançadas.")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"❌ [EMAIL-FUNNEL-SCHEDULER] Erro ao processar funis de e-mail: {e}")
+
+        await asyncio.sleep(30)
 
 async def event_listener():
     """Conecta ao RabbitMQ para ouvir eventos de progresso e repassar ao Frontend"""

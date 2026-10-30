@@ -103,6 +103,15 @@ export const executeBulkSend = async ({
         });
     }
 
+    const effectiveGlobalParams = {
+        ...(selectionMetadata?.fileVariables || {}),
+        ...(selectionMetadata?.tagVariables || {}),
+        ...templateParams
+    };
+    if (!effectiveGlobalParams.BODY_0) {
+        effectiveGlobalParams.BODY_0 = '{{primeiro_nome}}';
+    }
+
     let formattedFollowups = [];
     if (isFollowupEnabled && Array.isArray(followups) && followups.length > 0) {
         for (let i = 0; i < followups.length; i++) {
@@ -122,6 +131,10 @@ export const executeBulkSend = async ({
                 });
             }
             const fuTpl = templates.find(t => t.name === fu.template_name);
+            const fuParams = {
+                ...effectiveGlobalParams,
+                ...(fu.template_params || {})
+            };
             formattedFollowups.push({
                 template_name: fu.template_name,
                 language: fu.language || fuTpl?.language || 'pt_BR',
@@ -130,7 +143,7 @@ export const executeBulkSend = async ({
                 scheduled_time: fu.schedule_type === 'fixed' && fu.scheduled_time ? new Date(fu.scheduled_time).toISOString() : null,
                 button_actions: fu.button_actions && Object.keys(fu.button_actions).length > 0 ? fu.button_actions : null,
                 stop_tags: stopTags || [],
-                components: fuTpl ? buildComponentsPayload(fuTpl, {}) : []
+                components: fuTpl ? buildComponentsPayload(fuTpl, fuParams) : []
             });
         }
     }
@@ -152,7 +165,7 @@ export const executeBulkSend = async ({
             contact_labels: (selectedContactLabels || []).map(l => typeof l === 'object' ? l.value : l).filter(Boolean),
             template_name: selectedTemplate,
             language: selectedTemplateObj.language || 'pt_BR',
-            components: buildComponentsPayload(selectedTemplateObj, templateParams),
+            components: buildComponentsPayload(selectedTemplateObj, effectiveGlobalParams),
             private_message: sendPrivateMessage ? privateMessageText : null,
             private_message_delay: privateMessageDelayUnit === 'minutes' ? privateMessageDelay * 60 : privateMessageDelay,
             private_message_concurrency: privateMessageConcurrency,

@@ -40,6 +40,7 @@ async def clear_conversation_messages(
 
     convo.last_message_content = None
     convo.unread_count = 0
+    convo.user_read_states = {}
     db.commit()
 
     logger.info(f"🧹 [CLEAR_CONVO_MESSAGES] Conversa #{conversation_id} teve {deleted_count} mensagens limpas pelo usuário #{current_user.id}.")
@@ -91,6 +92,9 @@ async def delete_conversations_bulk(
             has_active_funnel=payload.get("has_active_funnel"),
             no_pipeline=payload.get("no_pipeline"),
             not_in_pipeline_id=payload.get("not_in_pipeline_id"),
+            in_pipeline=payload.get("in_pipeline"),
+            pipeline_id=payload.get("pipeline_id"),
+            pipeline_stage_id=payload.get("pipeline_stage_id"),
             start_date=payload.get("start_date"),
             end_date=payload.get("end_date"),
             search=payload.get("search"),

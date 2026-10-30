@@ -15,7 +15,7 @@ from chatwoot_client import ChatwootClient
 from rabbitmq_client import rabbitmq
 from config_loader import get_setting
 from core.logger import setup_logger
-from services.utils.bulk_helpers import render_template_body, extract_body_from_components, resolve_template_body_with_sync
+from services.utils.bulk_helpers import render_template_body, extract_body_from_components, resolve_template_body_with_sync, sanitize_template_components
 from services.utils.phone_utils import normalize_phone
 from services.bulk_persistence import get_sent_phones_set, update_trigger_stats, record_blocked_status, record_skipped_status
 from services.bulk_core import send_smart_message, _extract_header_media
@@ -59,6 +59,9 @@ async def process_bulk_send(
         init_trig = db_init.query(models.ScheduledTrigger).get(trigger_id)
         if not init_trig:
             return logger.error(f"ScheduledTrigger {trigger_id} not found")
+
+        if not components and getattr(init_trig, "template_components", None):
+            components = init_trig.template_components
 
         chatwoot = ChatwootClient(client_id=init_trig.client_id)
 
@@ -201,6 +204,20 @@ async def process_bulk_send(
                 ).all()
                 batch_interaction_map = {w.phone: w.last_interaction_at for w in windows}
 
+                lead_name_map = {}
+                try:
+                    leads_in_batch = db_batch.query(models.WebhookLead).filter(
+                        models.WebhookLead.client_id == c_id,
+                        models.WebhookLead.phone.in_(batch_phones_norm)
+                    ).all()
+                    for ld in leads_in_batch:
+                        if getattr(ld, "phone", None) and getattr(ld, "name", None):
+                            ld_name = str(ld.name).strip()
+                            if ld_name and not ld_name.isdigit():
+                                lead_name_map[normalize_phone(ld.phone)] = ld_name
+                except Exception:
+                    pass
+
                 tasks = []
                 batch_meta = []
                 seen_in_batch = set()
@@ -213,14 +230,23 @@ async def process_bulk_send(
                     seen_in_batch.add(phone)
 
                     name = ""
+                    phone_digits = "".join(filter(str.isdigit, str(phone)))
                     if isinstance(c, dict):
-                        name = c.get('{{1}}') or c.get('1') or c.get('name') or c.get('nome') or c.get('cliente') or ""
+                        raw_n = str(c.get('{{1}}') or c.get('1') or c.get('name') or c.get('nome') or c.get('cliente') or "").strip()
+                        raw_n_digits = "".join(filter(str.isdigit, raw_n))
+                        if raw_n and not (raw_n.startswith("{{") and raw_n.endswith("}}")) and not (raw_n_digits and raw_n_digits == phone_digits):
+                            name = raw_n
                         if not name and 'components' in c:
                             for comp in c['components']:
                                 if str(comp.get("type", "")).lower() == "body":
                                     p0 = comp.get("parameters", [])[0] if comp.get("parameters") else None
-                                    name = (p0.get("text") if isinstance(p0, dict) else p0) or ""
+                                    cand = str((p0.get("text") if isinstance(p0, dict) else p0) or "").strip()
+                                    cand_digits = "".join(filter(str.isdigit, cand))
+                                    if cand and not (cand.startswith("{{") and cand.endswith("}}")) and not (cand_digits and cand_digits == phone_digits):
+                                        name = cand
                                     break
+                    if not name:
+                        name = lead_name_map.get(phone, "")
 
                     phone_suffix = phone[-8:] if len(phone) >= 8 else phone
                     if phone in blocked_set or phone_suffix in blocked_set:
@@ -229,24 +255,44 @@ async def process_bulk_send(
                         continue
 
                     cvars = extract_contact_vars(c, name)
-                    per_contact_components = c.get('components') if isinstance(c, dict) else None
+                    contact_vars = c.get('vars') if isinstance(c, dict) else None
+                    raw_contact_comps = c.get('components') if isinstance(c, dict) else None
+                    per_contact_components = raw_contact_comps if raw_contact_comps else components
+                    resolved_components = sanitize_template_components(
+                        per_contact_components or [],
+                        contact_name=name,
+                        contact_phone=phone,
+                        contact_vars=contact_vars,
+                        template_body=template_body_cache
+                    )
 
-                    batch_meta.append({"phone": phone, "name": name, "blocked": False, "vars": cvars, "components": per_contact_components, "contact_obj": c})
+                    batch_meta.append({"phone": phone, "name": name, "blocked": False, "vars": cvars, "contact_vars": contact_vars, "components": resolved_components, "contact_obj": c})
                     tasks.append(send_smart_message(
                         chatwoot, phone, trigger_id, template_name.split('|')[0], language,
-                        components=per_contact_components, direct_message=direct_message, direct_message_params=direct_message_params,
+                        components=resolved_components, direct_message=direct_message, direct_message_params=direct_message_params,
                         last_interaction=batch_interaction_map.get(phone), template_body_cache=template_body_cache,
                         template_btn_info=template_btn_info, contact_name=name,
                         chatwoot_label=c_label,
                         contact_labels=c_contact_labels,
-                        conversation_id=c.get('conversation_id') or c.get('id') if isinstance(c, dict) else None
+                        conversation_id=c.get('conversation_id') or c.get('id') if isinstance(c, dict) else None,
+                        contact_vars=contact_vars
                     ))
 
                 if not tasks:
                     i += concurrency
                     continue
 
+                # Libera a conexão do pool antes das chamadas HTTP externas para a Meta/Chatwoot
+                db_batch.close()
+                db_batch = None
+
                 results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # Reabre a conexão apenas para persistir os resultados do lote rapidamente
+                db_batch = SessionLocal()
+                current_trig = db_batch.query(models.ScheduledTrigger).get(trigger_id)
+                if not current_trig:
+                    return
 
                 sent_message_ids = []
                 batch_sent = batch_failed = batch_blocked = batch_skipped = 0
@@ -376,13 +422,18 @@ async def process_bulk_send(
                         all_sim_tasks.append(asyncio.create_task(simulate_lifecycle(mid, trigger_id, c_id)))
 
                 db_batch.refresh(current_trig)
-                await rabbitmq.publish_event("bulk_progress", build_progress_payload(trigger_id, c_id, current_trig, len(contacts)))
+                progress_payload = build_progress_payload(trigger_id, c_id, current_trig, len(contacts))
+                db_batch.close()
+                db_batch = None
+
+                await rabbitmq.publish_event("bulk_progress", progress_payload)
 
                 if abort_disparo:
                     return
 
             finally:
-                db_batch.close()
+                if db_batch is not None:
+                    db_batch.close()
 
             i += concurrency
             if i < len(contacts):

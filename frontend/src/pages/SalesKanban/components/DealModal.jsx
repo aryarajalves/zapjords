@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiTrash2, FiGlobe, FiTag, FiDollarSign, FiMessageSquare } from 'react-icons/fi';
+import { FiX, FiTrash2, FiMessageSquare } from 'react-icons/fi';
+import { DealProductPricingSection } from './DealModal/DealProductPricingSection';
+import { DealPipelineStageSection } from './DealModal/DealPipelineStageSection';
+import { DealFollowupSection } from './DealModal/DealFollowupSection';
 
 const CHANNEL_OPTIONS = [
     { id: 'whatsapp', label: '💬 WhatsApp' },
@@ -24,7 +27,7 @@ export function DealModal({
     onSave,
     onDelete,
     dealToEdit,
-    stages,
+    stages = [],
     pipelineId,
     initialStageId,
     defaultDealValue,
@@ -46,6 +49,11 @@ export function DealModal({
     const [lostReason, setLostReason] = useState('');
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Follow-up individual
+    const [useCustomFollowup, setUseCustomFollowup] = useState(false);
+    const [customDelayValue, setCustomDelayValue] = useState('');
+    const [customDelayUnit, setCustomDelayUnit] = useState('hours');
 
     useEffect(() => {
         if (dealToEdit) {
@@ -73,6 +81,13 @@ export function DealModal({
             setStatus(dealToEdit.status || 'open');
             setLostReason(dealToEdit.lost_reason || '');
             setNotes(dealToEdit.notes || '');
+
+            const hasCustomFo = dealToEdit.custom_followup_delay_value !== null &&
+                dealToEdit.custom_followup_delay_value !== undefined &&
+                Number(dealToEdit.custom_followup_delay_value) > 0;
+            setUseCustomFollowup(hasCustomFo);
+            setCustomDelayValue(hasCustomFo ? String(dealToEdit.custom_followup_delay_value) : '');
+            setCustomDelayUnit(dealToEdit.custom_followup_delay_unit || 'hours');
         } else {
             setContactName('');
             setContactPhone('');
@@ -89,6 +104,9 @@ export function DealModal({
             setStatus('open');
             setLostReason('');
             setNotes('');
+            setUseCustomFollowup(false);
+            setCustomDelayValue('');
+            setCustomDelayUnit('hours');
         }
     }, [dealToEdit, initialStageId, stages, isOpen, defaultDealValue]);
 
@@ -114,6 +132,7 @@ export function DealModal({
     const numReal = parseFloat(String(value).replace(',', '.')) || 0.0;
     const discountAmount = numOrig > numReal ? (numOrig - numReal) : 0;
     const discountPct = numOrig > 0 && discountAmount > 0 ? Math.round((discountAmount / numOrig) * 100) : 0;
+    const selectedStage = stages.find(s => String(s.id) === String(stageId));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -123,7 +142,6 @@ export function DealModal({
         setIsSaving(true);
         try {
             const finalChannel = channel === 'outro' ? (customChannel.trim() || 'Outro') : channel;
-            const selectedStage = stages.find(s => String(s.id) === String(stageId));
             const isDesistenciaStage = (selectedStage && (
                 selectedStage.stage_type === 'lost' ||
                 selectedStage.name.toLowerCase().includes('desistencia') ||
@@ -144,7 +162,9 @@ export function DealModal({
                 channel: finalChannel,
                 status: isDesistenciaStage ? 'lost' : status,
                 lost_reason: isDesistenciaStage ? (lostReason.trim() || null) : null,
-                notes: notes.trim() || null
+                notes: notes.trim() || null,
+                custom_followup_delay_value: useCustomFollowup && Number(customDelayValue) > 0 ? Number(customDelayValue) : null,
+                custom_followup_delay_unit: useCustomFollowup && Number(customDelayValue) > 0 ? customDelayUnit : null
             };
             await onSave(payload);
         } finally {
@@ -219,185 +239,45 @@ export function DealModal({
                         </div>
                     </div>
 
-                    {/* Linha 2: Produto da Empresa */}
-                    <div className="bg-slate-950/60 border border-amber-500/20 rounded-2xl p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <label className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-                                <FiTag size={13} className="text-amber-400" />
-                                Produto da Empresa
-                            </label>
-                            {(!Array.isArray(products) || products.length === 0) && (
-                                <span className="text-[10px] text-slate-400">
-                                    Nenhum produto cadastrado no catálogo
-                                </span>
-                            )}
-                        </div>
+                    {/* Linha 2: Produto da Empresa e Precificação */}
+                    <DealProductPricingSection
+                        products={products}
+                        productId={productId}
+                        onProductChange={handleProductChange}
+                        originalValue={originalValue}
+                        setOriginalValue={setOriginalValue}
+                        value={value}
+                        setValue={setValue}
+                        discountAmount={discountAmount}
+                        discountPct={discountPct}
+                    />
 
-                        <select
-                            value={productId}
-                            onChange={(e) => handleProductChange(e.target.value)}
-                            className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-amber-500 transition-all font-bold cursor-pointer"
-                        >
-                            <option value="">Selecione um produto (ou personalize abaixo)...</option>
-                            {(Array.isArray(products) ? products : []).map(p => (
-                                <option key={p.id} value={p.id} className="bg-slate-900 text-white">
-                                    {p.name} — R$ {Number(p.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </option>
-                            ))}
-                        </select>
+                    {/* Linha 3: Canal, Estágio e Status */}
+                    <DealPipelineStageSection
+                        channel={channel}
+                        setChannel={setChannel}
+                        customChannel={customChannel}
+                        setCustomChannel={setCustomChannel}
+                        stageId={stageId}
+                        setStageId={setStageId}
+                        stages={stages}
+                        status={status}
+                        setStatus={setStatus}
+                        lostReason={lostReason}
+                        setLostReason={setLostReason}
+                        channelOptions={CHANNEL_OPTIONS}
+                    />
 
-                        {/* Valores: Preço Padrão e Valor Real Vendido */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                                    Preço de Tabela (R$)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs font-bold">R$</span>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={originalValue}
-                                        onChange={(e) => setOriginalValue(e.target.value)}
-                                        placeholder="0,00"
-                                        className="w-full bg-slate-900 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-slate-300 text-xs font-bold outline-none focus:border-amber-500 transition-all"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                                    Valor Real da Venda (R$)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs font-bold">R$</span>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={value}
-                                        onChange={(e) => setValue(e.target.value)}
-                                        placeholder="0,00"
-                                        className="w-full bg-slate-900 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-emerald-400 text-xs font-black outline-none focus:border-emerald-500 transition-all"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Indicação de Desconto */}
-                        {discountAmount > 0 && (
-                            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
-                                <span>🏷️ Desconto Aplicado:</span>
-                                <span>
-                                    - R$ {discountAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({discountPct}% OFF)
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Linha 3: Canal e Estágio */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                                <FiGlobe className="text-blue-400" />
-                                Canal de Origem <span className="text-rose-400">*</span>
-                            </label>
-                            <select
-                                value={channel}
-                                onChange={(e) => setChannel(e.target.value)}
-                                className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-bold cursor-pointer"
-                            >
-                                {CHANNEL_OPTIONS.map((opt) => (
-                                    <option key={opt.id} value={opt.id} className="bg-slate-900 text-white">
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                                Coluna / Estágio <span className="text-rose-400">*</span>
-                            </label>
-                            <select
-                                value={stageId}
-                                onChange={(e) => setStageId(e.target.value)}
-                                className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-bold cursor-pointer"
-                            >
-                                {stages.map(stg => (
-                                    <option key={stg.id} value={stg.id} className="bg-slate-900 text-white">
-                                        {stg.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Status da Oportunidade */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                            Status da Oportunidade
-                        </label>
-                        <select
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value)}
-                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-bold cursor-pointer"
-                        >
-                            <option value="open">Em Aberto / Negociação</option>
-                            <option value="won">Ganho 🎉 (Venda Fechada)</option>
-                            <option value="lost">Perdido ❌</option>
-                        </select>
-                    </div>
-
-                    {/* Campo de Motivo da Desistência do Lead */}
-                    {(() => {
-                        const currentStage = stages.find(s => String(s.id) === String(stageId));
-                        const isDesistencia = (currentStage && (
-                            currentStage.stage_type === 'lost' ||
-                            currentStage.name.toLowerCase().includes('desistencia') ||
-                            currentStage.name.toLowerCase().includes('desistência')
-                        )) || status === 'lost';
-
-                        if (!isDesistencia) return null;
-
-                        return (
-                            <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 space-y-2 animate-fade-in">
-                                <label className="block text-xs font-bold text-rose-300">
-                                    Motivo da Desistência do Lead
-                                </label>
-                                <div className="flex flex-wrap gap-1.5 mb-2">
-                                    {[
-                                        'Preço alto / Sem orçamento',
-                                        'Sem interesse no momento',
-                                        'Comprou de concorrente',
-                                        'Não responde / Sumiu',
-                                        'Outro motivo'
-                                    ].map((q) => (
-                                        <button
-                                            type="button"
-                                            key={q}
-                                            onClick={() => setLostReason(q)}
-                                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                                lostReason === q
-                                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30'
-                                                    : 'bg-slate-950 text-slate-400 hover:text-white border border-white/5'
-                                            }`}
-                                        >
-                                            {q}
-                                        </button>
-                                    ))}
-                                </div>
-                                <textarea
-                                    rows={2}
-                                    value={lostReason}
-                                    onChange={(e) => setLostReason(e.target.value)}
-                                    placeholder="Descreva o motivo da desistência do lead..."
-                                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-2.5 text-white text-xs outline-none focus:border-rose-500 transition-all resize-none font-medium"
-                                />
-                            </div>
-                        );
-                    })()}
+                    {/* Linha 4: Prazo de Follow-up Individual */}
+                    <DealFollowupSection
+                        useCustomFollowup={useCustomFollowup}
+                        setUseCustomFollowup={setUseCustomFollowup}
+                        customDelayValue={customDelayValue}
+                        setCustomDelayValue={setCustomDelayValue}
+                        customDelayUnit={customDelayUnit}
+                        setCustomDelayUnit={setCustomDelayUnit}
+                        selectedStage={selectedStage}
+                    />
 
                     <div>
                         <label className="block text-xs font-bold text-slate-300 mb-1.5">

@@ -5,12 +5,47 @@ export default function EmailProviderFields({
   formData,
   setFormData
 }) {
+  const [showBrevoKey, setShowBrevoKey] = useState(false);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [showAwsSecret, setShowAwsSecret] = useState(false);
   const [showResendKey, setShowResendKey] = useState(false);
 
   return (
     <>
+      {/* Campos Específicos: BREVO API */}
+      {formData.provider === 'brevo' && (
+        <div className="space-y-4 p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+          <h4 className="text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <FiKey /> Configuração Brevo (Sendinblue) API
+          </h4>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              Brevo API Key {formData.has_brevo_key ? '(Configurada - digite para alterar)' : '*'}
+            </label>
+            <div className="relative">
+              <input
+                type={showBrevoKey ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder={formData.has_brevo_key ? '••••••••••••••••' : 'xkeysib-...'}
+                value={formData.brevo_api_key || ''}
+                onChange={e => setFormData({ ...formData, brevo_api_key: e.target.value })}
+                className="w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-white font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowBrevoKey(!showBrevoKey)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors p-1"
+                title={showBrevoKey ? "Ocultar chave" : "Ver chave"}
+              >
+                {showBrevoKey ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Chave oficial da sua conta Brevo (SMTP & API &gt; Chaves de API). O remetente abaixo deve estar verificado na Brevo.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Campos Específicos: AMAZON SES */}
       {formData.provider === 'ses' && (
         <div className="space-y-4 p-4 bg-blue-500/5 rounded-xl border border-blue-500/20">

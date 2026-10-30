@@ -13,7 +13,8 @@ const updateAndReorderConversations = (prevConvos, convoId, contentText) => {
     ...prevConvos[index],
     last_message_content: contentText,
     last_message_at: new Date().toISOString(),
-    status: 'open'
+    status: 'open',
+    unread_count: 0
   };
 
   const remaining = prevConvos.filter(c => Number(c.id) !== Number(convoId));
@@ -43,14 +44,13 @@ export function useChatMessagesFetch({
 
   const loadMessages = async (convoId, showLoading = false) => {
     if (!activeClient || !convoId) return;
-    const startTime = Date.now();
     if (showLoading) {
       setIsLoadingMessages(true);
       setMessages([]);
       setHasMoreMessages(true);
     }
     try {
-      const limitVal = 50;
+      const limitVal = 25;
       const res = await fetchWithAuth(`${API_URL}/chat/conversations/${convoId}/messages?limit=${limitVal}`, {}, activeClient.id);
       if (res.ok) {
         const data = await res.json();
@@ -93,13 +93,8 @@ export function useChatMessagesFetch({
       if (showLoading) setMessages([]);
     } finally {
       if (showLoading) {
-        // Garante tempo mínimo de 1000ms (1 segundo) para estabilização do layout e scroll sem flip
-        const elapsed = Date.now() - startTime;
-        const minLoadingDuration = 1000;
-        if (elapsed < minLoadingDuration) {
-          await new Promise(resolve => setTimeout(resolve, minLoadingDuration - elapsed));
-        }
         setIsLoadingMessages(false);
+        setShouldScrollToBottom(true);
       }
     }
   };
@@ -111,7 +106,7 @@ export function useChatMessagesFetch({
     setIsLoadingMoreMessages(true);
     try {
       const oldestMsgId = messages[0].id;
-      const limitVal = 50;
+      const limitVal = 25;
       const res = await fetchWithAuth(
         `${API_URL}/chat/conversations/${selectedConvo.id}/messages?limit=${limitVal}&before_id=${oldestMsgId}`,
         {},
@@ -199,6 +194,7 @@ export function useChatMessagesFetch({
             setMessages(prev => appendOrUpdateMessage(prev, sentMsg));
             setShouldScrollToBottom(true);
             setConversations(prev => updateAndReorderConversations(prev, selectedConvo.id, contentPart));
+            setSelectedConvo(prev => (prev && Number(prev.id) === Number(selectedConvo.id)) ? { ...prev, unread_count: 0 } : prev);
             
             if (i < parts.length - 1) {
               await new Promise(resolve => setTimeout(resolve, 800));
@@ -225,6 +221,7 @@ export function useChatMessagesFetch({
           setMessages(prev => appendOrUpdateMessage(prev, sentMsg));
           setShouldScrollToBottom(true);
           setConversations(prev => updateAndReorderConversations(prev, selectedConvo.id, textToSend));
+          setSelectedConvo(prev => (prev && Number(prev.id) === Number(selectedConvo.id)) ? { ...prev, unread_count: 0 } : prev);
         } else {
           const errData = await res.json();
           toast.error(errData.detail || 'Erro ao enviar mensagem.');

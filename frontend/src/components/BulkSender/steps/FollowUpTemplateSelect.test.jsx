@@ -6,101 +6,91 @@ import FollowUpTemplateSelect from './FollowUpTemplateSelect';
 describe('FollowUpTemplateSelect Component Tests', () => {
     const mockTemplates = [
         {
-            name: 'template_comum',
-            category: 'MARKETING',
-            language: 'pt_BR',
-            is_pinned: false
+            id: '10',
+            name: 'bussola_antiga',
+            created_at: '2026-08-01T10:00:00Z',
+            status: 'APPROVED',
+            category: 'MARKETING'
         },
         {
-            name: 'template_vip_destaque',
-            category: 'UTILITY',
-            language: 'pt_BR',
-            is_pinned: true
+            id: '50',
+            name: 'template_criado_por_ultimo',
+            created_at: '2026-10-28T12:00:00Z',
+            status: 'APPROVED',
+            category: 'MARKETING'
         },
         {
-            name: 'template_promo',
-            category: 'MARKETING',
-            language: 'pt_BR',
-            is_pinned: false
+            id: '30',
+            name: 'template_intermediario',
+            created_at: '2026-09-15T15:00:00Z',
+            status: 'APPROVED',
+            category: 'MARKETING'
+        },
+        {
+            id: '99',
+            name: 'template_fixado_importante',
+            created_at: '2026-07-01T10:00:00Z',
+            is_pinned: true,
+            status: 'APPROVED',
+            category: 'MARKETING'
         }
     ];
 
-    it('deve renderizar placeholder quando nenhum template estiver selecionado', () => {
-        render(
-            <FollowUpTemplateSelect
-                selectedTemplateName=""
-                templates={mockTemplates}
-                onSelectTemplate={vi.fn()}
-            />
-        );
-
-        expect(screen.getByText('Selecione o template do follow-up...')).toBeDefined();
-    });
-
-    it('deve exibir o nome do template selecionado e badge de fixado se for pinned', () => {
-        render(
-            <FollowUpTemplateSelect
-                selectedTemplateName="template_vip_destaque"
-                templates={mockTemplates}
-                onSelectTemplate={vi.fn()}
-            />
-        );
-
-        expect(screen.getByText('template_vip_destaque')).toBeDefined();
-        expect(screen.getByText('📌 Fixado')).toBeDefined();
-    });
-
-    it('ao abrir dropdown, deve destacar templates fixados no topo', () => {
-        render(
-            <FollowUpTemplateSelect
-                selectedTemplateName=""
-                templates={mockTemplates}
-                onSelectTemplate={vi.fn()}
-            />
-        );
-
-        const trigger = screen.getByRole('button');
-        fireEvent.click(trigger);
-
-        expect(screen.getByText('Templates Fixados (1)')).toBeDefined();
-        expect(screen.getByText('Outros Templates (2)')).toBeDefined();
-    });
-
-    it('deve filtrar templates em tempo real ao digitar na busca', () => {
-        render(
-            <FollowUpTemplateSelect
-                selectedTemplateName=""
-                templates={mockTemplates}
-                onSelectTemplate={vi.fn()}
-            />
-        );
-
-        const trigger = screen.getByRole('button');
-        fireEvent.click(trigger);
-
-        const searchInput = screen.getByPlaceholderText('Digitar para filtrar templates...');
-        fireEvent.change(searchInput, { target: { value: 'promo' } });
-
-        expect(screen.getByText('template_promo')).toBeDefined();
-        expect(screen.queryByText('template_comum')).toBeNull();
-    });
-
-    it('deve chamar onSelectTemplate ao clicar em um template da lista', () => {
+    it('renderiza os templates ordenando os criados por último primeiro (e fixados no topo)', () => {
         const onSelect = vi.fn();
         render(
             <FollowUpTemplateSelect
-                selectedTemplateName=""
                 templates={mockTemplates}
+                selectedTemplateName=""
+                onSelectTemplate={onSelect}
+                placeholder="Selecione um template..."
+            />
+        );
+
+        // Abre o dropdown
+        const trigger = screen.getByText('Selecione um template...');
+        fireEvent.click(trigger);
+
+        // Deve exibir os fixados destacados
+        expect(screen.getByText(/templates fixados/i)).toBeInTheDocument();
+        expect(screen.getByText('template_fixado_importante')).toBeInTheDocument();
+
+        // Pega todos os botões de opção dentro do container de opções
+        const optionButtons = screen.getAllByRole('button');
+        const optionTexts = optionButtons.map(b => b.textContent || '');
+
+        // O template criado por último (28/10/2026) deve aparecer antes do intermediário (15/09) e da antiga (01/08)
+        const idxUltimo = optionTexts.findIndex(t => t.includes('template_criado_por_ultimo'));
+        const idxIntermediario = optionTexts.findIndex(t => t.includes('template_intermediario'));
+        const idxAntiga = optionTexts.findIndex(t => t.includes('bussola_antiga'));
+
+        expect(idxUltimo).toBeGreaterThan(-1);
+        expect(idxIntermediario).toBeGreaterThan(-1);
+        expect(idxAntiga).toBeGreaterThan(-1);
+
+        expect(idxUltimo).toBeLessThan(idxIntermediario);
+        expect(idxIntermediario).toBeLessThan(idxAntiga);
+    });
+
+    it('permite filtrar templates pela busca e selecionar um template', () => {
+        const onSelect = vi.fn();
+        render(
+            <FollowUpTemplateSelect
+                templates={mockTemplates}
+                selectedTemplateName=""
                 onSelectTemplate={onSelect}
             />
         );
 
-        const trigger = screen.getByRole('button');
-        fireEvent.click(trigger);
+        fireEvent.click(screen.getByText(/selecione o template/i));
 
-        const item = screen.getByText('template_promo');
-        fireEvent.click(item);
+        const searchInput = screen.getByPlaceholderText(/digitar para filtrar/i);
+        fireEvent.change(searchInput, { target: { value: 'ultimo' } });
 
-        expect(onSelect).toHaveBeenCalledWith('template_promo', 'pt_BR');
+        expect(screen.getByText('template_criado_por_ultimo')).toBeInTheDocument();
+        expect(screen.queryByText('bussola_antiga')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('template_criado_por_ultimo'));
+        expect(onSelect).toHaveBeenCalledWith('template_criado_por_ultimo', 'pt_BR');
     });
 });

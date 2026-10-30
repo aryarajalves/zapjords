@@ -225,8 +225,14 @@ def qualify_followup_contacts(db: Session, followup_trigger: models.ScheduledTri
                     continue
 
         # Contato 100% qualificado!
-        base_contact = parent_contacts_map.get(phone, {"phone": phone, "name": getattr(ms, "contact_name", None) or phone})
+        raw_base = parent_contacts_map.get(phone, {"phone": phone, "name": getattr(ms, "contact_name", None) or phone})
+        base_contact = dict(raw_base) if isinstance(raw_base, dict) else {"phone": phone, "name": getattr(ms, "contact_name", None) or phone}
         base_contact["phone"] = phone
+        # Não herdar components do template pai (pois o follow-up usa outro template com seus próprios parâmetros)
+        if followup_trigger.template_components is not None:
+            base_contact["components"] = followup_trigger.template_components
+        else:
+            base_contact.pop("components", None)
         qualified_contacts.append(base_contact)
 
     logger.info(f"🎯 [FOLLOW-UP #{followup_trigger.id}] Total qualificados: {len(qualified_contacts)} de {len(delivered_statuses)} entregues.")

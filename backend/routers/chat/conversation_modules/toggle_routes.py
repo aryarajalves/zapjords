@@ -8,7 +8,7 @@ import models
 from core.deps import get_db, get_current_user
 from core.logger import setup_logger
 from config_loader import get_setting
-from ..common import get_client_id
+from ..common import get_client_id, mark_conversation_read_for_user, mark_conversation_unread_for_user
 
 logger = setup_logger("ChatRouter.ConversationToggles")
 
@@ -84,9 +84,38 @@ async def mark_as_read(
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
 
-    convo.unread_count = 0
+    mark_conversation_read_for_user(convo, getattr(current_user, "id", None))
     db.commit()
-    return {"status": "ok"}
+    logger.info(f"✅ [CHAT_READ] Conversa #{conversation_id} marcada como lida para o usuário #{getattr(current_user, 'id', None)}.")
+    return {
+        "status": "ok",
+        "conversation_id": convo.id,
+        "unread_count": 0
+    }
+
+
+@router.post("/chat/conversations/{conversation_id}/unread")
+async def mark_as_unread(
+    conversation_id: int,
+    client_id: int = Depends(get_client_id),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    convo = db.query(models.ChatConversation).filter(
+        models.ChatConversation.id == conversation_id,
+        models.ChatConversation.client_id == client_id
+    ).first()
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    restored_count = mark_conversation_unread_for_user(convo, getattr(current_user, "id", None))
+    db.commit()
+    logger.info(f"📬 [CHAT_UNREAD] Conversa #{conversation_id} marcada como não lida ({restored_count}) para o usuário #{getattr(current_user, 'id', None)}.")
+    return {
+        "status": "ok",
+        "conversation_id": convo.id,
+        "unread_count": restored_count
+    }
 
 
 @router.post("/chat/conversations/{conversation_id}/pin")

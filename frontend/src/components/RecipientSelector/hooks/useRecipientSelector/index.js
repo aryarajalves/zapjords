@@ -155,15 +155,15 @@ export const useRecipientSelector = ({
         const tagExclusions = mode === 'tag' 
             ? originalTagPhones.filter(phone => !selectedList.some(c => c.phone === phone))
             : [];
-        const payload = { list: selectedList, mode, tag: currentTag, tagExclusions, isValidated, variableFilters };
+        const payload = { list: selectedList, mode, tag: currentTag, tagExclusions, isValidated, variableFilters, tagVariables, fileVariables };
         const payloadStr = JSON.stringify(payload);
         if (lastOnSelectRef.current !== payloadStr) {
             if (typeof onSelect === 'function') {
-                onSelect(selectedList, { mode, tag: currentTag, tagExclusions, isValidated, variableFilters });
+                onSelect(selectedList, { mode, tag: currentTag, tagExclusions, isValidated, variableFilters, tagVariables, fileVariables });
             }
             lastOnSelectRef.current = payloadStr;
         }
-    }, [selectedList, mode, isValidated, onSelect, variableFilters, tags.selectedTags, originalTagPhones]);
+    }, [selectedList, mode, isValidated, onSelect, variableFilters, tags.selectedTags, originalTagPhones, tagVariables, fileVariables]);
 
     // Core Handlers
     const removeContact = (phone) => {

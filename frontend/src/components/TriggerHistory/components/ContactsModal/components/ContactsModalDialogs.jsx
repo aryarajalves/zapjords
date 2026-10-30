@@ -115,6 +115,7 @@ export default function ContactsModalDialogs({
           setSelectedPhones([]);
         }}
         selectedPhones={selectedPhones}
+        contacts={contacts}
         clientId={clientId}
         triggerId={triggerId}
         onSuccess={() => {

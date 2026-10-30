@@ -105,6 +105,7 @@ const NAV_SHORTCUTS = [
     { view: 'bulk_sender',          label: 'Disparo em Massa' },
     { view: 'history',              label: 'Histórico de Disparos' },
     { view: 'funnels',              label: 'Funis' },
+    { view: 'sales_kanban',         label: 'Kanban' },
     { view: 'leads',                label: 'Contatos' },
 ];
 

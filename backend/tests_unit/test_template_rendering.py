@@ -121,6 +121,50 @@ def test_render_template_body_scenarios():
 
     print("\n🎉 Todos os testes de renderização passaram!")
 
+def test_sanitize_template_components_prevents_132000_and_empty_body_0():
+    print("🧪 Testando proteção contra Erro Meta (#132000) em disparos agendados/dinâmicos...\n")
+
+    # 1. Quando components é [] mas template_body exige {{1}}, deve gerar componente body automaticamente
+    template_body = "Ooi, {{1}}! Tudo bem com você?"
+    sanitized_missing = sanitize_template_components(
+        [],
+        contact_name="Camila Oliveira",
+        contact_phone="5511999999999",
+        template_body=template_body
+    )
+    assert len(sanitized_missing) == 1
+    assert sanitized_missing[0]["type"] == "body"
+    assert len(sanitized_missing[0]["parameters"]) == 1
+    assert sanitized_missing[0]["parameters"][0]["text"] == "Camila"
+
+    # 2. Quando parameter #1 vem vazio ("") no template_components global, usa contact_vars ou primeiro nome
+    components_blank = [
+        {
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": ""}
+            ]
+        }
+    ]
+    sanitized_from_name = sanitize_template_components(
+        components_blank,
+        contact_name="Roberto Carlos",
+        contact_phone="5511988887777",
+        template_body=template_body
+    )
+    assert sanitized_from_name[0]["parameters"][0]["text"] == "Roberto"
+
+    sanitized_from_vars = sanitize_template_components(
+        components_blank,
+        contact_name="Roberto Carlos",
+        contact_phone="5511988887777",
+        contact_vars={"BODY_0": "{{nome}}"},
+        template_body=template_body
+    )
+    assert sanitized_from_vars[0]["parameters"][0]["text"] == "Roberto Carlos"
+    print("✅ Proteção contra #132000 validada com sucesso!")
+
 if __name__ == "__main__":
     test_sanitize_template_components_dynamic_vars()
     test_render_template_body_scenarios()
+    test_sanitize_template_components_prevents_132000_and_empty_body_0()

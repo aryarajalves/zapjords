@@ -1,0 +1,13 @@
+export { default } from './BulkTemplateModal';
+export { default as BulkTemplateHeader } from './BulkTemplateHeader';
+export { default as BulkTemplateFooter } from './BulkTemplateFooter';
+export { default as BulkTemplateTabs } from './BulkTemplateTabs';
+export { default as BulkTemplateTabMessage } from './BulkTemplateTabMessage';
+export { default as BulkTemplateTabSettings } from './BulkTemplateTabSettings';
+export { default as BulkTemplateScheduling } from './BulkTemplateScheduling';
+export { default as BulkTemplateTabRecipients } from './BulkTemplateTabRecipients';
+export { default as BulkTemplateButtonsConfig } from './BulkTemplateButtonsConfig';
+export { default as BulkTemplateVariables } from './BulkTemplateVariables';
+export { default as BulkTemplateMediaUpload } from './BulkTemplateMediaUpload';
+export { default as BulkTemplateVariablesInputs } from './BulkTemplateVariablesInputs';
+export { default as BulkTemplatePreviewBox } from './BulkTemplatePreviewBox';

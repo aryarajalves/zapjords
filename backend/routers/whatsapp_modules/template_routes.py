@@ -104,18 +104,24 @@ async def list_templates(
         pinned_map = {}
         created_at_map = {}
         for lc in local_caches:
-            if lc.tags:
-                tags_map[str(lc.id)] = [t.strip() for t in lc.tags.split(",") if t.strip()]
-            else:
-                tags_map[str(lc.id)] = []
-            pinned_map[str(lc.id)] = lc.is_pinned
-            created_at_map[str(lc.id)] = lc.created_at.isoformat() if lc.created_at else None
+            tags = [t.strip() for t in lc.tags.split(",") if t.strip()] if lc.tags else []
+            pinned = bool(lc.is_pinned)
+            created = lc.created_at.isoformat() if lc.created_at else None
+
+            # Indexa por id (str) e por nome do template para garantir merge exato
+            tags_map[str(lc.id)] = tags
+            tags_map[lc.name] = tags
+            pinned_map[str(lc.id)] = pinned
+            pinned_map[lc.name] = pinned
+            created_at_map[str(lc.id)] = created
+            created_at_map[lc.name] = created
  
         for t in templates:
             t_id = str(t.get("id"))
-            t["tags"] = tags_map.get(t_id, [])
-            t["is_pinned"] = pinned_map.get(t_id, False)
-            t["created_at"] = created_at_map.get(t_id, None)
+            t_name = str(t.get("name") or "")
+            t["tags"] = tags_map.get(t_id) or tags_map.get(t_name, [])
+            t["is_pinned"] = pinned_map.get(t_id) if t_id in pinned_map else pinned_map.get(t_name, False)
+            t["created_at"] = created_at_map.get(t_id) or created_at_map.get(t_name, None)
     except Exception as merge_err:
         logger.error(f"Error merging template tags, pins and created_at: {merge_err}")
         for t in templates:
@@ -135,8 +141,13 @@ async def list_templates(
                 created_val = -datetime.fromisoformat(clean_dt).timestamp()
             except Exception:
                 created_val = 0
+        id_val = 0
+        try:
+            id_val = -int(t.get("id") or 0)
+        except Exception:
+            id_val = 0
         name_val = str(t.get("name") or "").lower()
-        return (is_pinned_val, created_val, name_val)
+        return (is_pinned_val, created_val, id_val, name_val)
 
     templates.sort(key=get_sort_key)
     return templates
