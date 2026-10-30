@@ -343,3 +343,39 @@ body.no-scroll, body.no-scroll main {
 .folder-resizer-line.is-selected {
     opacity: 0.9 !important;
 }
+
+
+/* ReactFlow Controls Dark Theme Glassmorphism */
+.react-flow__controls {
+    background: #0f172a !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+.react-flow__controls-button {
+    background: #1e293b !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+    fill: #94a3b8 !important;
+    transition: all 0.15s ease !important;
+}
+
+.react-flow__controls-button:last-child {
+    border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+    background: #334155 !important;
+    color: #38bdf8 !important;
+    fill: #38bdf8 !important;
+}
+
+.react-flow__controls-button svg {
+    fill: #94a3b8 !important;
+}
+
+.react-flow__controls-button:hover svg {
+    fill: #38bdf8 !important;
+}

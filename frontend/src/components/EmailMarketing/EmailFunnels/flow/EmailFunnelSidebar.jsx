@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiZap, FiShield, FiPlus, FiMail, FiClock, FiTag, FiMousePointer } from 'react-icons/fi';
+import { FiZap, FiShield, FiPlus, FiMail, FiClock, FiTag, FiMousePointer, FiGlobe, FiTrello, FiMessageSquare } from 'react-icons/fi';
 import EmailTagCombobox from '../components/EmailTagCombobox';
 
 export default function EmailFunnelSidebar({
@@ -133,6 +133,30 @@ export default function EmailFunnelSidebar({
           className="w-full px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
         >
           <FiTag size={14} className="text-emerald-400" /> + Ação de Etiqueta
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onAddNode('webhook')}
+          className="w-full px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+        >
+          <FiGlobe size={14} className="text-cyan-400" /> + Disparo Webhook (HTTP)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onAddNode('kanban')}
+          className="w-full px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+        >
+          <FiTrello size={14} className="text-amber-400" /> + Mover no Kanban
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onAddNode('whatsapp')}
+          className="w-full px-3 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+        >
+          <FiMessageSquare size={14} className="text-green-400" /> + Enviar WhatsApp
         </button>
       </div>
 

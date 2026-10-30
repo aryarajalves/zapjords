@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FiMail, FiClock, FiTag, FiSearch } from 'react-icons/fi';
+import { FiMail, FiClock, FiTag, FiSearch, FiGlobe, FiTrello, FiMessageSquare } from 'react-icons/fi';
 
 export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
   const [search, setSearch] = useState('');
@@ -41,6 +41,30 @@ export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
       icon: FiTag,
       colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 group-hover:bg-emerald-500/20',
       badge: 'Tag'
+    },
+    {
+      type: 'webhook',
+      title: 'Disparo Webhook',
+      desc: 'Requisição HTTP POST externa',
+      icon: FiGlobe,
+      colorClass: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 group-hover:bg-cyan-500/20',
+      badge: 'Webhook'
+    },
+    {
+      type: 'kanban',
+      title: 'Mover no Kanban',
+      desc: 'Atualizar etapa no CRM de Vendas',
+      icon: FiTrello,
+      colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/20',
+      badge: 'CRM'
+    },
+    {
+      type: 'whatsapp',
+      title: 'Mensagem WhatsApp',
+      desc: 'Enviar WhatsApp para o lead',
+      icon: FiMessageSquare,
+      colorClass: 'text-green-400 bg-green-500/10 border-green-500/20 group-hover:bg-green-500/20',
+      badge: 'WhatsApp'
     }
   ];
 

@@ -260,3 +260,85 @@ async def test_smart_cancellation_on_purchase(db, client_obj):
     db.refresh(execution)
     assert execution.status == "stopped_purchase"
     assert "Compra aprovada" in execution.stop_reason
+
+
+@pytest.mark.asyncio
+async def test_email_funnel_extended_nodes_execution(db, client_obj):
+    """Testa execução dos novos nós de Webhook, Kanban e WhatsApp no funil de e-mail."""
+    from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal
+    from models.trigger import WebhookLead
+
+    # Criar pipeline e estágio
+    pipe = SalesPipeline(client_id=client_obj.id, name="Pipeline Vendas")
+    db.add(pipe)
+    db.commit()
+    db.refresh(pipe)
+
+    stage = SalesPipelineStage(pipeline_id=pipe.id, client_id=client_obj.id, name="Em Negociacao")
+    db.add(stage)
+    db.commit()
+    db.refresh(stage)
+
+    # Lead
+    lead = WebhookLead(
+        client_id=client_obj.id,
+        name="Carlos Silva",
+        email="carlos@teste.com",
+        phone="5511999998888",
+        tags="interessado"
+    )
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+
+    funnel = EmailFunnel(
+        client_id=client_obj.id,
+        name="Funil Multi-Canais",
+        trigger_type="tag",
+        is_active=True,
+        steps=[
+            {"type": "webhook", "url": "https://meuwebhook.com/api", "method": "POST"},
+            {"type": "kanban", "stage_name": "Em Negociacao"},
+            {"type": "whatsapp_message", "message": "Olá {{nome}}, recebemos seu interesse!"}
+        ]
+    )
+    db.add(funnel)
+    db.commit()
+    db.refresh(funnel)
+
+    # Mockar a chamada HTTP do webhook
+    mock_resp = AsyncMock()
+    mock_resp.status_code = 200
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+        execution = await enroll_contact_in_funnel(
+            db=db,
+            client_id=client_obj.id,
+            funnel_id=funnel.id,
+            contact_email="carlos@teste.com",
+            contact_name="Carlos Silva",
+            lead_id=lead.id,
+            start_immediately=True
+        )
+
+    assert execution is not None
+    db.refresh(execution)
+    assert execution.status == "completed"
+    assert len(execution.history) == 3
+
+    # Validar webhook no history
+    assert execution.history[0]["type"] == "webhook"
+    assert execution.history[0]["status"] == "sent"
+
+    # Validar kanban no history e criação do deal
+    assert execution.history[1]["type"] == "kanban"
+    assert execution.history[1]["status"] == "moved"
+    deal = db.query(SalesDeal).filter(SalesDeal.lead_id == lead.id).first()
+    assert deal is not None
+    assert deal.stage_id == stage.id
+
+    # Validar whatsapp no history
+    assert execution.history[2]["type"] == "whatsapp_message"
+    assert execution.history[2]["status"] == "queued"
+    assert "Olá Carlos" in execution.history[2]["message"]
+

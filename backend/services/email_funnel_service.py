@@ -1,9 +1,11 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
+import httpx
 from sqlalchemy.orm import Session
 from core.logger import setup_logger
 from models.email import EmailFunnel, EmailFunnelExecution, EmailTemplate, EmailConfig
 from models.trigger import WebhookLead
+from models.crm import SalesPipelineStage, SalesDeal
 from services.email_service import send_single_email
 
 logger = setup_logger("email_funnel_service")
@@ -263,6 +265,179 @@ async def execute_next_step(db: Session, execution_id: int) -> bool:
             "tag": tag_name,
             "recorded_at": _now().isoformat()
         })
+        execution.history = hist
+        execution.current_step_index += 1
+        db.commit()
+
+        if execution.current_step_index < len(steps):
+            return await execute_next_step(db, execution.id)
+        else:
+            execution.status = "completed"
+            execution.stop_reason = "Sequência concluída com sucesso"
+            funnel.total_completed = (funnel.total_completed or 0) + 1
+            db.commit()
+            return True
+
+    elif step_type == "webhook":
+        target_url = current_step.get("url")
+        method = (current_step.get("method") or "POST").upper()
+        hist = list(execution.history or [])
+
+        if not target_url:
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "webhook",
+                "status": "skipped",
+                "reason": "URL do webhook não informada",
+                "recorded_at": _now().isoformat()
+            })
+        else:
+            lead = db.query(WebhookLead).filter(WebhookLead.id == execution.lead_id).first() if execution.lead_id else None
+            payload = {
+                "event": "email_funnel_webhook",
+                "funnel_id": funnel.id,
+                "funnel_name": funnel.name,
+                "contact_email": execution.contact_email,
+                "contact_name": execution.contact_name,
+                "phone": lead.phone if lead else None,
+                "tags": lead.tags if lead else [],
+                "step_index": execution.current_step_index
+            }
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    if method == "GET":
+                        resp = await client.get(target_url, params=payload)
+                    else:
+                        resp = await client.post(target_url, json=payload)
+                hist.append({
+                    "step_index": execution.current_step_index,
+                    "type": "webhook",
+                    "url": target_url,
+                    "status": "sent",
+                    "status_code": resp.status_code,
+                    "recorded_at": _now().isoformat()
+                })
+                logger.info(f"Webhook disparado para {target_url} com status {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"Erro ao disparar webhook para {target_url}: {e}")
+                hist.append({
+                    "step_index": execution.current_step_index,
+                    "type": "webhook",
+                    "url": target_url,
+                    "status": "failed",
+                    "error": str(e),
+                    "recorded_at": _now().isoformat()
+                })
+
+        execution.history = hist
+        execution.current_step_index += 1
+        db.commit()
+
+        if execution.current_step_index < len(steps):
+            return await execute_next_step(db, execution.id)
+        else:
+            execution.status = "completed"
+            execution.stop_reason = "Sequência concluída com sucesso"
+            funnel.total_completed = (funnel.total_completed or 0) + 1
+            db.commit()
+            return True
+
+    elif step_type == "kanban":
+        stage_name = current_step.get("stage_name", "").strip()
+        hist = list(execution.history or [])
+
+        stage = None
+        if stage_name:
+            stage = db.query(SalesPipelineStage).filter(
+                SalesPipelineStage.client_id == execution.client_id,
+                SalesPipelineStage.name.ilike(stage_name)
+            ).first()
+
+        if stage and execution.lead_id:
+            deal = db.query(SalesDeal).filter(
+                SalesDeal.client_id == execution.client_id,
+                SalesDeal.lead_id == execution.lead_id
+            ).first()
+            if deal:
+                deal.stage_id = stage.id
+                deal.pipeline_id = stage.pipeline_id
+            else:
+                lead = db.query(WebhookLead).filter(WebhookLead.id == execution.lead_id).first()
+                new_deal = SalesDeal(
+                    client_id=execution.client_id,
+                    pipeline_id=stage.pipeline_id,
+                    stage_id=stage.id,
+                    lead_id=execution.lead_id,
+                    contact_name=execution.contact_name or (lead.name if lead else ""),
+                    contact_phone=lead.phone if lead else "",
+                    contact_email=execution.contact_email,
+                    status="open",
+                    value=0.0
+                )
+                db.add(new_deal)
+
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "kanban",
+                "stage_id": stage.id,
+                "stage_name": stage.name,
+                "status": "moved",
+                "recorded_at": _now().isoformat()
+            })
+            logger.info(f"Oportunidade do lead {execution.contact_email} movida para etapa Kanban '{stage.name}'")
+        else:
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "kanban",
+                "stage_name": stage_name,
+                "status": "skipped",
+                "reason": f"Etapa '{stage_name}' não encontrada ou lead ausente",
+                "recorded_at": _now().isoformat()
+            })
+
+        execution.history = hist
+        execution.current_step_index += 1
+        db.commit()
+
+        if execution.current_step_index < len(steps):
+            return await execute_next_step(db, execution.id)
+        else:
+            execution.status = "completed"
+            execution.stop_reason = "Sequência concluída com sucesso"
+            funnel.total_completed = (funnel.total_completed or 0) + 1
+            db.commit()
+            return True
+
+    elif step_type == "whatsapp_message":
+        msg_text = current_step.get("message", "").strip()
+        hist = list(execution.history or [])
+
+        lead = db.query(WebhookLead).filter(WebhookLead.id == execution.lead_id).first() if execution.lead_id else None
+        phone = lead.phone if (lead and lead.phone) else None
+
+        if not phone or not msg_text:
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "whatsapp_message",
+                "status": "skipped",
+                "reason": "Telefone ou mensagem ausente",
+                "recorded_at": _now().isoformat()
+            })
+        else:
+            # Personalização de variáveis
+            first_name = (execution.contact_name or "").split()[0] if execution.contact_name else ""
+            custom_msg = msg_text.replace("{{nome}}", first_name).replace("{nome}", first_name)
+            
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "whatsapp_message",
+                "phone": phone,
+                "message": custom_msg,
+                "status": "queued",
+                "recorded_at": _now().isoformat()
+            })
+            logger.info(f"Mensagem WhatsApp enfileirada no funil de e-mail para {phone}")
+
         execution.history = hist
         execution.current_step_index += 1
         db.commit()
