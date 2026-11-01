@@ -6,41 +6,44 @@ from .common import get_val
 def parse_hotmart(payload: dict, result: dict) -> None:
     """Parser unificado para webhooks da Hotmart."""
     event = payload.get("event", "")
+    event_clean = str(event or "").strip().upper()
+    order_status = str(payload.get("order", {}).get("status") if isinstance(payload.get("order"), dict) else "").strip().upper()
+    purchase_status = str(payload.get("data", {}).get("purchase", {}).get("status") if isinstance(payload.get("data"), dict) and isinstance(payload.get("data", {}).get("purchase"), dict) else "").strip().upper()
     data = payload.get("data", {})
     buyer = data.get("buyer", {})
     product = data.get("product", {})
     purchase = data.get("purchase", {})
     
     # 1. Mapeamento de Evento Base
-    if payload.get("checkout_pre_populado") or payload.get("is_checkout_pre_populado") or str(payload.get("tipo", "")).lower() == "checkout_pre_populado" or str(payload.get("origem", "")).lower() == "checkout_pre_populado" or event in ["PURCHASE_OUT_OF_SHOPPING_CART", "CHECKOUT_PRE_POPULADO"]:
+    if payload.get("checkout_pre_populado") or payload.get("is_checkout_pre_populado") or str(payload.get("tipo", "")).lower() == "checkout_pre_populado" or str(payload.get("origem", "")).lower() == "checkout_pre_populado" or event_clean in ["PURCHASE_OUT_OF_SHOPPING_CART", "CHECKOUT_PRE_POPULADO"]:
         result['event_type'] = "checkout_pre_populado"
-    elif event == "PURCHASE_APPROVED":
+    elif event_clean in ["PURCHASE_APPROVED", "COMPRA_APROVADA", "COMPRA APROVADA", "APPROVED", "SALE_APPROVED"] or order_status in ["COMPRA APROVADA", "COMPRA_APROVADA", "APPROVED"] or purchase_status in ["COMPRA APROVADA", "COMPRA_APROVADA", "APPROVED"]:
         result['event_type'] = "compra_aprovada"
-    elif event == "PURCHASE_COMPLETE":
+    elif event_clean in ["PURCHASE_COMPLETE", "COMPRA_CONCLUIDA", "COMPRA CONCLUIDA"]:
         result['event_type'] = "compra_concluida"
-    elif event in ["PURCHASE_CANCELED", "PURCHASE_REFUNDED"]:
+    elif event_clean in ["PURCHASE_CANCELED", "PURCHASE_REFUNDED", "REEMBOLSO", "REFUNDED"]:
         result['event_type'] = "reembolso"
-    elif event == "PURCHASE_BILLET_PRINTED":
+    elif event_clean in ["PURCHASE_BILLET_PRINTED", "BOLETO_IMPRESSO", "BOLETO IMPRESSO", "WAITING_PAYMENT"]:
         result['event_type'] = "boleto_impresso"
-    elif event == "PURCHASE_DELAYED":
+    elif event_clean in ["PURCHASE_DELAYED", "CARTAO_RECUSADO", "CARTAO RECUSADO", "REFUSED"]:
         result['event_type'] = "cartao_recusado"
-    elif event == "ABANDONED_CART":
+    elif event_clean in ["ABANDONED_CART", "CARRINHO_ABANDONADO", "CARRINHO ABANDONADO"]:
         result['event_type'] = "carrinho_abandonado"
-    elif event == "PURCHASE_CHARGEBACK":
+    elif event_clean in ["PURCHASE_CHARGEBACK", "CHARGEBACK"]:
         result['event_type'] = "chargeback"
-    elif event == "PURCHASE_PROTEST":
+    elif event_clean in ["PURCHASE_PROTEST"]:
         result['event_type'] = "reembolso"
-    elif event == "PURCHASE_EXPIRED":
+    elif event_clean in ["PURCHASE_EXPIRED", "PIX_EXPIRADO", "PIX EXPIRADO"]:
         result['event_type'] = "pix_expirado"
-    elif event == "PURCHASE_OUT_OF_SHOPPING_CART":
+    elif event_clean in ["PURCHASE_OUT_OF_SHOPPING_CART"]:
         result['event_type'] = "checkout_pre_populado"
-    elif event == "SUBSCRIPTION_CANCELLATION":
+    elif event_clean in ["SUBSCRIPTION_CANCELLATION"]:
         result['event_type'] = "reembolso"
-    elif event == "SWITCH_PLAN":
+    elif event_clean in ["SWITCH_PLAN", "TROCA_DE_PLANO"]:
         result['event_type'] = "troca_de_plano"
-    elif event == "UPDATE_SUBSCRIPTION_CHARGE_DATE":
+    elif event_clean in ["UPDATE_SUBSCRIPTION_CHARGE_DATE", "ALTERACAO_VENCIMENTO"]:
         result['event_type'] = "alteracao_vencimento"
-    elif str(event).startswith("CLUB_"):
+    elif str(event_clean).startswith("CLUB_"):
         result['event_type'] = "evento_aluno"
         
     # 2. Extração de Informações do Comprador/Aluno

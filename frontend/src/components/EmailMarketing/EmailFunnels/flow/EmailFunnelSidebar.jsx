@@ -1,5 +1,18 @@
 import React from 'react';
-import { FiZap, FiShield, FiPlus, FiMail, FiClock, FiTag, FiMousePointer, FiGlobe, FiTrello, FiMessageSquare } from 'react-icons/fi';
+import {
+  FiZap,
+  FiShield,
+  FiMail,
+  FiClock,
+  FiTag,
+  FiMousePointer,
+  FiGlobe,
+  FiTrello,
+  FiGitBranch,
+  FiPieChart,
+  FiCalendar,
+  FiCornerUpRight
+} from 'react-icons/fi';
 import EmailTagCombobox from '../components/EmailTagCombobox';
 
 export default function EmailFunnelSidebar({
@@ -20,7 +33,7 @@ export default function EmailFunnelSidebar({
   onAddNode
 }) {
   return (
-    <div className="w-80 bg-slate-900/90 border-r border-white/10 p-5 flex flex-col gap-5 overflow-y-auto z-10 backdrop-blur-md shrink-0">
+    <div className="w-80 bg-slate-900/90 border-r border-white/10 p-5 flex flex-col gap-5 overflow-y-auto z-10 backdrop-blur-md shrink-0 custom-scrollbar">
       
       {/* Nome e Descrição */}
       <div className="space-y-3">
@@ -106,7 +119,7 @@ export default function EmailFunnelSidebar({
       </div>
 
       {/* Adicionar Novos Nós ao Canvas */}
-      <div className="space-y-2 pt-1 border-t border-white/5">
+      <div className="space-y-2 pt-1 border-t border-white/5 pb-2">
         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
           + Adicionar Nós ao Fluxo
         </label>
@@ -114,23 +127,55 @@ export default function EmailFunnelSidebar({
         <button
           type="button"
           onClick={() => onAddNode('email')}
-          className="w-full px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          className="w-full px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
         >
           <FiMail size={14} className="text-indigo-400" /> + Envio de E-mail
         </button>
 
         <button
           type="button"
+          onClick={() => onAddNode('condition')}
+          className="w-full px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+        >
+          <FiGitBranch size={14} className="text-violet-400" /> + Condição (Se / Senão)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onAddNode('split')}
+          className="w-full px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+        >
+          <FiPieChart size={14} className="text-cyan-400" /> + Divisor A/B (Split)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onAddNode('wait_until')}
+          className="w-full px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+        >
+          <FiCalendar size={14} className="text-orange-400" /> + Esperar Horário / Dia
+        </button>
+
+        <button
+          type="button"
           onClick={() => onAddNode('delay')}
-          className="w-full px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          className="w-full px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
         >
           <FiClock size={14} className="text-amber-400" /> + Tempo de Espera (Delay)
         </button>
 
         <button
           type="button"
+          onClick={() => onAddNode('sub_funnel')}
+          className="w-full px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+        >
+          <FiCornerUpRight size={14} className="text-emerald-400" /> + Ir Para Outro Funil
+        </button>
+
+        <button
+          type="button"
           onClick={() => onAddNode('tag')}
-          className="w-full px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          className="w-full px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
         >
           <FiTag size={14} className="text-emerald-400" /> + Ação de Etiqueta
         </button>
@@ -138,7 +183,7 @@ export default function EmailFunnelSidebar({
         <button
           type="button"
           onClick={() => onAddNode('webhook')}
-          className="w-full px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          className="w-full px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
         >
           <FiGlobe size={14} className="text-cyan-400" /> + Disparo Webhook (HTTP)
         </button>
@@ -146,17 +191,9 @@ export default function EmailFunnelSidebar({
         <button
           type="button"
           onClick={() => onAddNode('kanban')}
-          className="w-full px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          className="w-full px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
         >
           <FiTrello size={14} className="text-amber-400" /> + Mover no Kanban
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onAddNode('whatsapp')}
-          className="w-full px-3 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
-        >
-          <FiMessageSquare size={14} className="text-green-400" /> + Enviar WhatsApp
         </button>
       </div>
 

@@ -84,6 +84,7 @@ class SalesDealBase(BaseModel):
     notes: Optional[str] = None
     custom_followup_delay_value: Optional[int] = None
     custom_followup_delay_unit: Optional[str] = "hours"
+    won_at: Optional[datetime] = None
 
 class SalesDealCreate(SalesDealBase):
     pipeline_id: int
@@ -143,6 +144,7 @@ class SalesDealResponse(SalesDealBase):
     lead_id: Optional[int] = None
     last_interaction_at: Optional[datetime] = None
     stage_entered_at: Optional[datetime] = None
+    won_at: Optional[datetime] = None
     needs_followup: Optional[bool] = None
     followup_overdue_seconds: Optional[float] = None
     followup_remaining_seconds: Optional[float] = None
@@ -219,3 +221,30 @@ class CrmSyncHistoryResult(BaseModel):
     updated_deals: int
     skipped: int
     message: str
+
+
+# --- HISTÓRICO & TIMELINE DO LEAD / DEAL ---
+
+class SalesDealActivityItem(BaseModel):
+    id: str
+    type: str  # created, stage_change, won, lost, whatsapp_dispatch, email_dispatch, note
+    title: str
+    description: Optional[str] = None
+    source: Optional[str] = "system"  # system, webhook, user, dispatch
+    status: Optional[str] = None  # delivered, read, sent, failed, etc.
+    timestamp: datetime
+    metadata: Optional[dict] = None
+
+class SalesDealHistoryResponse(BaseModel):
+    deal_id: int
+    contact_name: Optional[str] = None
+    contact_phone: str
+    contact_email: Optional[str] = None
+    product_name: Optional[str] = None
+    deal_value: Optional[float] = 0.0
+    current_stage_name: Optional[str] = None
+    stage_entered_at: Optional[datetime] = None
+    won_at: Optional[datetime] = None
+    deal_status: Optional[str] = "open"
+    timeline: List[SalesDealActivityItem] = []
+

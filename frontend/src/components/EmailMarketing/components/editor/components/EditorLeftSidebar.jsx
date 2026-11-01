@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   FiType, FiImage, FiExternalLink, FiVideo, FiColumns, FiMinus,
-  FiZap, FiDroplet, FiLayout, FiSliders
+  FiZap, FiDroplet, FiLayout, FiSliders, FiList, FiShare2, FiShield
 } from 'react-icons/fi';
 import { CONTACT_VARIABLES } from '../utils/emailHtmlParsers';
 
@@ -85,6 +85,27 @@ export default function EditorLeftSidebar({
                 className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
               >
                 <FiVideo className="text-red-400" size={18} /> Vídeo
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('list')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiList className="text-emerald-400" size={18} /> Lista / Bullets
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('social')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiShare2 className="text-cyan-400" size={18} /> Redes Sociais
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('footer')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105 col-span-2"
+              >
+                <FiShield className="text-rose-400" size={18} /> Rodapé & Descadastro
               </button>
             </div>
 

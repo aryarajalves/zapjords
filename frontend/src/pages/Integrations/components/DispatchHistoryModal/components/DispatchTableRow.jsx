@@ -91,7 +91,7 @@ const DispatchTableRow = ({
       <td className="px-6 py-5 border-y border-white/5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 text-xs font-bold font-mono">
-            {item.contact_phone?.slice(-2) || '??'}
+            {item.sent_as === 'EMAIL' ? '✉️' : (item.contact_phone?.slice(-2) || '??')}
           </div>
           <div className="flex flex-col">
             <span className="text-gray-300 text-sm font-bold flex items-center gap-1.5">
@@ -122,16 +122,18 @@ const DispatchTableRow = ({
                 <FiActivity size={14} /> <span>Pipeline</span>
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => handlePlayDispatch(item.id)}
-              disabled={isPlaying[item.id] || item.is_contact_blocked}
-              className="p-2 bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
-              title={item.is_contact_blocked ? "Contato bloqueado na Blacklist" : "Disparar Agora"}
-            >
-              {isPlaying[item.id] ? <FiRefreshCw className="animate-spin" size={14} /> : <FiPlay size={14} fill="currentColor" />}
-              <span>Disparar</span>
-            </button>
+            {item.sent_as !== 'EMAIL' && (
+              <button
+                type="button"
+                onClick={() => handlePlayDispatch(item.id)}
+                disabled={isPlaying[item.id] || item.is_contact_blocked}
+                className="p-2 bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                title={item.is_contact_blocked ? "Contato bloqueado na Blacklist" : "Disparar Agora"}
+              >
+                {isPlaying[item.id] ? <FiRefreshCw className="animate-spin" size={14} /> : <FiPlay size={14} fill="currentColor" />}
+                <span>Disparar</span>
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -183,6 +185,8 @@ const DispatchTableRow = ({
             <span className="text-white font-bold text-sm tracking-tight">{(item.event_type || 'disparo')?.toUpperCase().replace('_', ' ')}</span>
             {item.status === 'cancelled' ? (
               <span className="text-[10px] bg-gray-600 text-gray-300 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Cancelado</span>
+            ) : item.sent_as === 'EMAIL' ? (
+              <span className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-widest shadow-lg shadow-sky-500/20">E-MAIL</span>
             ) : (item.sent_as === 'FREE_MESSAGE' || item.meta_price_category === 'service' || item.is_free_message) ? (
               <span className="text-[10px] bg-emerald-500 text-black px-2 py-0.5 rounded-full font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">GRÁTIS</span>
             ) : (item.sent_as === 'TEMPLATE' || item.meta_price_category) ? (
@@ -192,7 +196,7 @@ const DispatchTableRow = ({
             )}
           </div>
           <div className="text-[10px] text-gray-500 mt-0.5">
-            {item.template_name ? `Template: ${item.template_name}` : (item.funnel_id ? `Funil: ${item.funnel_id}` : 'Ação Interna')}
+            {item.template_name ? (item.template_name.startsWith('E-mail:') || item.template_name.startsWith('Funil E-mail:') ? item.template_name : `Template: ${item.template_name}`) : (item.funnel_id ? `Funil: ${item.funnel_id}` : 'Ação Interna')}
           </div>
           <div className="flex items-center gap-1.5 mt-2 bg-white/5 border border-white/10 px-2 py-1.5 rounded-lg w-fit shadow-lg shadow-black/20">
             <span className="flex items-center gap-1 text-[11px] font-black text-emerald-500" title="Enviados">

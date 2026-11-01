@@ -56,4 +56,12 @@ describe('ChatHeaderNav Component', () => {
         expect(screen.queryByText('Disparo em Massa')).not.toBeInTheDocument();
         expect(screen.queryByText('Funis')).not.toBeInTheDocument();
     });
+
+    it('container de atalhos possui classes e estilos que ocultam a barra de rolagem horizontal', () => {
+        const { container } = render(<ChatHeaderNav {...defaultProps} />);
+        const navContainer = container.querySelector('.no-scrollbar');
+        expect(navContainer).toBeInTheDocument();
+        expect(navContainer.className).toContain('scrollbar-none');
+        expect(navContainer.style.scrollbarWidth).toBe('none');
+    });
 });

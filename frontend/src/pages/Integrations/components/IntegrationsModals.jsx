@@ -19,6 +19,8 @@ export default function IntegrationsModals({
   editingIntegration,
   templates,
   funnels,
+  emailTemplates,
+  emailFunnels,
   chatwootLabels,
   setIsMappingGuideOpen,
   existingInternalTags,
@@ -148,6 +150,8 @@ export default function IntegrationsModals({
         editingIntegration={editingIntegration}
         templates={templates}
         funnels={funnels}
+        emailTemplates={emailTemplates}
+        emailFunnels={emailFunnels}
         chatwootLabels={chatwootLabels}
         setIsMappingGuideOpen={setIsMappingGuideOpen}
         existingInternalTags={existingInternalTags}

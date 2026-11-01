@@ -1,3 +1,4 @@
+import KanbanSelector from '../../RecipientSelector/components/KanbanSelector';
 import React from 'react';
 import SearchableSelect from '../common/SearchableSelect';
 
@@ -26,6 +27,12 @@ const ExclusionListManager = ({
     exclusionAvailableTags,
     loadExclusionContactsByTag,
     add55ToLoadedExclusionList,
+    selectedExclusionPipelines = [],
+    setSelectedExclusionPipelines,
+    selectedExclusionStages = [],
+    setSelectedExclusionStages,
+    loadExclusionContactsByKanban,
+    activeClient,
     isWorking
 }) => {
     return (
@@ -57,13 +64,13 @@ const ExclusionListManager = ({
                 {!exclusionColSelector ? (
                     <div className="space-y-6">
                         <div className="flex items-center gap-3 bg-slate-800/50 p-1.5 rounded-2xl border border-white/10 shadow-inner">
-                            {['manual', 'upload', 'tag'].map(mode => (
+                            {['manual', 'upload', 'tag', 'kanban'].map(mode => (
                                 <button
                                     key={mode}
                                     onClick={() => setExclusionMode(mode)}
                                     className={`flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all duration-300 ${exclusionMode === mode ? 'bg-white/10 text-white shadow-lg ring-1 ring-white/10' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
-                                    {mode === 'manual' ? 'Entrada Manual' : mode === 'upload' ? 'Upload Planilha' : 'Etiquetas'}
+                                    {mode === 'manual' ? 'Entrada Manual' : mode === 'upload' ? 'Upload Planilha' : mode === 'tag' ? 'Etiquetas' : 'Kanban'}
                                 </button>
                             ))}
                         </div>
@@ -115,7 +122,7 @@ const ExclusionListManager = ({
                                     <p className="text-slate-500 text-[10px] mt-2 font-black uppercase tracking-[0.3em]">Clique ou arraste o arquivo</p>
                                 </div>
                             </div>
-                        ) : (
+                        ) : exclusionMode === 'tag' ? (
                             <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
                                 <div className="p-8 bg-slate-800/10 border border-white/5 rounded-3xl space-y-6">
                                     <div className="flex flex-col gap-2">
@@ -175,6 +182,18 @@ const ExclusionListManager = ({
                                     </button>
                                 </div>
                             </div>
+                        ) : (
+                            <KanbanSelector
+                                activeClient={activeClient}
+                                selectedPipelines={selectedExclusionPipelines}
+                                setSelectedPipelines={setSelectedPipelines => setSelectedExclusionPipelines(setSelectedPipelines)}
+                                selectedStages={selectedExclusionStages}
+                                setSelectedStages={setSelectedStages => setSelectedExclusionStages(setSelectedStages)}
+                                onLoadContacts={loadExclusionContactsByKanban}
+                                isProcessing={isWorking}
+                                actionButtonLabel="Adicionar Contatos do Kanban à Exclusão"
+                                accentColor="red"
+                            />
                         )}
 
                         {exclusionList.length > 0 && (

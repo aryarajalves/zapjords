@@ -5,6 +5,7 @@ import TemplatePreview from '../../../../../components/BulkSender/common/Templat
 import { EVENT_HINTS } from './eventHints';
 import { BUSSOLA_FEEDBACK_OPTIONS } from '../../../constants';
 import BussolaPdfPreviewModal from '../../BussolaPdfPreviewModal';
+import EmailMarketingTriggerSection from './EmailMarketingTriggerSection';
 import FeedbackFilterMultiSelect, { formatFeedbackFilterDisplay } from '../FeedbackFilterMultiSelect';
 
 export default function TriggerTabContent({
@@ -20,6 +21,8 @@ export default function TriggerTabContent({
   templateButtons,
   integrationId,
   onGoToButtonsTab,
+  emailTemplates = [],
+  emailFunnels = [],
 }) {
   const [isBussolaPdfModalOpen, setIsBussolaPdfModalOpen] = useState(false);
 
@@ -247,6 +250,15 @@ export default function TriggerTabContent({
               </div>
             )}
           </div>
+
+          {/* Bloco 3: Disparo por E-mail Marketing */}
+          <EmailMarketingTriggerSection
+            mapping={mapping}
+            mIndex={mIndex}
+            updateMapping={updateMapping}
+            emailTemplates={emailTemplates}
+            emailFunnels={emailFunnels}
+          />
         </div>
 
         {/* Coluna Direita: Prévia do Template (5 cols) */}

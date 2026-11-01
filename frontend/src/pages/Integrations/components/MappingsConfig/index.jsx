@@ -5,7 +5,7 @@ import { EVENT_TYPES } from '../../constants';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
 
-const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLabels, setIsMappingGuideOpen, discoveredProducts, existingInternalTags }) => {
+const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLabels, setIsMappingGuideOpen, discoveredProducts, existingInternalTags, emailTemplates, emailFunnels }) => {
   const platform = formData.platform || null;
   const [expandedMappings, setExpandedMappings] = React.useState({});
   const [pageSize, setPageSize]   = React.useState(5);
@@ -62,7 +62,11 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
           followup_template_id: '',
           followup_delay_value: 0,
           followup_delay_unit: 'minutes',
-          followup_variables_mapping: []
+          followup_variables_mapping: [],
+          email_active: false,
+          email_template_id: null,
+          email_funnel_id: null,
+          email_subject: ''
         }
       ]
     });
@@ -302,6 +306,8 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
               removeMapping={removeMapping}
               templates={templates}
               funnels={funnels}
+              emailTemplates={emailTemplates}
+              emailFunnels={emailFunnels}
               chatwootLabels={chatwootLabels}
               updateVariable={updateVariable}
               addVariable={addVariable}

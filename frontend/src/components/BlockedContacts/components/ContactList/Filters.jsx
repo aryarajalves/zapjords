@@ -121,7 +121,7 @@ export default function Filters({
                     <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Buscar telefone (pode colar lista)..."
+                        placeholder="Buscar telefone ou e-mail..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="pl-10 pr-4 py-2 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none w-64 transition-all focus:w-80 bg-white/5 dark:bg-gray-700/50 text-gray-900 dark:text-white"

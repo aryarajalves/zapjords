@@ -26,7 +26,7 @@ export default function ChatHeaderNav({ activeClient, user, onClose, onNavigate 
                 </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+                <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar scrollbar-none py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {user?.role !== 'vendedor' && NAV_SHORTCUTS.map(s => {
                         const Icon = s.icon;
                         return (

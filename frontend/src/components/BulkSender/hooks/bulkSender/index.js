@@ -97,6 +97,9 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         handleExclusionFileUpload,
         confirmExclusionColumn,
         loadExclusionContactsByTag,
+        selectedExclusionPipelines, setSelectedExclusionPipelines,
+        selectedExclusionStages, setSelectedExclusionStages,
+        loadExclusionContactsByKanban,
         resetExclusion
     } = useBulkExclusion({ activeClient, setIsWorking, setWorkingMessage });
 
@@ -243,7 +246,10 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         recurrenceTime, setRecurrenceTime, expansionModal, setExpansionModal,
         whatsappProfile,
         handleTemplateChange, handleRecipientSelect, handleReset, handleSaveExclusion, clearExclusionList,
-        handleExclusionFileUpload, confirmExclusionColumn, loadExclusionContactsByTag, handleSend,
+        handleExclusionFileUpload, confirmExclusionColumn, loadExclusionContactsByTag,
+        selectedExclusionPipelines, setSelectedExclusionPipelines,
+        selectedExclusionStages, setSelectedExclusionStages,
+        loadExclusionContactsByKanban, handleSend,
         extractTemplateVariables, extractTemplateButtons,
         activeClient
     };

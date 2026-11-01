@@ -91,6 +91,7 @@ class SalesDeal(Base):
     custom_followup_delay_unit = Column(String(20), nullable=True, default="hours")  # minutes, hours, days
     last_interaction_at = Column(DateTime(timezone=True), nullable=True)
     stage_entered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    won_at = Column(DateTime(timezone=True), nullable=True)  # Data e hora em que a venda foi concretizada
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -98,3 +99,20 @@ class SalesDeal(Base):
     pipeline = relationship("SalesPipeline", back_populates="deals")
     stage = relationship("SalesPipelineStage", back_populates="deals")
     product = relationship("CRMProduct")
+    activities = relationship("SalesDealActivity", back_populates="deal", cascade="all, delete-orphan", order_by="SalesDealActivity.created_at.desc()")
+
+
+class SalesDealActivity(Base):
+    __tablename__ = "sales_deal_activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deal_id = Column(Integer, ForeignKey("sales_deals.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    activity_type = Column(String(50), nullable=False)  # created, stage_change, won, lost, note, webhook
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    metadata_info = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    deal = relationship("SalesDeal", back_populates="activities")
+

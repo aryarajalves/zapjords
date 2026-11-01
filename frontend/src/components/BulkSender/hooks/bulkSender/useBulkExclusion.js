@@ -16,6 +16,8 @@ export function useBulkExclusion({ activeClient, setIsWorking, setWorkingMessage
     const [exclusionCsvData, setExclusionCsvData] = useState(null);
     const [exclusionColSelector, setExclusionColSelector] = useState(false);
     const [exclusionSelectedCol, setExclusionSelectedCol] = useState(null);
+    const [selectedExclusionPipelines, setSelectedExclusionPipelines] = useState([]);
+    const [selectedExclusionStages, setSelectedExclusionStages] = useState([]);
 
     const loadExclusionTags = async () => {
         if (!activeClient) return;
@@ -47,6 +49,8 @@ export function useBulkExclusion({ activeClient, setIsWorking, setWorkingMessage
         setExclusionList([]);
         setConfiguredExclusionTags([]);
         setSelectedExclusionTag([]);
+        setSelectedExclusionPipelines([]);
+        setSelectedExclusionStages([]);
         toast.success("Lista de exclusão limpa!");
     };
 
@@ -106,10 +110,51 @@ export function useBulkExclusion({ activeClient, setIsWorking, setWorkingMessage
         }
     };
 
+    const loadExclusionContactsByKanban = async () => {
+        if (!selectedExclusionPipelines || selectedExclusionPipelines.length === 0) {
+            return toast.error("Selecione pelo menos um funil do Kanban para exclusão");
+        }
+        if (!activeClient) return;
+
+        setIsWorking(true);
+        setWorkingMessage("Buscando contatos dos funis selecionados para exclusão...");
+
+        try {
+            const res = await fetchWithAuth(`${API_URL}/crm/deals/contacts-query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pipeline_ids: selectedExclusionPipelines,
+                    stage_ids: selectedExclusionStages.length > 0 ? selectedExclusionStages : null
+                })
+            }, activeClient.id);
+
+            if (res && res.ok) {
+                const data = await res.json();
+                const nums = (data.items || []).map(d => String(d.phone || '').replace(/\D/g, '')).filter(n => n.length >= 8);
+                if (nums.length > 0) {
+                    setExclusionList(prev => [...new Set([...prev, ...nums])]);
+                    toast.success(`${[...new Set(nums)].length} contatos únicos do Kanban adicionados à exclusão.`);
+                } else {
+                    toast.success("Nenhum contato encontrado nas colunas selecionadas do Kanban.");
+                }
+            } else {
+                toast.error("Erro ao buscar contatos do Kanban para exclusão.");
+            }
+        } catch (err) {
+            console.error("Erro ao buscar contatos do Kanban:", err);
+            toast.error("Erro ao buscar contatos do Kanban para exclusão.");
+        } finally {
+            setIsWorking(false);
+        }
+    };
+
     const resetExclusion = () => {
         setExclusionList([]);
         setConfiguredExclusionTags([]);
         setSelectedExclusionTag([]);
+        setSelectedExclusionPipelines([]);
+        setSelectedExclusionStages([]);
         setExclusionText("");
     };
 
@@ -131,6 +176,9 @@ export function useBulkExclusion({ activeClient, setIsWorking, setWorkingMessage
         handleExclusionFileUpload,
         confirmExclusionColumn,
         loadExclusionContactsByTag,
+        selectedExclusionPipelines, setSelectedExclusionPipelines,
+        selectedExclusionStages, setSelectedExclusionStages,
+        loadExclusionContactsByKanban,
         resetExclusion
     };
 }

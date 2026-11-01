@@ -156,7 +156,7 @@ describe('Email Funnels Component Suite', () => {
     expect(screen.getByText(/\+ Ação de Etiqueta/i)).toBeInTheDocument();
     expect(screen.getByText(/\+ Disparo Webhook/i)).toBeInTheDocument();
     expect(screen.getByText(/\+ Mover no Kanban/i)).toBeInTheDocument();
-    expect(screen.getByText(/\+ Enviar WhatsApp/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\+ Enviar WhatsApp/i)).not.toBeInTheDocument();
   });
 
   it('renders and duplicates flow nodes with nodrag nopan inputs', () => {

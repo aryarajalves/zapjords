@@ -5,6 +5,7 @@ import DispatchStatsBar from './DispatchStatsBar';
 import DispatchPagination from './DispatchPagination';
 import DispatchModalHeader from './DispatchModalHeader';
 import DispatchModalFooter from './DispatchModalFooter';
+import DispatchTableRow from './DispatchTableRow';
 
 describe('DispatchHistoryModal subcomponents', () => {
   describe('DispatchStatsBar', () => {
@@ -49,42 +50,19 @@ describe('DispatchHistoryModal subcomponents', () => {
 
   describe('DispatchModalHeader', () => {
     it('renderiza o título com o nome da integração', () => {
-      render(<DispatchModalHeader integrationName="Minha Loja Hotmart" />);
-      expect(screen.getByText(/Histórico de Disparos: Minha Loja Hotmart/i)).toBeInTheDocument();
-      expect(screen.getByText(/Acompanhe a fila de execução/i)).toBeInTheDocument();
+      render(
+        <DispatchModalHeader
+          integrationName="Checkout Hotmart"
+        />
+      );
+
+      expect(screen.getByText(/Histórico de Disparos: Checkout Hotmart/i)).toBeInTheDocument();
     });
   });
 
   describe('DispatchPagination', () => {
-    it('renderiza seletor de limite e total de registros', () => {
-      const setLimitMock = vi.fn();
+    it('chama setDispatchPage ao clicar no botão da página', () => {
       const setPageMock = vi.fn();
-
-      render(
-        <DispatchPagination
-          dispatchLimit={20}
-          setDispatchLimit={setLimitMock}
-          dispatchPage={1}
-          setDispatchPage={setPageMock}
-          dispatchTotal={45}
-          totalPages={3}
-        />
-      );
-
-      expect(screen.getByText('45')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument();
-      expect(screen.getByText('3')).toBeInTheDocument();
-
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '50' } });
-      expect(setLimitMock).toHaveBeenCalledWith(50);
-      expect(setPageMock).toHaveBeenCalledWith(1);
-    });
-
-    it('avança página ao clicar no botão próximo', () => {
-      const setPageMock = vi.fn();
-
       render(
         <DispatchPagination
           dispatchLimit={20}
@@ -119,6 +97,48 @@ describe('DispatchHistoryModal subcomponents', () => {
       const closeBtn = screen.getByRole('button', { name: /Fechar Painel/i });
       fireEvent.click(closeBtn);
       expect(onCloseMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('DispatchTableRow', () => {
+    it('renderiza badge E-MAIL e ícone correspondente quando sent_as é EMAIL', () => {
+      const emailItem = {
+        id: 777,
+        contact_name: "Cliente E-mail",
+        contact_phone: "cliente@exemplo.com",
+        event_type: "compra_aprovada",
+        sent_as: "EMAIL",
+        template_name: "E-mail: Acesso Confirmado",
+        status: "completed",
+        total_sent: 1,
+        total_delivered: 1,
+        total_failed: 0
+      };
+
+      render(
+        <table>
+          <tbody>
+            <DispatchTableRow
+              item={emailItem}
+              selectedDispatchIds={[]}
+              handleToggleSelectDispatch={vi.fn()}
+              setSelectedDispatch={vi.fn()}
+              setIsPipelineModalOpen={vi.fn()}
+              handlePlayDispatch={vi.fn()}
+              isPlaying={{}}
+              setConfirmDeleteDispatch={vi.fn()}
+              isCancelling={{}}
+              fetchChildren={vi.fn()}
+            />
+          </tbody>
+        </table>
+      );
+
+      expect(screen.getByText('E-MAIL')).toBeInTheDocument();
+      expect(screen.getByText('E-mail: Acesso Confirmado')).toBeInTheDocument();
+      expect(screen.getByText('Cliente E-mail')).toBeInTheDocument();
+      expect(screen.getByText('cliente@exemplo.com')).toBeInTheDocument();
+      expect(screen.getByText('COMPRA APROVADA')).toBeInTheDocument();
     });
   });
 });

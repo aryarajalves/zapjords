@@ -18,6 +18,7 @@ import KanbanLoadingModal from './components/KanbanLoadingModal';
 import { ProductManagerModal } from './components/ProductManagerModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { LostReasonModal } from './components/LostReasonModal';
+import { LeadHistoryModal } from './components/LeadHistoryModal';
 import BulkTemplateModal from '../ChatConversations/Modals/BulkTemplateModal/BulkTemplateModal';
 
 export default function SalesKanban({ onViewChange }) {
@@ -25,6 +26,7 @@ export default function SalesKanban({ onViewChange }) {
     const { products, createProduct, updateProduct, deleteProduct } = useCrmProducts();
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [isBulkTemplateModalOpen, setIsBulkTemplateModalOpen] = useState(false);
+    const [historyModalDeal, setHistoryModalDeal] = useState(null);
     const {
         pipelines,
         selectedPipelineId,
@@ -238,6 +240,7 @@ export default function SalesKanban({ onViewChange }) {
                             onEditDeal={openEditDeal}
                             onDeleteDeal={confirmDeleteDeal}
                             onOpenChat={handleOpenChat}
+                            onOpenHistory={(deal) => setHistoryModalDeal(deal)}
                             onEditStage={openEditStage}
                             selectedDealIds={selectedDealIds}
                             onToggleSelectDeal={toggleSelectDeal}
@@ -341,6 +344,12 @@ export default function SalesKanban({ onViewChange }) {
                 deal={lostReasonModal.deal}
                 onClose={() => setLostReasonModal({ isOpen: false, deal: null, targetStageId: null })}
                 onConfirm={handleConfirmLostReason}
+            />
+            <LeadHistoryModal
+                isOpen={Boolean(historyModalDeal)}
+                onClose={() => setHistoryModalDeal(null)}
+                deal={historyModalDeal}
+                clientId={clientId}
             />
             <KanbanLoadingModal
                 isOpen={Boolean(isLoading || isBoardLoading)}

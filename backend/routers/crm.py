@@ -1,4 +1,6 @@
+from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -6,7 +8,8 @@ from sqlalchemy import func
 from core.deps import get_db
 from core.permissions import require_user
 from models.auth import User
-from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal
+from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal, SalesDealActivity
+from models.trigger import ScheduledTrigger
 from schemas_domain import crm as schemas_crm
 from services import crm_service
 from services.crm_modules.crm_deal_ops_service import (
@@ -466,6 +469,137 @@ def get_deal_by_phone(
     return deal
 
 
+@router.get("/deals/{deal_id}/history", response_model=schemas_crm.SalesDealHistoryResponse)
+def get_deal_history(
+    deal_id: int,
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """
+    Retorna a linha do tempo consolidada do lead/deal:
+    - Criação da oportunidade no funil
+    - Movimentações de coluna com carimbos de data/hora
+    - Disparos de WhatsApp e E-mail direcionados ao contato
+    - Venda confirmada ou motivo da perda
+    """
+    deal = db.query(SalesDeal).filter(
+        SalesDeal.id == deal_id,
+        SalesDeal.client_id == client_id
+    ).first()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Oportunidade não encontrada")
+
+    current_stage = db.query(SalesPipelineStage).filter(
+        SalesPipelineStage.id == deal.stage_id,
+        SalesPipelineStage.client_id == client_id
+    ).first()
+
+    timeline_items = []
+
+    # 1. Atividades registradas em sales_deal_activities
+    activities = db.query(SalesDealActivity).filter(
+        SalesDealActivity.deal_id == deal_id,
+        SalesDealActivity.client_id == client_id
+    ).order_by(SalesDealActivity.created_at.desc()).all()
+
+    for act in activities:
+        timeline_items.append({
+            "id": f"act_{act.id}",
+            "type": act.activity_type,
+            "title": act.title,
+            "description": act.description,
+            "source": "system",
+            "status": None,
+            "timestamp": act.created_at,
+            "metadata": {}
+        })
+
+    # Fallback para deal criado antes da tabela de atividades
+    has_created = any(item["type"] == "created" for item in timeline_items)
+    if not has_created and deal.created_at:
+        timeline_items.append({
+            "id": f"deal_created_{deal.id}",
+            "type": "created",
+            "title": "Lead inserido no Funil",
+            "description": f"Oportunidade cadastrada via {deal.channel or 'WhatsApp'} na etapa '{current_stage.name if current_stage else 'Inicial'}'.",
+            "source": "system",
+            "status": None,
+            "timestamp": deal.created_at,
+            "metadata": {}
+        })
+
+    # Fallback para venda confirmada em deals antigos
+    has_won = any(item["type"] == "won" for item in timeline_items)
+    if not has_won and (deal.status == "won" or deal.won_at):
+        won_time = deal.won_at or deal.stage_entered_at or deal.updated_at or deal.created_at
+        timeline_items.append({
+            "id": f"deal_won_{deal.id}",
+            "type": "won",
+            "title": "🎉 Venda Concretizada!",
+            "description": f"Venda realizada no valor de R$ {float(deal.value or 0.0):.2f}.",
+            "source": "system",
+            "status": "won",
+            "timestamp": won_time,
+            "metadata": {}
+        })
+
+    # 2. Consultar disparos de WhatsApp e E-mail direcionados a este contato
+    digits = "".join(filter(str.isdigit, deal.contact_phone or ""))
+    if len(digits) >= 8:
+        triggers = db.query(ScheduledTrigger).filter(
+            ScheduledTrigger.client_id == client_id,
+            ScheduledTrigger.contact_phone.like(f"%{digits[-8:]}")
+        ).order_by(ScheduledTrigger.created_at.desc()).limit(30).all()
+
+        for trg in triggers:
+            proc_data = trg.processed_data or {}
+            sent_as = proc_data.get("sent_as", "WHATSAPP")
+            is_email = sent_as == "EMAIL"
+
+            if is_email:
+                act_type = "email_dispatch"
+                title = f"✉️ E-mail Marketing: {trg.template_name or proc_data.get('email_subject') or 'Disparo de E-mail'}"
+                description = f"Status: {trg.status.capitalize()} • Assunto: {proc_data.get('email_subject', trg.template_name or 'N/A')}"
+            else:
+                act_type = "whatsapp_dispatch"
+                title = f"💬 WhatsApp: {trg.template_name or 'Disparo de Mensagem'}"
+                description = f"Status: {trg.status.capitalize()} • Disparo via API Oficial"
+
+            timeline_items.append({
+                "id": f"trg_{trg.id}",
+                "type": act_type,
+                "title": title,
+                "description": description,
+                "source": "dispatch",
+                "status": trg.status,
+                "timestamp": trg.created_at or trg.scheduled_time or datetime.now(timezone.utc),
+                "metadata": {
+                    "trigger_id": trg.id,
+                    "event_type": trg.event_type,
+                    "template_name": trg.template_name
+                }
+            })
+
+    # Ordenar toda a timeline pela data decrescente (mais recente no topo)
+    timeline_items.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    return {
+        "deal_id": deal.id,
+        "contact_name": deal.contact_name,
+        "contact_phone": deal.contact_phone,
+        "contact_email": deal.contact_email,
+        "product_name": deal.product_name,
+        "deal_value": float(deal.value or 0.0),
+        "current_stage_name": current_stage.name if current_stage else "",
+        "stage_entered_at": deal.stage_entered_at,
+        "won_at": deal.won_at,
+        "deal_status": deal.status,
+        "timeline": timeline_items
+    }
+
+
+
 @router.post("/deals/move-contact", response_model=schemas_crm.SalesDealResponse)
 def move_or_upsert_contact_deal(
     payload: schemas_crm.SalesDealContactMovePayload,
@@ -542,3 +676,68 @@ def bulk_add_contacts_to_pipeline(
         current_user=current_user,
         payload=payload
     )
+
+
+# --- KANBAN CONTACTS EXTRACTION (DISPARO & EXCLUSÃO MULTI-PIPELINE) ---
+
+class KanbanContactsQueryPayload(BaseModel):
+    pipeline_ids: List[int]
+    stage_ids: Optional[List[int]] = None
+
+@router.post("/deals/contacts-query")
+def query_kanban_contacts(
+    payload: KanbanContactsQueryPayload,
+    client_id: int = Depends(get_client_id),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """
+    Retorna a lista de contatos únicos presentes nos pipelines e estágios selecionados do Kanban.
+    Permite filtrar por múltiplos pipelines e múltiplas colunas (ou todas as colunas de cada pipeline).
+    """
+    if not payload.pipeline_ids:
+        return {"items": [], "total": 0}
+
+    query = db.query(SalesDeal).filter(
+        SalesDeal.client_id == client_id,
+        SalesDeal.pipeline_id.in_(payload.pipeline_ids)
+    )
+
+    if payload.stage_ids and len(payload.stage_ids) > 0:
+        query = query.filter(SalesDeal.stage_id.in_(payload.stage_ids))
+
+    deals = query.order_by(SalesDeal.updated_at.desc()).all()
+
+    seen_phones = set()
+    contacts = []
+
+    for d in deals:
+        phone_raw = (d.contact_phone or "").strip()
+        clean_phone = "".join(filter(str.isdigit, phone_raw))
+        if not clean_phone or len(clean_phone) < 8:
+            continue
+
+        suffix = clean_phone[-8:]
+        if suffix in seen_phones:
+            continue
+        seen_phones.add(suffix)
+
+        contacts.append({
+            "id": d.id,
+            "deal_id": d.id,
+            "lead_id": d.lead_id,
+            "pipeline_id": d.pipeline_id,
+            "stage_id": d.stage_id,
+            "phone": clean_phone,
+            "name": d.contact_name or d.title or "",
+            "email": d.contact_email or "",
+            "product_name": d.product_name or "",
+            "channel": d.channel or "kanban",
+            "value": d.value or 0.0,
+            "status": d.status or "open"
+        })
+
+    return {
+        "items": contacts,
+        "total": len(contacts)
+    }

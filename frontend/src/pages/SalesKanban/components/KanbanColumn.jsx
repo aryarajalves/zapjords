@@ -65,6 +65,7 @@ export function KanbanColumn({
     onEditDeal,
     onDeleteDeal,
     onOpenChat,
+    onOpenHistory,
     onEditStage,
     selectedDealIds = [],
     onToggleSelectDeal,
@@ -333,6 +334,7 @@ export function KanbanColumn({
                                 onEdit={onEditDeal}
                                 onDelete={onDeleteDeal}
                                 onOpenChat={onOpenChat}
+                                onOpenHistory={onOpenHistory}
                                 isSelected={selectedDealIds.includes(deal.id)}
                                 onToggleSelect={onToggleSelectDeal}
                             />

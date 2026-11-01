@@ -1,3 +1,5 @@
+import os
+from services.blocked_contacts_service import generate_unsubscribe_token
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -25,6 +27,7 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
     # Substituir variáveis dinâmicas do contato (suporta dict ou string com o nome)
     rec_dict = recipient_name if isinstance(recipient_name, dict) else {"name": str(recipient_name or "")}
     name_val = rec_dict.get("name") or rec_dict.get("nome") or ""
+    first_name_val = str(name_val).strip().split()[0] if name_val else ""
     phone_val = rec_dict.get("phone") or rec_dict.get("telefone") or ""
     prod_val = rec_dict.get("product_name") or rec_dict.get("produto") or ""
     plat_val = rec_dict.get("platform") or rec_dict.get("plataforma") or ""
@@ -32,9 +35,20 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
     pay_val = rec_dict.get("payment_method") or rec_dict.get("forma_pagamento") or ""
     tags_val = rec_dict.get("tags") or rec_dict.get("etiquetas") or ""
 
+    # Monta URL de descadastro única e segura
+    client_id_val = getattr(config, "client_id", 1) or 1
+    unsub_token = generate_unsubscribe_token(client_id_val, to_email)
+    base_url = (os.getenv("WEBHOOK_BASE_URL") or os.getenv("VITE_API_URL") or "http://localhost:8000").rstrip("/")
+    if base_url.endswith("/api"):
+        unsub_url = f"{base_url}/email/unsubscribe-page?token={unsub_token}"
+    else:
+        unsub_url = f"{base_url}/api/email/unsubscribe-page?token={unsub_token}"
+
     replacements = {
         "{{nome}}": name_val,
         "{{name}}": name_val,
+        "{{primeiro_nome}}": first_name_val,
+        "{{first_name}}": first_name_val,
         "{{1}}": name_val,
         "{{email}}": to_email,
         "{{phone}}": phone_val,
@@ -49,6 +63,7 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
         "{{payment_method}}": pay_val,
         "{{etiquetas}}": tags_val,
         "{{tags}}": tags_val,
+        "{{unsubscribe_url}}": unsub_url,
     }
 
     for key, val in replacements.items():

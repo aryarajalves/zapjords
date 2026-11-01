@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
@@ -7,6 +9,7 @@ import models, schemas
 from core.deps import get_current_user, get_db, get_validated_client_id
 from core.encryption import encrypt_token, decrypt_token
 from services.email_service import send_single_email
+from services.blocked_contacts_service import get_blocked_emails_set, verify_unsubscribe_token
 from core.logger import setup_logger
 from rabbitmq_client import rabbitmq
 
@@ -234,6 +237,8 @@ def _resolve_recipients(
     target_contacts = []
     seen_emails = set()
 
+    blocked_emails = get_blocked_emails_set(db, client_id)
+
     # 1. Audiência Manual / CSV
     if audience_type == "manual" or manual_recipients:
         for item in (manual_recipients or []):
@@ -248,7 +253,7 @@ def _resolve_recipients(
             else:
                 continue
 
-            if email and "@" in email and email.lower() not in seen_emails:
+            if email and "@" in email and email.lower() not in seen_emails and email.lower() not in blocked_emails:
                 seen_emails.add(email.lower())
                 target_contacts.append({
                     "email": email,
@@ -272,7 +277,7 @@ def _resolve_recipients(
         deals = query.all()
         for d in deals:
             email = (d.contact_email or "").strip()
-            if email and "@" in email and email.lower() not in seen_emails:
+            if email and "@" in email and email.lower() not in seen_emails and email.lower() not in blocked_emails:
                 seen_emails.add(email.lower())
                 target_contacts.append({
                     "email": email,
@@ -295,7 +300,7 @@ def _resolve_recipients(
     leads = query.all()
     for l in leads:
         email = (l.email or "").strip()
-        if email and "@" in email and email.lower() not in seen_emails:
+        if email and "@" in email and email.lower() not in seen_emails and email.lower() not in blocked_emails:
             seen_emails.add(email.lower())
             target_contacts.append({
                 "email": email,
@@ -665,3 +670,278 @@ async def reply_inbound_email(
     return {"status": "success", "message": f"Réplica enviada com sucesso para {inbound.from_email}!"}
 
 
+# ---------------------------------------------------------------------------
+# CANCELAMENTO DE INSCRIÇÃO / UNSUBSCRIBE PÚBLICO (COM CONFIRMAÇÃO & BLACKLIST)
+# ---------------------------------------------------------------------------
+
+class UnsubscribeConfirmPayload(BaseModel):
+    token: str
+
+@router.get("/unsubscribe-page", response_class=HTMLResponse, summary="Página pública de confirmação de descadastro")
+def render_unsubscribe_page(token: str = Query(...), db: Session = Depends(get_db)):
+    """
+    Exibe uma interface limpa e elegante com popup de confirmação de descadastro,
+    garantindo que o usuário só cancele sua inscrição se confirmar conscientemente.
+    """
+    client_id, email = verify_unsubscribe_token(token)
+    if not client_id or not email:
+        return HTMLResponse(content="""
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Link Inválido</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+                .card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 32px; max-width: 440px; text-align: center; }
+                h1 { color: #f87171; font-size: 20px; margin-bottom: 12px; }
+                p { color: #94a3b8; font-size: 14px; line-height: 1.6; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>Link Inválido ou Expirado</h1>
+                <p>O link de cancelamento de inscrição não é válido ou já foi utilizado. Caso precise de ajuda, entre em contato diretamente com o suporte.</p>
+            </div>
+        </body>
+        </html>
+        """, status_code=400)
+
+    # Renderiza a página com o modal centralizado de confirmação
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cancelar Inscrição de E-mail</title>
+        <style>
+            * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background-color: #090d16;
+                color: #f1f5f9;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+            }}
+            .backdrop {{
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(8px);
+                z-index: 50;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }}
+            .modal {{
+                background: #111827;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 20px;
+                max-width: 480px;
+                width: 100%;
+                padding: 32px 28px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+                text-align: center;
+                animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            }}
+            @keyframes popIn {{
+                from {{ opacity: 0; transform: scale(0.95); }}
+                to {{ opacity: 1; transform: scale(1); }}
+            }}
+            .icon-wrap {{
+                width: 60px;
+                height: 60px;
+                background: rgba(239, 68, 68, 0.15);
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 20px;
+                color: #ef4444;
+                font-size: 26px;
+            }}
+            h2 {{ font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #ffffff; }}
+            p {{ color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }}
+            .email-badge {{
+                display: inline-block;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: #38bdf8;
+                padding: 6px 14px;
+                border-radius: 9999px;
+                font-weight: 600;
+                font-size: 13px;
+                margin-bottom: 24px;
+                word-break: break-all;
+            }}
+            .btn-group {{
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }}
+            .btn-confirm {{
+                background: #ef4444;
+                color: #ffffff;
+                border: none;
+                border-radius: 12px;
+                padding: 14px 20px;
+                font-size: 14px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }}
+            .btn-confirm:hover {{
+                background: #dc2626;
+                transform: translateY(-1px);
+            }}
+            .btn-cancel {{
+                background: transparent;
+                color: #94a3b8;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 12px 20px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            .btn-cancel:hover {{
+                background: rgba(255, 255, 255, 0.05);
+                color: #f1f5f9;
+            }}
+            .success-view {{
+                display: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="backdrop">
+            <!-- Modal de Confirmação -->
+            <div class="modal" id="confirmModal">
+                <div class="icon-wrap">⚠️</div>
+                <h2>Cancelar Inscrição?</h2>
+                <p>Tem certeza que deseja cancelar sua inscrição? Você deixará de receber novidades, ofertas e comunicações enviadas para:</p>
+                <div class="email-badge">{email}</div>
+                
+                <div class="btn-group">
+                    <button class="btn-confirm" id="btnConfirm" onclick="confirmUnsubscribe()">
+                        Sim, cancelar minha inscrição
+                    </button>
+                    <button class="btn-cancel" onclick="window.close(); alert('Você optou por continuar inscrito!');">
+                        Voltar e continuar inscrito
+                    </button>
+                </div>
+            </div>
+
+            <!-- View de Sucesso -->
+            <div class="modal success-view" id="successModal">
+                <div class="icon-wrap" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); color: #10b981;">✓</div>
+                <h2>Inscrição Cancelada</h2>
+                <p>Seu e-mail foi removido da nossa lista e adicionado à lista de bloqueio com sucesso. Você não receberá mais e-mails deste remetente.</p>
+                <div class="email-badge" style="color: #10b981;">{email}</div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 10px;">Você já pode fechar esta página.</div>
+            </div>
+        </div>
+
+        <script>
+            async function confirmUnsubscribe() {{
+                const btn = document.getElementById('btnConfirm');
+                btn.disabled = true;
+                btn.innerHTML = 'Cancelando...';
+
+                try {{
+                    const res = await fetch('/api/email/unsubscribe', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ token: '{token}' }})
+                    }});
+                    const data = await res.json();
+                    if (res.ok) {{
+                        document.getElementById('confirmModal').style.display = 'none';
+                        document.getElementById('successModal').style.display = 'block';
+                    }} else {{
+                        alert(data.detail || 'Erro ao cancelar inscrição.');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Sim, cancelar minha inscrição';
+                    }}
+                }} catch (err) {{
+                    alert('Erro de conexão ao processar o descadastro.');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sim, cancelar minha inscrição';
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+@router.post("/unsubscribe", summary="Efetivação de descadastro de e-mail (Publico com token assinado)")
+def process_unsubscribe(
+    payload: UnsubscribeConfirmPayload,
+    db: Session = Depends(get_db)
+):
+    """
+    Efetiva o cancelamento da inscrição de e-mail:
+    1. Valida a assinatura do token.
+    2. Adiciona o e-mail na tabela BlockedContact (Blacklist) com motivo explícito.
+    3. Remove ou limpa o e-mail do lead na tabela WebhookLead para tirá-lo da lista ativa.
+    4. Garante estrito isolamento por canal: telefone/WhatsApp do contato não é afetado.
+    """
+    client_id, email = verify_unsubscribe_token(payload.token)
+    if not client_id or not email:
+        raise HTTPException(status_code=400, detail="Token de cancelamento inválido ou adulterado.")
+
+    clean_email = email.strip().lower()
+
+    # 1. Adicionar à Blacklist (BlockedContact) com e-mail isolado
+    existing_block = db.query(models.BlockedContact).filter(
+        models.BlockedContact.client_id == client_id,
+        func.lower(models.BlockedContact.email) == clean_email
+    ).first()
+
+    if not existing_block:
+        # Se houver lead com nome para registrar
+        lead = db.query(models.WebhookLead).filter(
+            models.WebhookLead.client_id == client_id,
+            func.lower(models.WebhookLead.email) == clean_email
+        ).first()
+
+        new_block = models.BlockedContact(
+            client_id=client_id,
+            phone=None, # ISOLAMENTO CIRÚRGICO: WhatsApp NÃO é bloqueado
+            email=clean_email,
+            name=lead.name if lead else None,
+            reason="Descadastro voluntário de e-mail marketing"
+        )
+        db.add(new_block)
+
+    # 2. Remover o e-mail da lista ativa de leads de e-mail marketing
+    leads_to_clean = db.query(models.WebhookLead).filter(
+        models.WebhookLead.client_id == client_id,
+        func.lower(models.WebhookLead.email) == clean_email
+    ).all()
+
+    for l in leads_to_clean:
+        l.email = None
+
+    db.commit()
+
+    logger.info(f"🚫 [EMAIL UNSUBSCRIBE] E-mail {clean_email} adicionado à blacklist do cliente {client_id} e removido de leads ativos.")
+
+    return {
+        "status": "success",
+        "message": f"O e-mail '{clean_email}' foi descadastrado com sucesso e adicionado à lista de bloqueio."
+    }

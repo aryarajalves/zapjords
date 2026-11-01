@@ -31,7 +31,8 @@ export default function Integrations({
     isSaving, editingIntegration, formData, setFormData, isDeleteModalOpen, setIsDeleteModalOpen,
     integrationToDelete, setIntegrationToDelete, bulkResendProgress, setBulkResendProgress,
     fetchIntegrations, handleSaveIntegration, handleDeleteIntegration, openNewModal, openEditModal,
-    leadTags
+    leadTags,
+    emailTemplates, emailFunnels
   } = useIntegrations(activeClient);
 
   // Estado de integrações com histórico atualizado recentemente via WebSocket para feedback visual
@@ -216,6 +217,8 @@ export default function Integrations({
         editingIntegration={editingIntegration}
         templates={templates}
         funnels={funnels}
+        emailTemplates={emailTemplates}
+        emailFunnels={emailFunnels}
         chatwootLabels={chatwootLabels}
         setIsMappingGuideOpen={setIsMappingGuideOpen}
         existingInternalTags={existingInternalTags}

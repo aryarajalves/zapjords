@@ -5,6 +5,7 @@
 export function createDefaultNodeData({
   type,
   templates = [],
+  funnels = [],
   handleUpdateNode,
   handleDeleteNode,
   handleDuplicateNode
@@ -16,6 +17,54 @@ export function createDefaultNodeData({
   };
 
   switch (type) {
+    case 'condition':
+      return {
+        nodeType: 'conditionNode',
+        data: {
+          type: 'condition',
+          condition_type: 'has_tag',
+          tag_name: '',
+          ...common
+        }
+      };
+
+    case 'split':
+    case 'ab_split':
+      return {
+        nodeType: 'splitNode',
+        data: {
+          type: 'ab_split',
+          split_ratio: 50,
+          ...common
+        }
+      };
+
+    case 'wait_until':
+      return {
+        nodeType: 'waitUntilNode',
+        data: {
+          type: 'wait_until',
+          wait_mode: 'time_window',
+          start_time: '08:00',
+          end_time: '18:00',
+          weekdays_only: true,
+          ...common
+        }
+      };
+
+    case 'sub_funnel':
+    case 'enroll_funnel':
+      return {
+        nodeType: 'subFunnelNode',
+        data: {
+          type: 'enroll_funnel',
+          target_funnel_id: funnels[0]?.id || '',
+          exit_current_funnel: true,
+          funnels,
+          ...common
+        }
+      };
+
     case 'delay':
       return {
         nodeType: 'delayNode',
@@ -86,6 +135,16 @@ export function createDefaultNodeData({
 
 export function mapStepToNodeType(stepType) {
   switch (stepType) {
+    case 'condition':
+      return 'conditionNode';
+    case 'split':
+    case 'ab_split':
+      return 'splitNode';
+    case 'wait_until':
+      return 'waitUntilNode';
+    case 'sub_funnel':
+    case 'enroll_funnel':
+      return 'subFunnelNode';
     case 'delay':
       return 'delayNode';
     case 'tag_action':
@@ -105,6 +164,35 @@ export function mapStepToNodeType(stepType) {
 export function serializeNodeToStep(node) {
   const d = node.data || {};
   switch (node.type) {
+    case 'conditionNode':
+      return {
+        id: node.id,
+        type: 'condition',
+        condition_type: d.condition_type || 'has_tag',
+        tag_name: d.tag_name || ''
+      };
+    case 'splitNode':
+      return {
+        id: node.id,
+        type: 'ab_split',
+        split_ratio: d.split_ratio ?? 50
+      };
+    case 'waitUntilNode':
+      return {
+        id: node.id,
+        type: 'wait_until',
+        wait_mode: d.wait_mode || 'time_window',
+        start_time: d.start_time || '08:00',
+        end_time: d.end_time || '18:00',
+        weekdays_only: d.weekdays_only ?? true
+      };
+    case 'subFunnelNode':
+      return {
+        id: node.id,
+        type: 'enroll_funnel',
+        target_funnel_id: d.target_funnel_id || '',
+        exit_current_funnel: d.exit_current_funnel ?? true
+      };
     case 'emailNode':
       return {
         id: node.id,

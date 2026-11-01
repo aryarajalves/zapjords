@@ -36,8 +36,8 @@ async def test_email_variable_replacements():
         "tags": "VIP, Comprador"
     }
 
-    body_template = "<p>Olá {{nome}}, seu e-mail é {{email}} e comprou {{produto}} na plataforma {{plataforma}} por {{valor}} via {{forma_pagamento}}. Tags: {{etiquetas}}.</p>"
-    subject_template = "Parabéns {{nome}}, seu produto {{produto}} está disponível!"
+    body_template = "<p>Olá {{primeiro_nome}} (completo: {{nome}}), seu e-mail é {{email}} e comprou {{produto}} na plataforma {{plataforma}} por {{valor}} via {{forma_pagamento}}. Tags: {{etiquetas}}.</p>"
+    subject_template = "Parabéns {{primeiro_nome}}, seu produto {{produto}} está disponível!"
 
     with patch("smtplib.SMTP") as mock_smtp:
         mock_instance = MagicMock()
@@ -55,6 +55,19 @@ async def test_email_variable_replacements():
         args, kwargs = mock_instance.sendmail.call_args
         raw_msg = args[2]
 
-        # O cabeçalho Subject contém a substituição codificada em UTF-8 (Q-encoding)
-        assert "Maria_Silva" in raw_msg or "Maria Silva" in raw_msg
-        assert "Mentoria_Premium" in raw_msg or "Mentoria Premium" in raw_msg
+        import base64
+        # Decodifica base64 caso o corpo HTML tenha sido encodado pelo MIMEText
+        decoded_msg = raw_msg
+        for line in raw_msg.splitlines():
+            try:
+                decoded_bytes = base64.b64decode(line.strip())
+                decoded_str = decoded_bytes.decode('utf-8', errors='ignore')
+                decoded_msg += "\n" + decoded_str
+            except Exception:
+                pass
+
+        # Valida que primeiro_nome e nome completo foram devidamente substituídos
+        assert "Maria" in raw_msg or "Maria" in decoded_msg
+        assert "Maria Silva" in decoded_msg
+        assert "maria@cliente.com" in raw_msg or "maria@cliente.com" in decoded_msg
+        assert "Mentoria Premium" in decoded_msg

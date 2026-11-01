@@ -120,10 +120,14 @@ export function useBlockedList({ activeClient }) {
         return result.filter(c => {
             if (c.reason?.toLowerCase().includes(cleanSearch.toLowerCase())) return true;
             if (c.name?.toLowerCase().includes(cleanSearch.toLowerCase())) return true;
-            const singleSuffix = getLast8(cleanSearch);
-            const contactSuffix = getLast8(c.phone);
-            if (singleSuffix.length === 8) return contactSuffix.endsWith(singleSuffix);
-            return (singleSuffix && c.phone.includes(singleSuffix)) || c.phone.includes(cleanSearch);
+            if (c.email?.toLowerCase().includes(cleanSearch.toLowerCase())) return true;
+            if (c.phone) {
+                const singleSuffix = getLast8(cleanSearch);
+                const contactSuffix = getLast8(c.phone);
+                if (singleSuffix.length === 8 && contactSuffix.endsWith(singleSuffix)) return true;
+                if ((singleSuffix && c.phone.includes(singleSuffix)) || c.phone.includes(cleanSearch)) return true;
+            }
+            return false;
         });
     }, [contacts, searchTerm, reasonFilter]);
 
@@ -145,9 +149,11 @@ export function useBlockedList({ activeClient }) {
             return;
         }
 
-        const headers = ["Telefone", "Nome", "Motivo", "Data/Hora"];
+        const headers = ["Canal", "Telefone", "E-mail", "Nome", "Motivo", "Data/Hora"];
         const rows = filteredContacts.map(c => [
-            c.phone,
+            c.email && !c.phone ? "E-mail" : (c.phone && !c.email ? "WhatsApp" : "WhatsApp/E-mail"),
+            c.phone || "",
+            c.email || "",
             c.name || "",
             c.reason || "",
             c.created_at ? new Date(c.created_at).toLocaleString('pt-BR') : ""

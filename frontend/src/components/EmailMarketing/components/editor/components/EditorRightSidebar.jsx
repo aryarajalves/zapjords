@@ -2,10 +2,14 @@ import React from 'react';
 import { toast } from 'react-hot-toast';
 import { API_URL } from '../../../../../config';
 import { useClient } from '../../../../../contexts/ClientContext';
+import EditorTextSettings from './EditorTextSettings';
+import EditorSocialSettings from './EditorSocialSettings';
+import EditorListFooterSettings from './EditorListFooterSettings';
 
 export default function EditorRightSidebar({
   activeBlock,
-  onUpdateActiveBlock
+  onUpdateActiveBlock,
+  onOpenMaximizeModal
 }) {
   const { activeClient } = useClient();
 
@@ -80,33 +84,11 @@ export default function EditorRightSidebar({
       {activeBlock ? (
         <div className="space-y-4">
           {activeBlock.type === 'text' && (
-            <>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Conteúdo do Texto:</label>
-                <textarea
-                  rows={6}
-                  value={activeBlock.content}
-                  onChange={e => onUpdateActiveBlock('content', e.target.value)}
-                  className="w-full p-2 bg-slate-800 border border-white/10 rounded-lg text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Tamanho da Fonte: {activeBlock.fontSize}px</label>
-                <input
-                  type="range" min="12" max="36" value={activeBlock.fontSize}
-                  onChange={e => onUpdateActiveBlock('fontSize', Number(e.target.value))}
-                  className="w-full accent-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Cor do Texto:</label>
-                <input
-                  type="color" value={activeBlock.color}
-                  onChange={e => onUpdateActiveBlock('color', e.target.value)}
-                  className="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
-                />
-              </div>
-            </>
+            <EditorTextSettings
+              activeBlock={activeBlock}
+              onUpdateActiveBlock={onUpdateActiveBlock}
+              onOpenMaximizeModal={onOpenMaximizeModal}
+            />
           )}
 
           {activeBlock.type === 'button' && (
@@ -269,6 +251,18 @@ export default function EditorRightSidebar({
                 />
               </div>
             </>
+          )}
+
+          {activeBlock.type === 'list' && (
+            <EditorListFooterSettings activeBlock={activeBlock} onUpdateActiveBlock={onUpdateActiveBlock} />
+          )}
+
+          {activeBlock.type === 'social' && (
+            <EditorSocialSettings activeBlock={activeBlock} onUpdateActiveBlock={onUpdateActiveBlock} />
+          )}
+
+          {activeBlock.type === 'footer' && (
+            <EditorListFooterSettings activeBlock={activeBlock} onUpdateActiveBlock={onUpdateActiveBlock} />
           )}
         </div>
       ) : (

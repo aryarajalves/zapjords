@@ -18,6 +18,8 @@ const IntegrationFormModal = ({
   editingIntegration,
   templates,
   funnels,
+  emailTemplates,
+  emailFunnels,
   chatwootLabels,
   setIsMappingGuideOpen,
   existingInternalTags
@@ -73,6 +75,8 @@ const IntegrationFormModal = ({
                 setFormData={setFormData}
                 templates={templates}
                 funnels={funnels}
+                emailTemplates={emailTemplates}
+                emailFunnels={emailFunnels}
                 chatwootLabels={chatwootLabels}
                 setIsMappingGuideOpen={setIsMappingGuideOpen}
                 discoveredProducts={formData?.discovered_products || []}

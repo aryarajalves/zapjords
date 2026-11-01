@@ -24,7 +24,7 @@ bcrypt==4.0.1            # Criptografia de senhas (hash seguro legado para compa
 passlib==1.7.4           # Utilitário de hashing de senhas — suporta Argon2 e Bcrypt
 cryptography==50.0.0     # Biblioteca de criptografia geral (dependência do jose e outros)
 rsa==4.9.1               # Algoritmo RSA de criptografia (dependência do jose)
-pyasn1==0.6.4            # Formato de dados criptográficos (dependência interna)
+pyasn1==0.6.5            # Formato de dados criptográficos (dependência interna)
 cffi==2.0.0              # Interface com bibliotecas C (dependência da cryptography)
 pycparser==2.23          # Parser C usado pelo cffi (dependência interna)
 
@@ -63,7 +63,7 @@ pytz                          # Suporte a fusos horários
 pandas                   # Manipulação de dados em tabelas (usado para gerar relatórios/exportações)
 openpyxl                 # Leitura e escrita de arquivos Excel (.xlsx)
 reportlab==4.2.2         # Geração e diagramação de PDFs para leitura astrológica (Bússola Quiz)
-pypdf==6.21.2            # Extração de texto de documentos PDF para Webhook de Memória da IA
+pypdf==6.21.4            # Extração de texto de documentos PDF para Webhook de Memória da IA
 Pillow==13.0.0           # Processamento e geração da Capa Visual 1200x630 (Bússola Quiz - Imagem)
 
 # === MONITORAMENTO DO SISTEMA ===

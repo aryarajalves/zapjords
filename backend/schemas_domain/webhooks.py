@@ -73,6 +73,12 @@ class WebhookEventMappingBase(BaseModel):
     kanban_value: Optional[float] = Field(0.0, description="Valor estimado ou negociado em R$")
     kanban_lost_reason: Optional[str] = Field(None, description="Motivo da desistência caso o estágio seja de perda")
     
+    # Disparo por E-mail Marketing Integrado ao Webhook
+    email_active: Optional[bool] = Field(False, description="Ativar envio de e-mail marketing pelo gatilho")
+    email_template_id: Optional[int] = Field(None, description="ID do template de e-mail marketing cadastrado")
+    email_funnel_id: Optional[int] = Field(None, description="ID do funil de e-mail marketing cadastrado")
+    email_subject: Optional[str] = Field(None, description="Assunto customizado do e-mail marketing")
+    
     is_active: Optional[bool] = Field(True, description="Indica se o mapeamento está ativo")
 
     @field_validator('button_actions', mode='before')

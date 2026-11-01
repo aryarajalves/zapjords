@@ -18,9 +18,12 @@ import {
   serializeNodeToStep
 } from './flowNodeUtils';
 
+const EMPTY_ARRAY = [];
+
 export default function EmailFunnelFlowBuilder({
   funnel,
-  templates,
+  templates = EMPTY_ARRAY,
+  funnels = EMPTY_ARRAY,
   onBack,
   onSave,
   onDelete
@@ -111,6 +114,7 @@ export default function EmailFunnelFlowBuilder({
         data: {
           ...st,
           templates,
+          funnels,
           onUpdateNode: handleUpdateNode,
           onDeleteNode: handleDeleteNode,
           onDuplicateNode: handleDuplicateNode
@@ -131,7 +135,7 @@ export default function EmailFunnelFlowBuilder({
 
     setNodes(initialNodes);
     setEdges(initialEdges);
-  }, [funnel, templates, handleUpdateNode, handleDeleteNode, handleDuplicateNode]);
+  }, [funnel, templates, funnels, handleUpdateNode, handleDeleteNode, handleDuplicateNode]);
 
   // Atualizar o nó de trigger quando a sidebar mudar
   useEffect(() => {
@@ -188,6 +192,7 @@ export default function EmailFunnelFlowBuilder({
     const { nodeType, data } = createDefaultNodeData({
       type,
       templates,
+      funnels,
       handleUpdateNode,
       handleDeleteNode,
       handleDuplicateNode

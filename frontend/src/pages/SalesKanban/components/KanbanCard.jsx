@@ -1,6 +1,7 @@
 import React from 'react';
-import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2, FiClock } from 'react-icons/fi';
+import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2, FiClock, FiFileText, FiCalendar } from 'react-icons/fi';
 import { getChannelConfig, getFollowupStatus, getWindow24hStatus } from '../utils/kanbanCardUtils';
+import { formatBrasiliaDateTime } from '../utils/kanbanDateUtils';
 
 export { getFollowupStatus, getWindow24hStatus };
 
@@ -11,6 +12,7 @@ export function KanbanCard({
     onEdit,
     onDelete,
     onOpenChat,
+    onOpenHistory,
     isSelected = false,
     onToggleSelect
 }) {
@@ -219,6 +221,34 @@ export function KanbanCard({
                 </div>
             )}
 
+            {/* Destaque com Data e Horário da Venda (quando ganho) */}
+            {(deal.won_at || (deal.status === 'won' && deal.stage_entered_at)) && (
+                <div 
+                    data-testid={`deal-won-time-${deal.id}`}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold shadow-sm"
+                    title={`Venda realizada em ${formatBrasiliaDateTime(deal.won_at || deal.stage_entered_at)} (Horário de Brasília)`}
+                >
+                    <span className="text-emerald-400">🎉</span>
+                    <span className="truncate">
+                        Venda: <strong className="text-emerald-200 font-mono">{formatBrasiliaDateTime(deal.won_at || deal.stage_entered_at)}</strong>
+                    </span>
+                </div>
+            )}
+
+            {/* Data e Horário de Entrada na Etapa Atual (Horário de Brasília) */}
+            {deal.stage_entered_at && (
+                <div 
+                    data-testid={`deal-stage-entered-${deal.id}`}
+                    className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium pt-0.5"
+                    title={`Entrou nesta etapa em ${formatBrasiliaDateTime(deal.stage_entered_at)} (Horário de Brasília)`}
+                >
+                    <FiClock size={11} className="text-slate-500 shrink-0" />
+                    <span className="truncate">
+                        Na etapa: <strong className="text-slate-300 font-semibold">{formatBrasiliaDateTime(deal.stage_entered_at)}</strong>
+                    </span>
+                </div>
+            )}
+
             {/* Rodapé sutil: Telefone e Atalho Rápido de Chat */}
             <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px] text-slate-400">
                 <div className="flex items-center gap-1 font-mono text-slate-400">
@@ -227,6 +257,21 @@ export function KanbanCard({
                 </div>
 
                 <div className="flex items-center gap-1">
+                    {onOpenHistory && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenHistory(deal);
+                            }}
+                            className="p-1.5 hover:bg-blue-500/15 text-slate-400 hover:text-blue-400 border border-transparent hover:border-blue-500/30 rounded-lg transition-all cursor-pointer"
+                            title="Ver histórico e linha do tempo do lead"
+                            aria-label={`Ver histórico do lead ${deal.contact_name || deal.contact_phone}`}
+                        >
+                            <FiFileText size={13} />
+                        </button>
+                    )}
+
                     {onDelete && (
                         <button
                             type="button"

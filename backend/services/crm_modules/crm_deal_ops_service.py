@@ -4,10 +4,40 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.logger import setup_logger
-from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct
+from models.crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct, SalesDealActivity
 from models.trigger import WebhookLead
 
 logger = setup_logger("crm_deal_ops_service")
+
+
+def record_deal_activity(
+    db: Session,
+    deal_id: int,
+    client_id: int,
+    activity_type: str,
+    title: str,
+    description: str = None,
+    metadata_info: str = None,
+    commit: bool = True
+) -> SalesDealActivity:
+    try:
+        activity = SalesDealActivity(
+            deal_id=deal_id,
+            client_id=client_id,
+            activity_type=activity_type,
+            title=title,
+            description=description,
+            metadata_info=metadata_info
+        )
+        db.add(activity)
+        if commit:
+            db.commit()
+            db.refresh(activity)
+        return activity
+    except Exception as e:
+        logger.error(f"Erro ao registrar atividade do deal {deal_id}: {e}")
+        return None
+
 
 
 def create_deal_entry(
@@ -101,6 +131,16 @@ def create_deal_entry(
         user_id=current_user.id if current_user and hasattr(current_user, "id") else None,
         action_type="added"
     )
+
+    record_deal_activity(
+        db=db,
+        deal_id=deal.id,
+        client_id=client_id,
+        activity_type="created",
+        title="Oportunidade criada no Funil",
+        description=f"Lead inserido na etapa '{stg.name if stg else 'Inicial'}' via {deal.channel or 'WhatsApp'}.",
+        commit=True
+    )
     return deal
 
 
@@ -130,11 +170,17 @@ def move_deal_entry(
     if deal.stage_id == new_stg.id:
         return deal
 
-    if deal.stage_id != new_stg.id:
-        deal.stage_entered_at = datetime.now(timezone.utc)
+    old_stg = db.query(SalesPipelineStage).filter(
+        SalesPipelineStage.id == deal.stage_id,
+        SalesPipelineStage.client_id == client_id
+    ).first()
+    old_stage_name = old_stg.name if old_stg else "Etapa anterior"
+
+    deal.stage_entered_at = datetime.now(timezone.utc)
     deal.stage_id = new_stg.id
     if new_stg.stage_type == "won":
         deal.status = "won"
+        deal.won_at = datetime.now(timezone.utc)
     elif new_stg.stage_type == "lost":
         deal.status = "lost"
     else:
@@ -146,6 +192,38 @@ def move_deal_entry(
     deal.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(deal)
+
+    # Registrar atividade de movimentação
+    record_deal_activity(
+        db=db,
+        deal_id=deal.id,
+        client_id=client_id,
+        activity_type="stage_change",
+        title=f"Movido para {new_stg.name}",
+        description=f"De '{old_stage_name}' para '{new_stg.name}'.",
+        commit=True
+    )
+
+    if new_stg.stage_type == "won":
+        record_deal_activity(
+            db=db,
+            deal_id=deal.id,
+            client_id=client_id,
+            activity_type="won",
+            title="🎉 Venda Realizada com Sucesso!",
+            description=f"Venda confirmada no valor de R$ {float(deal.value or 0.0):.2f}.",
+            commit=True
+        )
+    elif new_stg.stage_type == "lost":
+        record_deal_activity(
+            db=db,
+            deal_id=deal.id,
+            client_id=client_id,
+            activity_type="lost",
+            title="❌ Oportunidade Perdida",
+            description=deal.lost_reason or "Sem motivo informado.",
+            commit=True
+        )
     crm_service_module.check_and_forward_deal_if_configured(db, deal, new_stg)
     pipe_obj = db.query(SalesPipeline).filter(SalesPipeline.id == deal.pipeline_id).first()
     crm_service_module.add_pipeline_private_note(

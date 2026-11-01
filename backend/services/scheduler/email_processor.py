@@ -1,3 +1,4 @@
+from services.blocked_contacts_service import is_email_blocked
 from datetime import datetime, timezone
 import models
 from sqlalchemy import and_, or_
@@ -88,6 +89,14 @@ async def process_scheduled_email_dispatches(db_session=None):
                 # Itera sobre os contatos que ainda não foram processados (status != sent/failed)
                 for c in contacts:
                     if c.get("sent_status") in ("sent", "failed"):
+                        continue
+
+                    target_email = (c.get("email") or "").strip().lower()
+                    if is_email_blocked(db, dispatch.client_id, target_email):
+                        fail_count += 1
+                        c["sent_status"] = "failed"
+                        c["error"] = "Contato bloqueado na Blacklist de e-mail (descadastrado)"
+                        logger.info(f"🚫 [EMAIL SCHEDULER] E-mail {target_email} ignorado (está na blacklist)")
                         continue
 
                     try:

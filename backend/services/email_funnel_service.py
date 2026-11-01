@@ -24,6 +24,25 @@ def calculate_delay_time(delay_value: int, delay_unit: str) -> datetime:
     else:  # hours default
         return now + timedelta(hours=max(1, int(delay_value)))
 
+def calculate_wait_until_time(start_time_str: str = "08:00", end_time_str: str = "18:00", weekdays_only: bool = True) -> datetime:
+    """Calcula a próxima data/hora em que o lead deve ser disparado baseado em horário comercial ou dia útil."""
+    now = _now()
+    try:
+        sh, sm = map(int, (start_time_str or "08:00").split(":"))
+    except Exception:
+        sh, sm = 8, 0
+
+    target = now.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+
+    if weekdays_only:
+        while target.weekday() >= 5:  # 5 = Sábado, 6 = Domingo
+            target += timedelta(days=1)
+
+    return target
+
+
 async def enroll_contact_in_funnel(
     db: Session,
     client_id: int,
@@ -450,6 +469,140 @@ async def execute_next_step(db: Session, execution_id: int) -> bool:
             funnel.total_completed = (funnel.total_completed or 0) + 1
             db.commit()
             return True
+
+
+    elif step_type == "condition":
+        cond_type = current_step.get("condition_type", "has_tag")
+        tag_name = current_step.get("tag_name", "").strip().lower()
+        hist = list(execution.history or [])
+        result = False
+
+        if cond_type == "has_tag":
+            lead = db.query(WebhookLead).filter(WebhookLead.id == execution.lead_id).first() if execution.lead_id else None
+            tags = [t.strip().lower() for t in (lead.tags or [])] if lead else []
+            result = tag_name in tags
+        elif cond_type == "opened_email":
+            result = any(h.get("status") == "opened" for h in hist if h.get("type") == "email")
+        elif cond_type == "clicked_link":
+            result = any(h.get("status") == "clicked" for h in hist if h.get("type") == "email")
+
+        hist.append({
+            "step_index": execution.current_step_index,
+            "type": "condition",
+            "condition_type": cond_type,
+            "result": result,
+            "recorded_at": _now().isoformat()
+        })
+        execution.history = hist
+        execution.current_step_index += 1
+        db.commit()
+
+        if execution.current_step_index < len(steps):
+            return await execute_next_step(db, execution.id)
+        else:
+            execution.status = "completed"
+            execution.stop_reason = "Sequência concluída com sucesso"
+            funnel.total_completed = (funnel.total_completed or 0) + 1
+            db.commit()
+            return True
+
+    elif step_type in ("split", "ab_split"):
+        import random
+        split_ratio = int(current_step.get("split_ratio") or 50)
+        selected_branch = "branch_a" if random.randint(1, 100) <= split_ratio else "branch_b"
+        hist = list(execution.history or [])
+        hist.append({
+            "step_index": execution.current_step_index,
+            "type": "ab_split",
+            "selected_branch": selected_branch,
+            "split_ratio": split_ratio,
+            "recorded_at": _now().isoformat()
+        })
+        execution.history = hist
+        execution.current_step_index += 1
+        db.commit()
+
+        if execution.current_step_index < len(steps):
+            return await execute_next_step(db, execution.id)
+        else:
+            execution.status = "completed"
+            execution.stop_reason = "Sequência concluída com sucesso"
+            funnel.total_completed = (funnel.total_completed or 0) + 1
+            db.commit()
+            return True
+
+    elif step_type == "wait_until":
+        st_time = current_step.get("start_time", "08:00")
+        end_time = current_step.get("end_time", "18:00")
+        weekdays_only = current_step.get("weekdays_only", True)
+        scheduled_at = calculate_wait_until_time(st_time, end_time, weekdays_only)
+
+        execution.status = "waiting_delay"
+        execution.scheduled_for = scheduled_at
+
+        hist = list(execution.history or [])
+        hist.append({
+            "step_index": execution.current_step_index,
+            "type": "wait_until",
+            "scheduled_for": scheduled_at.isoformat(),
+            "recorded_at": _now().isoformat()
+        })
+        execution.history = hist
+        execution.current_step_index += 1
+        db.commit()
+        logger.info(f"Execução {execution.id} aguardando horário programado até {scheduled_at}")
+        return True
+
+    elif step_type in ("enroll_funnel", "sub_funnel"):
+        target_funnel_id = current_step.get("target_funnel_id")
+        exit_current = current_step.get("exit_current_funnel", True)
+        hist = list(execution.history or [])
+
+        if target_funnel_id and str(target_funnel_id).isdigit():
+            await enroll_contact_in_funnel(
+                db=db,
+                client_id=execution.client_id,
+                funnel_id=int(target_funnel_id),
+                contact_email=execution.contact_email,
+                contact_name=execution.contact_name,
+                lead_id=execution.lead_id
+            )
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "enroll_funnel",
+                "target_funnel_id": int(target_funnel_id),
+                "status": "enrolled",
+                "recorded_at": _now().isoformat()
+            })
+            logger.info(f"Lead {execution.contact_email} matriculado no funil {target_funnel_id}")
+        else:
+            hist.append({
+                "step_index": execution.current_step_index,
+                "type": "enroll_funnel",
+                "status": "skipped",
+                "reason": "Funil de destino não selecionado",
+                "recorded_at": _now().isoformat()
+            })
+
+        execution.history = hist
+
+        if exit_current:
+            execution.status = "completed"
+            execution.stop_reason = f"Transferido para o funil {target_funnel_id}"
+            funnel.total_completed = (funnel.total_completed or 0) + 1
+            db.commit()
+            return True
+        else:
+            execution.current_step_index += 1
+            db.commit()
+            if execution.current_step_index < len(steps):
+                return await execute_next_step(db, execution.id)
+            else:
+                execution.status = "completed"
+                execution.stop_reason = "Sequência concluída com sucesso"
+                funnel.total_completed = (funnel.total_completed or 0) + 1
+                db.commit()
+                return True
 
     return False
 

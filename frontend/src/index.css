@@ -250,13 +250,18 @@
 
 /* -------------------------------------------------------------
    OCULTAR BARRA DE ROLAGEM MANTENDO SCROLL FUNCIONAL
+   Suporte unificado a .no-scrollbar e .scrollbar-none em todos os navegadores
    ------------------------------------------------------------- */
+.no-scrollbar::-webkit-scrollbar,
 .scrollbar-none::-webkit-scrollbar {
-    display: none;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
+.no-scrollbar,
 .scrollbar-none {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
 }
 
 /* Trava de scroll para modais e popups */

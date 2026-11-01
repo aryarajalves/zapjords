@@ -283,7 +283,11 @@ def create_webhook_integration(
                     kanban_stage_id=getattr(mapping, 'kanban_stage_id', None),
                     kanban_product_name=getattr(mapping, 'kanban_product_name', None),
                     kanban_value=getattr(mapping, 'kanban_value', 0.0),
-                    kanban_lost_reason=getattr(mapping, 'kanban_lost_reason', None)
+                    kanban_lost_reason=getattr(mapping, 'kanban_lost_reason', None),
+                    email_active=getattr(mapping, 'email_active', False),
+                    email_template_id=getattr(mapping, 'email_template_id', None),
+                    email_funnel_id=getattr(mapping, 'email_funnel_id', None),
+                    email_subject=getattr(mapping, 'email_subject', None)
                 )
                 db.add(db_mapping)
 
@@ -470,7 +474,11 @@ def update_webhook_integration(
                     kanban_stage_id=getattr(mapping, 'kanban_stage_id', None),
                     kanban_product_name=getattr(mapping, 'kanban_product_name', None),
                     kanban_value=getattr(mapping, 'kanban_value', 0.0),
-                    kanban_lost_reason=getattr(mapping, 'kanban_lost_reason', None)
+                    kanban_lost_reason=getattr(mapping, 'kanban_lost_reason', None),
+                    email_active=getattr(mapping, 'email_active', False),
+                    email_template_id=getattr(mapping, 'email_template_id', None),
+                    email_funnel_id=getattr(mapping, 'email_funnel_id', None),
+                    email_subject=getattr(mapping, 'email_subject', None)
                 )
                 db.add(db_mapping)
 

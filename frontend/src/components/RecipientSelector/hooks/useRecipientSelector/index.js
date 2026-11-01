@@ -1,3 +1,4 @@
+import { useKanbanRecipients } from './useKanbanRecipients';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useClient } from '../../../../contexts/ClientContext';
@@ -31,6 +32,7 @@ export const useRecipientSelector = ({
     const [showList, setShowList] = useState(false);
     const [isValidated, setIsValidated] = useState(false);
     const [tagVariables, setTagVariables] = useState({});
+    const [kanbanVariables, setKanbanVariables] = useState({});
     const [fileVariables, setFileVariables] = useState({});
     const [activeDropdown, setActiveDropdown] = useState(null);
 
@@ -110,6 +112,17 @@ export const useRecipientSelector = ({
     }, [filteredContacts, displayLimit]);
 
     const [originalTagPhones, setOriginalTagPhones] = useState([]);
+
+    const kanban = useKanbanRecipients({
+        activeClient,
+        templateVariables,
+        kanbanVariables,
+        setContacts,
+        setIsProcessing,
+        setWorkingMessage,
+        setShowList,
+        setIsValidated
+    });
 
     const tags = useTagManagement({ 
         activeClient, 
@@ -309,6 +322,7 @@ export const useRecipientSelector = ({
         dddSearch, setDddSearch,
         showList, setShowList,
         tagVariables, setTagVariables,
+        kanbanVariables, setKanbanVariables,
         fileVariables, setFileVariables,
         activeDropdown, setActiveDropdown,
         blockedCount,
@@ -331,6 +345,7 @@ export const useRecipientSelector = ({
         // From Sub-hooks
         ...fileImport,
         ...validation,
-        ...tags
+        ...tags,
+        ...kanban
     };
 };

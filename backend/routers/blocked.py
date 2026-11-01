@@ -12,15 +12,17 @@ router = APIRouter(prefix="/blocked", tags=["Blocked Contacts"])
 
 # Schemas
 class BlockedContactCreate(BaseModel):
-    phone: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
     name: Optional[str] = None
     reason: Optional[str] = None
 
 class BlockedContactResponse(BaseModel):
     id: int
-    phone: str
-    name: Optional[str]
-    reason: Optional[str]
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    reason: Optional[str] = None
     created_at: datetime
     blocked_by_client_name: Optional[str] = None
     
@@ -72,39 +74,48 @@ def block_contact(
     client_id: int = Depends(get_validated_client_id)
 ):
     """
-    Block a phone number.
+    Block a phone number or email address with strict channel isolation.
     """
-
-
-    # Normalize phone (remove non-digits)
-    clean_phone = "".join(filter(str.isdigit, data.phone))
-    
-    if not clean_phone:
-         raise HTTPException(status_code=400, detail="Número processado é inválido/vazio.")
-
-    # Check if already blocked (using suffix matching - last 8 digits)
-    # This prevents duplicates like 558586817644 and 86817644
-    suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
-    
-    # If in a project, check across all sibling clients too
     from models import Client
     client = db.query(Client).filter(Client.id == client_id).first()
     client_ids = [client_id]
     if client and client.project_id:
         sibling_clients = db.query(Client.id).filter(Client.project_id == client.project_id).all()
         client_ids = [c.id for c in sibling_clients]
+
+    clean_phone = None
+    clean_email = None
+
+    if data.email:
+        clean_email = data.email.strip().lower()
+        if "@" not in clean_email or len(clean_email) < 5:
+            raise HTTPException(status_code=400, detail="E-mail inválido informado.")
         
-    exists = db.query(BlockedContact).filter(
-        BlockedContact.client_id.in_(client_ids),
-        BlockedContact.phone.like(f"%{suffix}")
-    ).first()
-    
-    if exists:
-        raise HTTPException(status_code=400, detail=f"Este número (ou final {suffix}) já está bloqueado.")
-    
+        exists_email = db.query(BlockedContact).filter(
+            BlockedContact.client_id.in_(client_ids),
+            func.lower(BlockedContact.email) == clean_email
+        ).first()
+        if exists_email:
+            raise HTTPException(status_code=400, detail=f"O e-mail '{clean_email}' já está bloqueado na blacklist.")
+
+    if data.phone:
+        clean_phone = "".join(filter(str.isdigit, data.phone))
+        if clean_phone:
+            suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
+            exists_phone = db.query(BlockedContact).filter(
+                BlockedContact.client_id.in_(client_ids),
+                BlockedContact.phone.like(f"%{suffix}")
+            ).first()
+            if exists_phone:
+                raise HTTPException(status_code=400, detail=f"Este número (ou final {suffix}) já está bloqueado.")
+
+    if not clean_phone and not clean_email:
+        raise HTTPException(status_code=400, detail="Informe pelo menos um telefone ou um e-mail para bloquear.")
+
     new_block = BlockedContact(
         client_id=client_id,
         phone=clean_phone,
+        email=clean_email,
         name=data.name,
         reason=data.reason or "Manual"
     )

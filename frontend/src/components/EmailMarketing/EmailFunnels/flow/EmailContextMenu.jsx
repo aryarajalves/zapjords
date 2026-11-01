@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FiMail, FiClock, FiTag, FiSearch, FiGlobe, FiTrello, FiMessageSquare } from 'react-icons/fi';
+import {
+  FiMail,
+  FiClock,
+  FiTag,
+  FiSearch,
+  FiGlobe,
+  FiTrello,
+  FiGitBranch,
+  FiPieChart,
+  FiCalendar,
+  FiCornerUpRight
+} from 'react-icons/fi';
 
 export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
   const [search, setSearch] = useState('');
@@ -27,12 +38,44 @@ export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
       badge: 'Mensagem'
     },
     {
+      type: 'condition',
+      title: 'Condição (Se / Senão)',
+      desc: 'Bifurcação por tag ou interação',
+      icon: FiGitBranch,
+      colorClass: 'text-violet-400 bg-violet-500/10 border-violet-500/20 group-hover:bg-violet-500/20',
+      badge: 'Lógica'
+    },
+    {
+      type: 'split',
+      title: 'Divisor A/B (Split)',
+      desc: 'Dividir fluxo para testes A/B',
+      icon: FiPieChart,
+      colorClass: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 group-hover:bg-cyan-500/20',
+      badge: 'Teste A/B'
+    },
+    {
+      type: 'wait_until',
+      title: 'Esperar Horário / Dia',
+      desc: 'Disparo em horário comercial ou dia útil',
+      icon: FiCalendar,
+      colorClass: 'text-orange-400 bg-orange-500/10 border-orange-500/20 group-hover:bg-orange-500/20',
+      badge: 'Agenda'
+    },
+    {
       type: 'delay',
       title: 'Tempo de Espera',
       desc: 'Pausa em minutos, horas ou dias',
       icon: FiClock,
       colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/20',
       badge: 'Delay'
+    },
+    {
+      type: 'sub_funnel',
+      title: 'Ir Para Outro Funil',
+      desc: 'Matricular lead em outra régua',
+      icon: FiCornerUpRight,
+      colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 group-hover:bg-emerald-500/20',
+      badge: 'Fluxo'
     },
     {
       type: 'tag',
@@ -57,14 +100,6 @@ export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
       icon: FiTrello,
       colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/20',
       badge: 'CRM'
-    },
-    {
-      type: 'whatsapp',
-      title: 'Mensagem WhatsApp',
-      desc: 'Enviar WhatsApp para o lead',
-      icon: FiMessageSquare,
-      colorClass: 'text-green-400 bg-green-500/10 border-green-500/20 group-hover:bg-green-500/20',
-      badge: 'WhatsApp'
     }
   ];
 
@@ -89,21 +124,19 @@ export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
         </span>
       </div>
 
-      {/* Busca Rápida */}
-      <div className="px-2 py-1.5 mb-2 bg-slate-950/60 border border-white/5 rounded-xl flex items-center gap-2">
-        <FiSearch size={13} className="text-gray-500 shrink-0" />
+      <div className="relative mb-2">
+        <FiSearch className="absolute left-2.5 top-2.5 text-gray-500" size={12} />
         <input
           ref={inputRef}
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filtrar nós..."
-          className="w-full bg-transparent text-xs text-white placeholder-gray-500 outline-none"
+          placeholder="Buscar nós..."
+          className="w-full bg-slate-800/80 border border-white/10 rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-medium"
         />
       </div>
 
-      {/* Lista de Nós */}
-      <div className="space-y-1">
+      <div className="max-h-72 overflow-y-auto space-y-1 custom-scrollbar pr-0.5">
         {filteredItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -114,22 +147,22 @@ export default function EmailContextMenu({ top, left, onClose, onAddNode }) {
                 onAddNode(item.type);
                 onClose();
               }}
-              className="w-full p-2 rounded-xl flex items-center gap-3 text-left hover:bg-slate-800 transition-all group border border-transparent hover:border-white/5"
+              className="w-full p-2 rounded-xl flex items-center justify-between hover:bg-white/5 transition-all text-left group cursor-pointer border border-transparent hover:border-white/5"
             >
-              <div className={`p-2 rounded-xl border transition-colors shrink-0 ${item.colorClass}`}>
-                <Icon size={16} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-200 group-hover:text-white truncate">
-                    {item.title}
-                  </span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase bg-slate-800 px-1.5 py-0.5 rounded">
-                    {item.badge}
-                  </span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`p-2 rounded-lg border transition-all ${item.colorClass}`}>
+                  <Icon size={14} />
                 </div>
-                <p className="text-[10px] text-gray-400 truncate mt-0.5">{item.desc}</p>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-gray-200 group-hover:text-white truncate">
+                    {item.title}
+                  </div>
+                  <div className="text-[10px] text-gray-400 truncate">{item.desc}</div>
+                </div>
               </div>
+              <span className="text-[9px] font-semibold text-gray-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/5 ml-2 shrink-0">
+                {item.badge}
+              </span>
             </button>
           );
         })}

@@ -1,34 +1,52 @@
-# Grupo 1: Bibliotecas padrão do Python
-import json
-import re
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Union
+"""
+ZapVoice - Orquestrador de Automação de Webhooks.
+Módulo modularizado para processamento de regras, integrações, disparos de WhatsApp e E-mail.
+Sub-módulos especializados localizados em `services/webhook_automation/`.
+"""
 
-# Grupo 3: Arquivos e módulos locais do projeto
+from datetime import datetime, timedelta, timezone
 from core.logger import logger
-from core.utils import robust_extract_labels
+from rabbitmq_client import rabbitmq
+
+# Reexportação de utilitários compatíveis com versões anteriores
 from services.webhooks_utils import (
     compute_dynamic_manychat_tag,
     extract_mapped_variables,
     extract_nested_custom_fields,
     get_brasilia_now,
+    normalize_event_type,
     parse_webhook_payload,
     replace_variables_in_string,
+)
+
+# Sub-módulos especializados de automação
+from services.webhook_automation import (
+    check_idempotency,
+    check_24h_and_duplicity,
+    handle_smart_interruption,
+    generate_platform_and_bussola_invites,
+    process_crm_kanban,
+    handle_auto_skip,
+    process_webhook_email_actions,
+    build_and_schedule_whatsapp_trigger,
+    schedule_followup_trigger,
 )
 
 
 async def process_webhook_automation(client_id: int, mapping: any, variables: dict, history_id: int):
     """
-    Processa a automação principal do webhook (disparo de funil ou template).
+    Processa a automação principal do webhook:
+    - Validação de idempotência e advisory lock
+    - Interrupção Inteligente e bloqueios de 24h
+    - Geração de convites e CRM Kanban
+    - Disparos de E-mail Marketing e WhatsApp com Follow-up
     """
     from database import SessionLocal
-    from sqlalchemy import cast, String
     import models
-    from rabbitmq_client import rabbitmq
-    
+
     db = SessionLocal()
+    history = None
     try:
-        # Carrega mapping e history se necessário (estamos em background_tasks)
         history = db.query(models.WebhookHistory).filter(models.WebhookHistory.id == history_id).first()
         if not history:
             logger.error(f"AUTO_PROCESS | Webhook #{history_id} não encontrado no banco.")
@@ -37,44 +55,14 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
         integration = db.query(models.WebhookIntegration).filter_by(id=mapping.integration_id).first()
         payload = history.payload or {}
         phone = variables.get("phone")
-        
-        # --- IDEMPOTENCY LOCK (Postgres Advisory Lock) ---
-        # Bloqueia o processamento para este telefone e mapeamento específico
-        if phone:
-            from sqlalchemy import text
-            db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": f"webhook_{phone}_{mapping.id}"})
-            
-        # --- RE-CHECK após o lock (Idempotency definitiva) ---
-        # 1. Verificar se já existe um gatilho para este mapping + fone nos últimos 10 segundos
-        if phone:
-            last_st = db.query(models.ScheduledTrigger).filter(
-                models.ScheduledTrigger.client_id == client_id,
-                models.ScheduledTrigger.contact_phone == phone,
-                cast(models.ScheduledTrigger.integration_id, String) == str(mapping.integration_id),
-                models.ScheduledTrigger.event_type == history.event_type,
-                models.ScheduledTrigger.created_at >= datetime.now(timezone.utc) - timedelta(seconds=10)
-            ).first()
-            
-            if last_st:
-                logger.warning(f"🚫 [AUTO_IDEMPOTENCY] Webhook #{history_id} ignorado. Trigger #{last_st.id} já criado recentemente para {phone}")
-                # Encontra o histórico original e incrementa duplicate_count
-                orig_history = db.query(models.WebhookHistory).filter(
-                    models.WebhookHistory.integration_id == history.integration_id,
-                    models.WebhookHistory.event_type == history.event_type,
-                    models.WebhookHistory.id != history.id
-                ).order_by(models.WebhookHistory.created_at.desc()).first()
-                if orig_history:
-                    current_count = orig_history.duplicate_count or 0
-                    orig_history.duplicate_count = current_count + 1
-                db.delete(history)
-                db.commit()
-                return
 
-        # Mapeamento já vem no argumento, mas vamos garantir que temos os dados
-        template_name = mapping.template_name
-        funnel_id = mapping.funnel_id
-        
-        # A fonte da verdade para o nome do template é o cache da Meta pelo template_id, se disponível
+        # 1. Idempotência e Advisory Lock
+        if check_idempotency(db, client_id, mapping, history, phone):
+            return
+
+        # 2. Resolução do nome do template / funil
+        template_name = getattr(mapping, 'template_name', None)
+        funnel_id = getattr(mapping, 'funnel_id', None)
         if mapping.template_id:
             tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
                 models.WhatsAppTemplateCache.id == mapping.template_id
@@ -82,292 +70,46 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
             if tpl_cache:
                 template_name = tpl_cache.name
 
-        # --- VALIDAÇÃO DE UNICIDADE DO LEAD POR INTEGRAÇÃO E TEMPLATE/FUNIL ---
-        if phone:
-            if template_name:
-                from services.template_history_service import is_template_sent_in_last_24h
-                if is_template_sent_in_last_24h(db, client_id, phone, template_name):
-                    logger.warning(f"🚫 [24H_BLOCK] Webhook #{history_id} ignorado. O template '{template_name}' está bloqueado nas últimas 24h para {phone} (Interrupção Inteligente ou envio recente).")
-                    
-                    auto_tag_list = []
-                    if getattr(mapping, "internal_tags", None):
-                        auto_tag_list.extend([t.strip() for t in mapping.internal_tags.split(',') if t.strip()])
-                    if not auto_tag_list and history.event_type:
-                        auto_tag_list.append(history.event_type.replace("_", " ").title())
-                    auto_tag = ", ".join(list(dict.fromkeys(auto_tag_list))) if auto_tag_list else None
-
-                    integration = db.query(models.WebhookIntegration).filter_by(id=mapping.integration_id).first()
-                    if integration and getattr(mapping, "update_contact_on_trigger", True):
-                        from services.leads import upsert_webhook_lead
-                        try:
-                            upsert_webhook_lead(
-                                db,
-                                client_id=client_id,
-                                platform=integration.platform,
-                                parsed_data=variables,
-                                tag=auto_tag,
-                                contact_save_fields=getattr(mapping, "contact_save_fields", None)
-                            )
-                        except Exception as lead_err:
-                            logger.error(f"Erro ao salvar lead no 24H_BLOCK: {lead_err}")
-
-                    if getattr(mapping, "chatwoot_label", None):
-                        try:
-                            from services.chat_label_service import apply_webhook_labels
-                            apply_webhook_labels(
-                                db=db,
-                                client_id=client_id,
-                                phone=phone,
-                                raw_labels=mapping.chatwoot_label,
-                                source=f"Webhook ({integration.name if integration else 'Integrador'})",
-                                contact_name=variables.get("name"),
-                                create_if_missing=False
-                            )
-                        except Exception as label_err:
-                            logger.error(f"Erro ao aplicar etiquetas de chat no 24H_BLOCK: {label_err}")
-
-                    history.status = "skipped"
-                    history.error_message = f"Template '{template_name}' bloqueado pela regra de 24h (Interrupção Inteligente ou envio recente)."
-                    db.commit()
-                    return
-
-                existing_trigger = db.query(models.ScheduledTrigger).filter(
-                    models.ScheduledTrigger.client_id == client_id,
-                    models.ScheduledTrigger.contact_phone == phone,
-                    cast(models.ScheduledTrigger.integration_id, String) == str(mapping.integration_id),
-                    models.ScheduledTrigger.template_name == template_name,
-                    models.ScheduledTrigger.status.notin_(["failed", "cancelled"])
-                ).first()
-                
-                if existing_trigger:
-                    logger.warning(f"🚫 [DUPLICITY_CHECK] Webhook #{history_id} ignorado. O lead {phone} já possui um disparo ativo/enviado para o template '{template_name}' nesta integração (Trigger #{existing_trigger.id}).")
-                    # Encontra o histórico original e incrementa duplicate_count
-                    orig_history = db.query(models.WebhookHistory).filter(
-                        models.WebhookHistory.integration_id == history.integration_id,
-                        models.WebhookHistory.event_type == history.event_type,
-                        models.WebhookHistory.id != history.id
-                    ).order_by(models.WebhookHistory.created_at.desc()).first()
-                    if orig_history:
-                        current_count = orig_history.duplicate_count or 0
-                        orig_history.duplicate_count = current_count + 1
-                    db.delete(history)
-                    db.commit()
-                    return
-            
-            elif funnel_id:
-                existing_trigger = db.query(models.ScheduledTrigger).filter(
-                    models.ScheduledTrigger.client_id == client_id,
-                    models.ScheduledTrigger.contact_phone == phone,
-                    cast(models.ScheduledTrigger.integration_id, String) == str(mapping.integration_id),
-                    models.ScheduledTrigger.funnel_id == funnel_id,
-                    models.ScheduledTrigger.status.notin_(["failed", "cancelled"])
-                ).first()
-                
-                if existing_trigger:
-                    logger.warning(f"🚫 [DUPLICITY_CHECK] Webhook #{history_id} ignorado. O lead {phone} já possui um disparo ativo/enviado para o funil #{funnel_id} nesta integração (Trigger #{existing_trigger.id}).")
-                    # Encontra o histórico original e incrementa duplicate_count
-                    orig_history = db.query(models.WebhookHistory).filter(
-                        models.WebhookHistory.integration_id == history.integration_id,
-                        models.WebhookHistory.event_type == history.event_type,
-                        models.WebhookHistory.id != history.id
-                    ).order_by(models.WebhookHistory.created_at.desc()).first()
-                    if orig_history:
-                        current_count = orig_history.duplicate_count or 0
-                        orig_history.duplicate_count = current_count + 1
-                    db.delete(history)
-                    db.commit()
-                    return
-
-        # --- LÓGICA DE INTERRUPÇÃO INTELIGENTE (CANCELAMENTO E BLOQUEIO DE 24H) ---
-        if getattr(mapping, "cancel_pending_on_trigger", False) and mapping.cancel_event_types:
-            event_types_to_cancel = mapping.cancel_event_types
-            
-            if phone and event_types_to_cancel:
-                logger.info(f"🛡️ SMART_CANCEL | Iniciando interrupção inteligente para {phone} nos eventos: {event_types_to_cancel}")
-                
-                current_product = variables.get("product_name")
-                
-                # 1. Busca disparos pendentes/enfileirados para este contato e eventos
-                query_triggers = db.query(models.ScheduledTrigger).filter(
-                    models.ScheduledTrigger.client_id == client_id,
-                    models.ScheduledTrigger.contact_phone == phone,
-                    models.ScheduledTrigger.status.in_(["pending", "queued"]),
-                    models.ScheduledTrigger.event_type.in_(event_types_to_cancel)
-                )
-                
-                # Filtra pelo mesmo produto se o produto estiver preenchido
-                if current_product:
-                    query_triggers = query_triggers.filter(
-                        models.ScheduledTrigger.product_name == current_product
-                    )
-                
-                pending_triggers = query_triggers.all()
-                templates_to_block = set()
-                
-                for pt in pending_triggers:
-                    logger.info(f"🚫 SMART_CANCEL | Cancelando trigger #{pt.id} (Evento: {pt.event_type}, Produto: {pt.product_name})")
-                    pt.status = "cancelled"
-                    pt.failure_reason = f"Interrompido pelo evento: {history.event_type}"
-                    if pt.template_name:
-                        templates_to_block.add(pt.template_name)
-                
-                # 2. Busca também os templates configurados nos mapeamentos irmãos dos eventos cancelados
-                sibling_mappings = db.query(models.WebhookEventMapping).filter(
-                    models.WebhookEventMapping.integration_id == mapping.integration_id,
-                    models.WebhookEventMapping.event_type.in_(event_types_to_cancel)
-                ).all()
-                
-                for sm in sibling_mappings:
-                    if sm.product_name and current_product and sm.product_name.strip().lower() != current_product.strip().lower():
-                        continue
-                    if sm.template_name:
-                        templates_to_block.add(sm.template_name)
-                    elif sm.template_id:
-                        tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
-                            models.WhatsAppTemplateCache.id == sm.template_id
-                        ).first()
-                        if tpl_cache and tpl_cache.name:
-                            templates_to_block.add(tpl_cache.name)
-                    
-                    if getattr(sm, "followup_active", False):
-                        if sm.followup_template_name:
-                            templates_to_block.add(sm.followup_template_name)
-                        elif getattr(sm, "followup_template_id", None):
-                            fu_tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
-                                models.WhatsAppTemplateCache.id == sm.followup_template_id
-                            ).first()
-                            if fu_tpl_cache and fu_tpl_cache.name:
-                                templates_to_block.add(fu_tpl_cache.name)
-
-                # 3. Registra bloqueio de 24h para esses templates no ContactTemplateHistory
-                if templates_to_block:
-                    from services.template_history_service import record_template_dispatch
-                    for tpl_name in templates_to_block:
-                        logger.info(f"🔒 SMART_CANCEL | Bloqueando template '{tpl_name}' por 24h para o contato {phone}")
-                        record_template_dispatch(db, client_id, phone, tpl_name)
-                
-                if pending_triggers or templates_to_block:
-                    db.commit()
-                    logger.info(f"✅ SMART_CANCEL | {len(pending_triggers)} disparos cancelados e {len(templates_to_block)} templates bloqueados por 24h com sucesso.")
-
-        # --- INTERRUPÇÃO INTELIGENTE DE FUNIS DE E-MAIL MARKETING ---
-        contact_email = variables.get("email")
-        if contact_email and history.event_type and "compra_aprovada" in str(history.event_type).lower():
-            try:
-                from services.email_funnel_service import check_and_cancel_funnels_on_purchase
-                await check_and_cancel_funnels_on_purchase(db, client_id, contact_email)
-            except Exception as e_ef:
-                logger.error(f"Erro ao cancelar funis de e-mail por compra: {e_ef}")
-
-        # --- GERAÇÃO AUTOMÁTICA DE CONVITE / CADASTRO NA PLATAFORMA ---
-        if getattr(mapping, "auto_create_invite", False):
-            try:
-                from services.platform_invite_service import generate_platform_invite
-                invite_res = await generate_platform_invite(
-                    client_id=client_id,
-                    role=getattr(mapping, "invite_role", "aluno") or "aluno",
-                    duration_hours=getattr(mapping, "invite_duration_hours", 0) or 0,
-                    course_access=getattr(mapping, "invite_course_access", None)
-                )
-                if invite_res and invite_res.get("full_invite_url"):
-                    invite_link = invite_res["full_invite_url"]
-                    variables["link_cadastro"] = invite_link
-                    variables["invite_url"] = invite_link
-                    logger.info(f"🔗 [PLATFORM_INVITE] Variável link_cadastro={invite_link} injetada nas variáveis do webhook #{history_id}")
-            except Exception as invite_err:
-                logger.error(f"❌ [PLATFORM_INVITE] Falha ao gerar convite automático no webhook #{history_id}: {invite_err}", exc_info=True)
-
-        # --- GERAÇÃO AUTOMÁTICA DE CONVITE NO APP BÚSSOLA ASTROLÓGICA ---
-        if getattr(mapping, "bussola_auto_create_invite", False):
-            try:
-                from services.bussola_invite_service import generate_bussola_invite
-                bussola_res = await generate_bussola_invite(
-                    client_id=client_id,
-                    role=getattr(mapping, "bussola_invite_role", "client") or "client",
-                    validity_type=getattr(mapping, "bussola_validity_type", "never") or "never",
-                    custom_api_key=getattr(mapping, "bussola_custom_api_key", None)
-                )
-                if bussola_res and bussola_res.get("invite_url"):
-                    bussola_link = bussola_res["invite_url"]
-                    variables["link_bussola"] = bussola_link
-                    if "link_cadastro" not in variables:
-                        variables["link_cadastro"] = bussola_link
-                    logger.info(f"🔮 [BUSSOLA_INVITE] Link do convite gerado: {bussola_link} (injetado em link_bussola do webhook #{history_id})")
-            except Exception as bussola_err:
-                logger.error(f"❌ [BUSSOLA_INVITE] Falha ao gerar convite Bússola no webhook #{history_id}: {bussola_err}", exc_info=True)
-
-        # --- AÇÃO DO KANBAN DE VENDAS (CRM) ---
-        if getattr(mapping, "kanban_active", False) and phone:
-            try:
-                from services.crm_service import process_webhook_kanban_trigger
-                process_webhook_kanban_trigger(
-                    db=db,
-                    client_id=client_id,
-                    mapping=mapping,
-                    phone=phone,
-                    name=variables.get("name"),
-                    email=variables.get("email"),
-                    platform=integration.platform if integration else "webhook",
-                    payload_value=float(variables.get("price") or 0.0)
-                )
-            except Exception as crm_err:
-                logger.error(f"❌ [CRM_WEBHOOK] Falha ao processar ação do Kanban no webhook #{history_id}: {crm_err}", exc_info=True)
-
-        if not template_name and not funnel_id:
-            logger.info(f"AUTO_SKIP | Mapeamento #{mapping.id} sem template nem funil definido — aplicando etiquetas e salvando lead...")
-            
-            # 1. Monta tags internas (ZapVoice)
-            auto_tag_list = []
-            if getattr(mapping, "internal_tags", None):
-                auto_tag_list.extend([t.strip() for t in mapping.internal_tags.split(',') if t.strip()])
-            if not auto_tag_list and history.event_type:
-                auto_tag_list.append(history.event_type.replace("_", " ").title())
-            auto_tag = ", ".join(list(dict.fromkeys(auto_tag_list))) if auto_tag_list else None
-
-            # 2. Injeta metadados
-            integration = db.query(models.WebhookIntegration).filter_by(id=mapping.integration_id).first()
-            if integration:
-                variables["created_by_webhook"] = True
-                variables["webhook_name"] = integration.name
-
-                # 3. Sincroniza Lead (aba contatos)
-                if getattr(mapping, "update_contact_on_trigger", True):
-                    from services.leads import upsert_webhook_lead
-                    try:
-                        upsert_webhook_lead(
-                            db,
-                            client_id=client_id,
-                            platform=integration.platform,
-                            parsed_data=variables,
-                            tag=auto_tag,
-                            contact_save_fields=getattr(mapping, "contact_save_fields", None)
-                        )
-                    except Exception as lead_err:
-                        logger.error(f"Erro ao salvar lead no AUTO_SKIP: {lead_err}")
-
-            # 4. Aplica etiquetas locais de conversação (Chat Local)
-            if phone and getattr(mapping, "chatwoot_label", None):
-                try:
-                    from services.chat_label_service import apply_webhook_labels
-                    apply_webhook_labels(
-                        db=db,
-                        client_id=client_id,
-                        phone=phone,
-                        raw_labels=mapping.chatwoot_label,
-                        source=f"Webhook ({integration.name if integration else 'Integrador'})",
-                        contact_name=variables.get("name"),
-                        create_if_missing=False
-                    )
-                except Exception as label_err:
-                    logger.error(f"Erro ao aplicar etiquetas de chat no AUTO_SKIP: {label_err}")
-
-
-            history.status = "skipped"
-            history.error_message = f"AUTO_SKIP: Mapeamento #{mapping.id} sem template nem funil definido — disparo não criado."
-            db.commit()
+        # 3. Validação de Unicidade / 24h Block
+        if check_24h_and_duplicity(db, client_id, mapping, history, phone, template_name, funnel_id, variables):
             return
 
-        # Extrai variáveis para o template
+        # 4. Interrupção Inteligente (Cancelamento de pendentes e bloqueio de funis)
+        await handle_smart_interruption(db, client_id, mapping, history, phone, variables)
+
+        # 5. Geração Automática de Convites (ZapVoice e Bússola Astrológica)
+        await generate_platform_and_bussola_invites(mapping, variables, history_id, client_id)
+
+        # 6. Ação no CRM / Kanban de Vendas
+        process_crm_kanban(db, client_id, mapping, phone, variables, integration, history_id)
+
+        # 7. Validação de ações ativas (WhatsApp e E-mail Marketing)
+        has_whatsapp_action = bool(template_name or funnel_id)
+        email_template_id = getattr(mapping, "email_template_id", None)
+        email_funnel_id = getattr(mapping, "email_funnel_id", None)
+        has_email_action = bool(email_template_id or email_funnel_id)
+
+        if not has_whatsapp_action and not has_email_action:
+            handle_auto_skip(db, client_id, mapping, history, phone, variables, integration)
+            return
+
+        # 8. Execução de E-mail Marketing (Template ou Funil)
+        is_email_only = await process_webhook_email_actions(
+            db=db,
+            client_id=client_id,
+            mapping=mapping,
+            history=history,
+            phone=phone,
+            variables=variables,
+            has_email_action=has_email_action,
+            email_template_id=email_template_id,
+            email_funnel_id=email_funnel_id,
+            has_whatsapp_action=has_whatsapp_action
+        )
+        if is_email_only:
+            return
+
+        # 9. Extração de variáveis e Formato de Header do WhatsApp
         header_format = None
         if mapping.template_id:
             try:
@@ -381,7 +123,7 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
             except Exception as e:
                 logger.error(f"Erro ao obter header_format para mapping {mapping.id}: {e}")
 
-        # Geração automática de PDF para a Bússola Quiz se configurado
+        # Geração automática de PDF para a Bússola Quiz se aplicável
         integration_platform = getattr(integration, "platform", "").lower() if integration else ""
         has_bussola_pdf = False
         v_map = mapping.variables_mapping or []
@@ -411,19 +153,18 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
                     variables["document_content"] = bussola_msg
                     variables["media_url"] = pdf_url
                     variables["filename"] = display_filename
-                    logger.info(f"📄 [WEBHOOK_AUTO_PDF] PDF da Bússola gerado com sucesso: {pdf_url} ({display_filename})")
+                    logger.info(f"📄 [WEBHOOK_AUTO_PDF] PDF da Bússola gerado: {pdf_url} ({display_filename})")
                 except Exception as pdf_err:
                     logger.error(f"❌ [WEBHOOK_AUTO_PDF] Erro ao gerar PDF da Bússola: {pdf_err}")
 
         components = extract_mapped_variables(payload, variables, mapping.variables_mapping or {}, header_format)
-        
-        # Nota privada (Forçando ativo por padrão, a não ser que seja nota customizada no legado)
+
         private_msg_text = "true"
         mapping_note = getattr(mapping, "private_note", None)
         if mapping_note and mapping_note.lower() not in ("true", "false", ""):
             private_msg_text = mapping_note
-        
-        # Calcula delay
+
+        # Cálculo de Delay
         delay_min = mapping.delay_minutes or 0
         delay_seconds_map = mapping.delay_seconds or 0
         total_delay_sec = (delay_min * 60) + delay_seconds_map
@@ -435,173 +176,45 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
         else:
             status = "processing"
 
-        # Checagem de Blacklist (Contato Bloqueado)
+        # Checagem de Blacklist
         from services.blocked_contacts_service import is_contact_blocked
         is_contact_blacklisted = is_contact_blocked(db, client_id, phone)
         if is_contact_blacklisted:
             status = "cancelled"
             logger.info(f"🚫 [WEBHOOK_BLOCKED] Contato {phone} está na Blacklist. Disparo agendado como cancelado.")
 
-        # Gera Chave de Idempotência Única
-        import hashlib
-        payload_str = json.dumps(payload, sort_keys=True)
-        idempotency_key = f"webhook_{mapping.id}_{hashlib.sha256(payload_str.encode()).hexdigest()[:16]}"
-
-        # Extrai conversation_id do payload do webhook (ex: botão do Chatwoot)
-        # Tenta múltiplos caminhos: campo mapeado nas variáveis, payload.conversation.id, payload.conversation_id
-        _raw_conv_id = (
-            variables.get("chatwoot_conversation_id") or
-            variables.get("conversation_id") or
-            payload.get("conversation", {}).get("id") or
-            payload.get("conversation_id")
-        )
-        webhook_conversation_id = int(_raw_conv_id) if _raw_conv_id and str(_raw_conv_id).isdigit() else None
-        if webhook_conversation_id:
-            logger.info(f"🗂️ [WEBHOOK] conversation_id={webhook_conversation_id} extraído do payload para {phone}")
-
-        # Extrai contact_id, inbox_id e account_id do payload do Chatwoot
-        _raw_contact_id = (
-            variables.get("chatwoot_contact_id") or
-            payload.get("contact", {}).get("id") or
-            payload.get("contact_id")
-        )
-        webhook_contact_id = int(_raw_contact_id) if _raw_contact_id and str(_raw_contact_id).isdigit() else None
-
-        _raw_inbox_id = (
-            variables.get("chatwoot_inbox_id") or
-            payload.get("inbox", {}).get("id") or
-            payload.get("conversation", {}).get("inbox_id") or
-            payload.get("inbox_id")
-        )
-        webhook_inbox_id = int(_raw_inbox_id) if _raw_inbox_id and str(_raw_inbox_id).isdigit() else None
-
-        _raw_account_id = (
-            variables.get("chatwoot_account_id") or
-            payload.get("account", {}).get("id") or
-            payload.get("account_id")
-        )
-        webhook_account_id = int(_raw_account_id) if _raw_account_id and str(_raw_account_id).isdigit() else None
-
-        # Cria o Disparo
-        st = models.ScheduledTrigger(
+        # 10. Criação do ScheduledTrigger principal de WhatsApp
+        st, webhook_conversation_id = build_and_schedule_whatsapp_trigger(
+            db=db,
+            client_id=client_id,
+            mapping=mapping,
+            history=history,
+            variables=variables,
+            phone=phone,
+            template_name=template_name,
+            funnel_id=funnel_id,
+            payload=payload,
+            total_delay_sec=total_delay_sec,
             scheduled_time=scheduled_time,
             status=status,
-            failure_reason="Contato bloqueado na Blacklist (envios suspensos)" if is_contact_blacklisted else None,
-            contact_name=variables.get("name"),
-            contact_phone=phone,
-            template_name=template_name,
-            template_components=components,
-            template_language=mapping.template_language or "pt_BR",
-            client_id=client_id,
-            product_name=variables.get("product_name"),
-            private_message=private_msg_text,
-            publish_external_event=True,
-            chatwoot_label=robust_extract_labels(mapping.chatwoot_label),
-            is_free_message=getattr(mapping, 'send_as_free_message', False),
-            cost_per_unit=0.0 if getattr(mapping, 'send_as_free_message', False) else (getattr(mapping, 'cost_per_message', 0.0) or 0.35),
-            sent_as="FREE_MESSAGE" if getattr(mapping, 'send_as_free_message', False) else "TEMPLATE",
-            event_type=history.event_type,
-            integration_id=mapping.integration_id,
-            funnel_id=funnel_id,
-            is_bulk=False,
-            idempotency_key=idempotency_key,
-            conversation_id=webhook_conversation_id,
-            chatwoot_contact_id=webhook_contact_id,
-            chatwoot_inbox_id=webhook_inbox_id,
-            chatwoot_account_id=webhook_account_id,
-            processed_data=variables,
-            is_stress_test=bool((history.processed_data or {}).get("is_stress_test"))
+            is_contact_blacklisted=is_contact_blacklisted,
+            components=components,
+            private_msg_text=private_msg_text
         )
-        db.add(st)
-        try:
-            db.commit()
-            db.refresh(st)
-            
-            # --- AGENDAMENTO DO GATILHO DE FOLLOW-UP ---
-            if not is_contact_blacklisted and getattr(mapping, "followup_active", False) and mapping.followup_template_name:
-                from services.template_history_service import is_template_sent_in_last_24h
-                if is_template_sent_in_last_24h(db, client_id, st.contact_phone, mapping.followup_template_name):
-                    logger.warning(f"🚫 [FOLLOW-UP-24H-BLOCK] Template de follow-up '{mapping.followup_template_name}' bloqueado para {st.contact_phone} nas últimas 24h. Agendamento ignorado.")
-                else:
-                    fu_value = getattr(mapping, "followup_delay_value", 0) or 0
-                    fu_unit = getattr(mapping, "followup_delay_unit", "minutes") or "minutes"
-                    
-                    fu_delay_sec = fu_value * 60
-                    if fu_unit == "hours":
-                        fu_delay_sec = fu_value * 3600
-                        
-                    total_fu_delay = total_delay_sec + fu_delay_sec
-                    fu_scheduled_time = datetime.now(timezone.utc) + timedelta(seconds=total_fu_delay)
-                    fu_header_format = None
-                    if mapping.followup_template_id:
-                        try:
-                            fu_tpl = db.query(models.WhatsAppTemplateCache).filter(
-                                models.WhatsAppTemplateCache.id == mapping.followup_template_id
-                            ).first()
-                            if fu_tpl and fu_tpl.components:
-                                fu_header_comp = next((c for c in fu_tpl.components if c.get("type") == "HEADER"), None)
-                                if fu_header_comp:
-                                    fu_header_format = fu_header_comp.get("format")
-                        except Exception as e:
-                            logger.error(f"Erro ao obter fu_header_format para mapping {mapping.id}: {e}")
 
-                    fu_components = extract_mapped_variables(payload, variables, mapping.followup_variables_mapping or {}, fu_header_format)
-                    
-                    fu_idempotency_key = f"fu_{mapping.id}_{hashlib.sha256(payload_str.encode()).hexdigest()[:16]}"
-                    
-                    # --- VALIDAÇÃO DE HORÁRIO COMERCIAL DO FOLLOW-UP ---
-                    if getattr(mapping, "followup_business_hours_active", False):
-                        from core.engine.business_hours import is_within_business_hours_generic, get_next_business_hour_start_generic
-                        
-                        fu_days = getattr(mapping, "followup_business_hours_days", None) or [0, 1, 2, 3, 4]
-                        fu_start = getattr(mapping, "followup_business_hours_start", None) or "08:00"
-                        fu_end = getattr(mapping, "followup_business_hours_end", None) or "18:00"
-                        
-                        if not is_within_business_hours_generic(fu_scheduled_time, fu_days, fu_start, fu_end):
-                            old_time = fu_scheduled_time
-                            fu_scheduled_time = get_next_business_hour_start_generic(fu_scheduled_time, fu_days, fu_start)
-                            logger.info(f"🕒 [FOLLOW-UP-BUSINESS-HOURS] Ajustando horario de follow-up {fu_idempotency_key} de {old_time} para {fu_scheduled_time} (fora do comercial)")
-                    fu_st = models.ScheduledTrigger(
-                        scheduled_time=fu_scheduled_time,
-                        status="queued",
-                        contact_name=st.contact_name,
-                        contact_phone=st.contact_phone,
-                        template_name=mapping.followup_template_name,
-                        template_components=fu_components,
-                        template_language=mapping.template_language or "pt_BR",
-                        client_id=client_id,
-                        product_name=st.product_name,
-                        private_message="true",  # Sempre envia nota privada com o corpo do follow-up
-                        publish_external_event=True,
-                        chatwoot_label=robust_extract_labels(mapping.chatwoot_label),
-                        is_free_message=False,
-                        cost_per_unit=mapping.cost_per_message or 0.35,
-                        sent_as="TEMPLATE",
-                        event_type=st.event_type,
-                        integration_id=mapping.integration_id,
-                        funnel_id=None,
-                        is_bulk=False,
-                        is_followup=True,
-                        parent_id=st.id,
-                        idempotency_key=fu_idempotency_key,
-                        skip_block_check=True
-                    )
-                    db.add(fu_st)
-                    try:
-                        db.commit()
-                        logger.info(f"⏳ [FOLLOW-UP] Agendado follow-up #{fu_st.id} para #{st.id} as {fu_scheduled_time}")
-                    except Exception as fu_err:
-                        db.rollback()
-                        logger.error(f"⚠️ [FOLLOW-UP] Erro ao salvar follow-up para trigger #{st.id}: {fu_err}")
-                    
-        except Exception as e_st:
-            db.rollback()
-            if "UNIQUE constraint failed" in str(e_st) or "duplicate key" in str(e_st).lower():
-                logger.warning(f"🚫 [AUTO_IDEMPOTENCY] Race condition evitada via UNIQUE key para {phone}")
-                return
-            raise e_st
-        
-        # Se não houver delay e o contato não estiver bloqueado, publica direto no RabbitMQ
+        # 11. Agendamento do Gatilho de Follow-up
+        schedule_followup_trigger(
+            db=db,
+            client_id=client_id,
+            mapping=mapping,
+            st=st,
+            payload=payload,
+            variables=variables,
+            total_delay_sec=total_delay_sec,
+            is_contact_blacklisted=is_contact_blacklisted
+        )
+
+        # 12. Execução Imediata via RabbitMQ (se sem delay e não bloqueado)
         if total_delay_sec <= 0 and not is_contact_blacklisted:
             await rabbitmq.publish("zapvoice_funnel_executions", {
                 "trigger_id": st.id,
@@ -610,10 +223,11 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
                 "contact_phone": phone,
                 "contact_name": variables.get("name")
             })
-            
+
         history.status = "processed"
         db.commit()
-        logger.info(f"✅ AUTO_SUCCESS | Webhook #{history_id} processado. Trigger ID: {st.id}")
+        logger.info(f"✅ AUTO_SUCCESS | Webhook #{history_id} processado com sucesso. Trigger ID: {st.id}")
+
         try:
             await rabbitmq.publish_event("webhook_history_update", {
                 "history_id": int(history.id),
@@ -633,10 +247,10 @@ async def process_webhook_automation(client_id: int, mapping: any, variables: di
         import traceback
         logger.error(traceback.format_exc())
         if history:
-            history.status = "failed"
-            history.error_message = str(e)
-            db.commit()
             try:
+                history.status = "failed"
+                history.error_message = str(e)
+                db.commit()
                 await rabbitmq.publish_event("webhook_history_update", {
                     "history_id": int(history.id),
                     "integration_id": str(history.integration_id),

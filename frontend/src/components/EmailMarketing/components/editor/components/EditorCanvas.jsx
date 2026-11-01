@@ -84,30 +84,56 @@ export default function EditorCanvas({
                   <hr style={{ border: 0, borderTop: `${b.thickness}px solid ${b.color}`, margin: `${b.margin}px 0` }} />
                 )}
 
-                {b.type === 'video' && (
-                  <div style={{ textAlign: 'center' }}>
-                    {b.url && b.url !== 'https://' && b.url !== '#' ? (
-                      <div className="space-y-2">
-                        <video 
-                          controls 
-                          className="w-full rounded-xl max-h-[360px] bg-black shadow-lg mx-auto"
-                          src={b.url}
-                        >
-                          Seu navegador não suporta a exibição de vídeos.
-                        </video>
-                        <div className="text-xs text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          <span>▶️ {b.title || 'Vídeo sem título'}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-6 bg-slate-900 border-2 border-dashed border-red-500/30 text-white rounded-xl text-center font-bold text-xs flex flex-col items-center justify-center gap-2">
-                        <FiVideo size={32} className="text-red-500 animate-pulse" />
-                        <span className="text-sm font-bold text-white">{b.title || 'Nenhum vídeo selecionado'}</span>
-                        <span className="text-[11px] text-gray-400 font-normal max-w-sm">
-                          Faça o upload do vídeo (.mp4, .webm, .mov) no painel lateral à direita ou insira a URL pública.
-                        </span>
-                      </div>
-                    )}
+                {b.type === 'list' && (
+                  <div style={{ color: b.color || '#334155', fontSize: `${b.fontSize || 15}px` }}>
+                    <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: b.styleType === 'number' ? 'decimal' : 'none' }}>
+                      {(b.items || []).map((item, i) => (
+                        <li key={i} style={{ marginBottom: `${b.spacing || 8}px`, display: b.styleType === 'number' ? 'list-item' : 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          {b.styleType === 'bullet' && <span style={{ color: b.bulletColor || '#3b82f6', fontWeight: 'bold' }}>•</span>}
+                          {b.styleType === 'arrow' && <span style={{ color: b.bulletColor || '#3b82f6', fontWeight: 'bold' }}>→</span>}
+                          {b.styleType === 'check' && <span style={{ color: b.bulletColor || '#10b981', fontWeight: 'bold' }}>✓</span>}
+                          <span style={{ flex: 1 }}>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {b.type === 'social' && (
+                  <div style={{ textAlign: b.align || 'center', padding: '10px 0' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      {b.showFacebook && (
+                        <span style={{ display: 'inline-block', width: '36px', height: '36px', lineHeight: '36px', textAlign: 'center', backgroundColor: '#1877f2', color: '#fff', borderRadius: b.iconStyle === 'circle' ? '50%' : '8px', fontWeight: 'bold', fontSize: '14px' }}>f</span>
+                      )}
+                      {b.showInstagram && (
+                        <span style={{ display: 'inline-block', width: '36px', height: '36px', lineHeight: '36px', textAlign: 'center', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)', color: '#fff', borderRadius: b.iconStyle === 'circle' ? '50%' : '8px', fontWeight: 'bold', fontSize: '13px' }}>ig</span>
+                      )}
+                      {b.showYoutube && (
+                        <span style={{ display: 'inline-block', width: '36px', height: '36px', lineHeight: '36px', textAlign: 'center', backgroundColor: '#ff0000', color: '#fff', borderRadius: b.iconStyle === 'circle' ? '50%' : '8px', fontWeight: 'bold', fontSize: '12px' }}>yt</span>
+                      )}
+                      {b.showTwitter && (
+                        <span style={{ display: 'inline-block', width: '36px', height: '36px', lineHeight: '36px', textAlign: 'center', backgroundColor: '#0f1419', color: '#fff', borderRadius: b.iconStyle === 'circle' ? '50%' : '8px', fontWeight: 'bold', fontSize: '13px' }}>𝕏</span>
+                      )}
+                      {b.showTiktok && (
+                        <span style={{ display: 'inline-block', width: '36px', height: '36px', lineHeight: '36px', textAlign: 'center', backgroundColor: '#000000', color: '#fff', borderRadius: b.iconStyle === 'circle' ? '50%' : '8px', fontWeight: 'bold', fontSize: '12px' }}>tt</span>
+                      )}
+                      {b.showWebsite && (
+                        <span style={{ display: 'inline-block', width: '36px', height: '36px', lineHeight: '36px', textAlign: 'center', backgroundColor: '#2563eb', color: '#fff', borderRadius: b.iconStyle === 'circle' ? '50%' : '8px', fontWeight: 'bold', fontSize: '14px' }}>🌐</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {b.type === 'footer' && (
+                  <div style={{ textAlign: b.align || 'center', color: b.color || '#64748b', fontSize: `${b.fontSize || 11}px`, lineHeight: 1.5, borderTop: '1px solid #e2e8f0', paddingTop: '16px', marginTop: '16px' }}>
+                    {b.companyName && <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{b.companyName}</div>}
+                    {b.address && <div style={{ marginBottom: '6px' }}>{b.address}</div>}
+                    {b.customText && <div style={{ marginBottom: '6px', fontStyle: 'italic' }}>{b.customText}</div>}
+                    <div style={{ marginTop: '6px', fontSize: '10px' }}>
+                      Enviado para: <span style={{ textDecoration: 'underline' }}>{b.recipientEmail || '{{email}}'}</span>
+                      {' • '}
+                      <span style={{ color: '#2563eb', textDecoration: 'underline' }}>Cancelar inscrição</span>
+                    </div>
                   </div>
                 )}
               </div>

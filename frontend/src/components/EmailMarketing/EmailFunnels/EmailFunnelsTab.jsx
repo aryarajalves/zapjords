@@ -191,6 +191,7 @@ export default function EmailFunnelsTab() {
         <EmailFunnelFlowBuilder
           funnel={editingFunnel}
           templates={templates}
+          funnels={funnels}
           onBack={() => {
             setEditorOpen(false);
             setEditingFunnel(null);

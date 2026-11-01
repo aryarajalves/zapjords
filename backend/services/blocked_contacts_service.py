@@ -1,3 +1,9 @@
+import hmac
+import hashlib
+import base64
+import json
+import time
+import os
 from sqlalchemy.orm import Session
 from typing import Set, Optional
 import models
@@ -66,3 +72,94 @@ def is_phone_in_blocked_suffixes(phone: Optional[str], blocked_suffixes: Set[str
     if len(digits) >= 8:
         return digits[-8:] in blocked_suffixes
     return digits in blocked_suffixes
+
+
+def is_email_blocked(db: Session, client_id: int, email: Optional[str]) -> bool:
+    """
+    Verifica se um endereço de e-mail está na lista de bloqueados (BlockedContact)
+    do cliente ou de clientes irmãos do mesmo projeto (case-insensitive).
+    """
+    if not email or "@" not in email:
+        return False
+    
+    clean_email = email.strip().lower()
+    client_ids = get_client_and_sibling_ids(db, client_id)
+
+    exists = db.query(models.BlockedContact.id).filter(
+        models.BlockedContact.client_id.in_(client_ids),
+        models.BlockedContact.email.ilike(clean_email)
+    ).first()
+
+    return exists is not None
+
+
+def get_blocked_emails_set(db: Session, client_id: int) -> Set[str]:
+    """
+    Retorna um conjunto (Set) com todos os e-mails bloqueados (em minúsculas)
+    para o cliente e seus clientes irmãos de projeto. Otimizado para verificações em lote.
+    """
+    client_ids = get_client_and_sibling_ids(db, client_id)
+    blocked_entries = db.query(models.BlockedContact.email).filter(
+        models.BlockedContact.client_id.in_(client_ids),
+        models.BlockedContact.email.isnot(None)
+    ).all()
+
+    return {row[0].strip().lower() for row in blocked_entries if row[0] and "@" in row[0]}
+
+
+def _get_signing_secret() -> bytes:
+    raw = os.getenv("SECRET_KEY", "zapvoice-default-secret-key-32chars-minimum!!")
+    return raw.strip('"').strip("'").strip().encode("utf-8")
+
+
+def generate_unsubscribe_token(client_id: int, email: str) -> str:
+    """
+    Gera um token assinado (HMAC-SHA256) e URL-safe para descadastro seguro de e-mail.
+    """
+    payload = {
+        "cid": int(client_id),
+        "em": email.strip().lower(),
+        "ts": int(time.time())
+    }
+    payload_json = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(payload_json).decode("ascii").rstrip("=")
+    
+    secret = _get_signing_secret()
+    sig = hmac.new(secret, payload_b64.encode("ascii"), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
+    
+    return f"{payload_b64}.{sig_b64}"
+
+
+def verify_unsubscribe_token(token: str) -> tuple[Optional[int], Optional[str]]:
+    """
+    Valida a assinatura do token de descadastro.
+    Retorna (client_id, email) se válido, ou (None, None) se adulterado ou inválido.
+    """
+    if not token or "." not in token:
+        return None, None
+    try:
+        parts = token.strip().split(".")
+        if len(parts) != 2:
+            return None, None
+        payload_b64, sig_b64 = parts
+
+        secret = _get_signing_secret()
+        expected_sig = hmac.new(secret, payload_b64.encode("ascii"), hashlib.sha256).digest()
+        expected_sig_b64 = base64.urlsafe_b64encode(expected_sig).decode("ascii").rstrip("=")
+
+        if not hmac.compare_digest(sig_b64, expected_sig_b64):
+            return None, None
+
+        # Re-adiciona padding base64 se necessário
+        rem = len(payload_b64) % 4
+        padded_b64 = payload_b64 + ("=" * (4 - rem) if rem else "")
+        payload_data = json.loads(base64.urlsafe_b64decode(padded_b64).decode("utf-8"))
+
+        cid = payload_data.get("cid")
+        em = payload_data.get("em")
+        if cid and em:
+            return int(cid), str(em).strip().lower()
+        return None, None
+    except Exception:
+        return None, None

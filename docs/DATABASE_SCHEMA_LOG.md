@@ -30,6 +30,9 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 31/10/2026 | Suporte a Bloqueio de E-mail na Blacklist (Descadastro Cirúrgico) | `blocked_contacts` | `email` (VARCHAR(255) NULL, INDEXADO), `phone` ajustado para nullable | `backend/scripts/database/add_email_to_blocked_contacts.py` |
+| 30/10/2026 | Data de Venda e Linha do Tempo / Histórico de Lead no CRM | `sales_deals`, `sales_deal_activities` | `won_at` (TIMESTAMP WITH TIME ZONE) em `sales_deals`; Tabela nova `sales_deal_activities` (`id`, `deal_id`, `client_id`, `activity_type`, `title`, `description`, `metadata_info`, `created_at`) | `backend/scripts/database/add_deal_won_at_and_activities_table.py` |
+| 30/10/2026 | Suporte a Disparo por E-mail Marketing em Gatilhos de Webhook | webhook_event_mappings | email_active (BOOLEAN DEFAULT FALSE), email_template_id (INTEGER, FK), email_funnel_id (INTEGER, FK), email_subject (VARCHAR) | ackend/scripts/add_email_marketing_columns_to_webhook_mappings.py |
 | 30/10/2026 | Prazo de Follow-up Individual por Contato no CRM | `sales_deals` | `custom_followup_delay_value` (INTEGER NULL), `custom_followup_delay_unit` (VARCHAR(20) DEFAULT 'hours') | `backend/scripts/database/add_deal_custom_followup_columns.py` |
 | 29/10/2026 | Sistema de Funis de E-mail Marketing e Execuções Sequenciais | email_funnels, email_funnel_executions | Tabelas novas completas com gatilhos, passos (email/delay/tag), stop_tags, stop_on_purchase e histórico | ackend/scripts/database/create_email_funnels_tables.py |
 | 29/10/2026 | Suporte à API da Brevo no E-mail Marketing Multi-tenant | `email_configs` | `brevo_api_key` (VARCHAR(255)) | `backend/scripts/database/add_brevo_api_key_to_email_configs.py` |

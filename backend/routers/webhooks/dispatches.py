@@ -72,6 +72,8 @@ async def list_dispatches(
         query = query.filter(models.ScheduledTrigger.status != 'cancelled', models.ScheduledTrigger.sent_as == 'FREE_MESSAGE')
     elif type_filter == 'paid':
         query = query.filter(models.ScheduledTrigger.status != 'cancelled', models.ScheduledTrigger.sent_as == 'TEMPLATE')
+    elif type_filter == 'email':
+        query = query.filter(models.ScheduledTrigger.status != 'cancelled', models.ScheduledTrigger.sent_as == 'EMAIL')
 
     if template_filter:
         if template_filter == 'all_templates':

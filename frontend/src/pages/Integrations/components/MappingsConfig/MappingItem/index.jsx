@@ -32,6 +32,8 @@ export default function MappingItem({
   existingInternalTags,
   platform,
   integrationId,
+  emailTemplates,
+  emailFunnels,
 }) {
   const [activeTab, setActiveTab] = useState('disparo');
   const allowedEvents = platform && PLATFORM_EVENT_TYPES[platform]
@@ -87,6 +89,8 @@ export default function MappingItem({
               updateMapping={updateMapping}
               templates={templates}
               funnels={funnels}
+              emailTemplates={emailTemplates}
+              emailFunnels={emailFunnels}
               discoveredProducts={discoveredProducts}
               platform={platform}
               allowedEvents={allowedEvents}
@@ -104,6 +108,8 @@ export default function MappingItem({
               mIndex={mIndex}
               updateMapping={updateMapping}
               funnels={funnels}
+              emailTemplates={emailTemplates}
+              emailFunnels={emailFunnels}
             />
           )}
 

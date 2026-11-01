@@ -10,7 +10,8 @@ from services.webhooks import (
     parse_webhook_payload,
     extract_mapped_variables,
     replace_variables_in_string,
-    compute_dynamic_manychat_tag
+    compute_dynamic_manychat_tag,
+    normalize_event_type
 )
 from core.utils import robust_extract_labels
 from services.utils.bulk_helpers import resolve_template_body_with_sync
@@ -47,7 +48,7 @@ async def execute_webhook_resend_logic(
     payload = history.payload
     parsed_data = parse_webhook_payload(integration.platform, payload)
     
-    event_type = str(parsed_data.get("event_type") or "").lower()
+    event_type = normalize_event_type(parsed_data.get("event_type") or history.event_type)
     phone = parsed_data.get("phone")
     name = parsed_data.get("name")
 
@@ -64,7 +65,7 @@ async def execute_webhook_resend_logic(
     detected_feedback = parsed_data.get("feedback_filter_detected")
     all_mappings = db.query(models.WebhookEventMapping).filter(
         models.WebhookEventMapping.integration_id == integration.id,
-        models.WebhookEventMapping.event_type == event_type
+        models.WebhookEventMapping.event_type.in_(list(set([event_type, normalize_event_type(event_type), normalize_event_type(event_type).replace("_", " "), normalize_event_type(event_type).replace(" ", "_")])))
     ).all()
     
     # Fallback para mapeamento 'outros' se não houver mapeamento específico
@@ -299,6 +300,28 @@ async def execute_webhook_resend_logic(
                 logger.error(f"RESEND_KANBAN | Erro ao processar Kanban: {k_err}")
 
         # 2. Ignorar se não houver template nem funil definido
+        has_email_action = bool(getattr(mapping, "email_active", False) and (getattr(mapping, "email_template_id", None) or getattr(mapping, "email_funnel_id", None)))
+        if has_email_action:
+            try:
+                from services.webhook_automation.email_actions import process_webhook_email_actions
+                await process_webhook_email_actions(
+                    db=db,
+                    client_id=integration.client_id,
+                    mapping=mapping,
+                    history=history,
+                    phone=phone,
+                    variables=parsed_data,
+                    has_email_action=True,
+                    email_template_id=getattr(mapping, "email_template_id", None),
+                    email_funnel_id=getattr(mapping, "email_funnel_id", None),
+                    has_whatsapp_action=bool(template_name or funnel_id)
+                )
+                if not template_name and not funnel_id:
+                    count += 1
+                    continue
+            except Exception as mail_err:
+                logger.error(f"RESEND_EMAIL | Erro ao disparar e-mail marketing: {mail_err}")
+
         if not template_name and not funnel_id:
             logger.info(f"RESEND_SKIP | Mapeamento #{mapping.id} sem template nem funil — disparo não criado.")
             continue
@@ -417,6 +440,12 @@ async def execute_webhook_resend_logic(
                 "contact_name": name
             })
             count += 1
+
+    if count > 0:
+        history.status = "processed"
+        history.error_message = None
+        history.event_type = event_type
+        db.commit()
 
     logger.info(f"RESEND_SUCCESS | Webhook #{history_id} processado. Disparos gerados: {count}")
     return {

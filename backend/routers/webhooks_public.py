@@ -27,7 +27,7 @@ from services.webhooks import (
     process_webhook_automation,
     replace_variables_in_string,
 )
-from services.webhooks_utils import is_refund_eligible_for_lead
+from services.webhooks_utils import is_refund_eligible_for_lead, normalize_event_type
 
 from core.security import limiter
 from core.webhook_security import (
@@ -174,7 +174,8 @@ async def handle_external_webhook(
 
         # Detect event type from payload
         extracted_data = parse_webhook_payload(integration.platform, payload)
-        event_type = extracted_data.get("event_type", "outros")
+        event_type = normalize_event_type(extracted_data.get("event_type", "outros"))
+        extracted_data["event_type"] = event_type
 
 
         # Upsell detection: if product_name matches a configured upsell product, override event_type
@@ -280,7 +281,7 @@ async def handle_external_webhook(
         def find_mapping_for(ev_type, prod_name):
             q = db.query(models.WebhookEventMapping).filter(
                 models.WebhookEventMapping.integration_id == integration.id,
-                models.WebhookEventMapping.event_type == ev_type,
+                models.WebhookEventMapping.event_type.in_(list(set([ev_type, normalize_event_type(ev_type), normalize_event_type(ev_type).replace("_", " "), normalize_event_type(ev_type).replace(" ", "_")]))),
                 models.WebhookEventMapping.is_active == True,
             )
             if prod_name:

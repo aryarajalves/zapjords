@@ -10,6 +10,8 @@ export function useIntegrations(activeClient) {
   const [templates, setTemplates] = useState([]);
   const [chatwootLabels, setChatwootLabels] = useState([]);
   const [funnels, setFunnels] = useState([]);
+  const [emailTemplates, setEmailTemplates] = useState([]);
+  const [emailFunnels, setEmailFunnels] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingIntegration, setEditingIntegration] = useState(null);
@@ -87,6 +89,30 @@ export function useIntegrations(activeClient) {
     }
   }, [activeClient]);
 
+  const fetchEmailTemplates = useCallback(async () => {
+    if (!activeClient) return;
+    try {
+      const res = await fetchWithAuth(`${API_URL}/email/templates`, {}, activeClient.id);
+      if (res.ok) {
+        setEmailTemplates(await res.json());
+      }
+    } catch (err) {
+      console.error('Erro ao buscar templates de email:', err);
+    }
+  }, [activeClient]);
+
+  const fetchEmailFunnels = useCallback(async () => {
+    if (!activeClient) return;
+    try {
+      const res = await fetchWithAuth(`${API_URL}/email/funnels`, {}, activeClient.id);
+      if (res.ok) {
+        setEmailFunnels(await res.json());
+      }
+    } catch (err) {
+      console.error('Erro ao buscar funis de email:', err);
+    }
+  }, [activeClient]);
+
   const fetchLeadTags = useCallback(async () => {
     if (!activeClient) return;
     try {
@@ -107,8 +133,10 @@ export function useIntegrations(activeClient) {
       fetchChatwootLabels();
       fetchFunnels();
       fetchLeadTags();
+      fetchEmailTemplates();
+      fetchEmailFunnels();
     }
-  }, [activeClient, fetchIntegrations, fetchTemplates, fetchChatwootLabels, fetchFunnels, fetchLeadTags]);
+  }, [activeClient, fetchIntegrations, fetchTemplates, fetchChatwootLabels, fetchFunnels, fetchLeadTags, fetchEmailTemplates, fetchEmailFunnels]);
 
 
   const handleSaveIntegration = async () => {
@@ -244,6 +272,10 @@ export function useIntegrations(activeClient) {
         chatwoot_label: normalizeChatwootLabel(m.chatwoot_label || m.chatwoot_labels),
         variables_mapping: Array.isArray(m.variables_mapping) ? m.variables_mapping : [],
         followup_variables_mapping: Array.isArray(m.followup_variables_mapping) ? m.followup_variables_mapping : [],
+        email_active: Boolean(m.email_active),
+        email_template_id: m.email_template_id || null,
+        email_funnel_id: m.email_funnel_id || null,
+        email_subject: m.email_subject || '',
         private_note: "true",
         publish_external_event: true,
         auto_create_invite: Boolean(m.auto_create_invite),
@@ -285,6 +317,8 @@ export function useIntegrations(activeClient) {
     handleDeleteIntegration,
     openNewModal,
     openEditModal,
-    leadTags
+    leadTags,
+    emailTemplates,
+    emailFunnels
   };
 }

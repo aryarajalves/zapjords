@@ -286,6 +286,12 @@ class WebhookEventMapping(Base):
     kanban_product_name = Column(String, nullable=True)
     kanban_value = Column(Float, nullable=True, default=0.0)
     kanban_lost_reason = Column(String, nullable=True)
+
+    # Disparo por E-mail Marketing Integrado ao Webhook
+    email_active = Column(Boolean, default=False)
+    email_template_id = Column(Integer, ForeignKey("email_templates.id", ondelete="SET NULL"), nullable=True)
+    email_funnel_id = Column(Integer, ForeignKey("email_funnels.id", ondelete="SET NULL"), nullable=True)
+    email_subject = Column(String, nullable=True)
     
     is_active = Column(Boolean, default=True)
     cost_per_message = Column(Float, default=0.0)

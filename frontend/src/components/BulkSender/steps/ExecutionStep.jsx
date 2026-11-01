@@ -47,6 +47,11 @@ const ExecutionStep = ({
     exclusionAvailableTags = [],
     loadExclusionContactsByTag,
     add55ToLoadedExclusionList,
+    selectedExclusionPipelines = [],
+    setSelectedExclusionPipelines,
+    selectedExclusionStages = {},
+    setSelectedExclusionStages,
+    loadExclusionContactsByKanban,
     isRecurring = false,
     setIsRecurring,
     setScheduledTime,
@@ -201,6 +206,12 @@ const ExecutionStep = ({
                     exclusionAvailableTags={exclusionAvailableTags}
                     loadExclusionContactsByTag={loadExclusionContactsByTag}
                     add55ToLoadedExclusionList={add55ToLoadedExclusionList}
+                    selectedExclusionPipelines={selectedExclusionPipelines}
+                    setSelectedExclusionPipelines={setSelectedExclusionPipelines}
+                    selectedExclusionStages={selectedExclusionStages}
+                    setSelectedExclusionStages={setSelectedExclusionStages}
+                    loadExclusionContactsByKanban={loadExclusionContactsByKanban}
+                    activeClient={activeClient}
                     isWorking={isSending}
                 />
             </section>

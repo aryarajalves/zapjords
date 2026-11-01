@@ -50,6 +50,55 @@ def compute_dynamic_manychat_tag(mapping) -> str:
     return f"{prefix}-{tag_date}"
 
 
+def normalize_event_type(ev: Optional[str]) -> str:
+    """
+    Normaliza o tipo do evento para o padrão canônico com underlines e minúsculo.
+    Garante resiliência total contra variações de gateways e checkouts.
+    Ex: 'Compra Aprovada' -> 'compra_aprovada'
+        'PURCHASE_APPROVED' -> 'compra_aprovada'
+        'compra aprovada' -> 'compra_aprovada'
+    """
+    if not ev:
+        return "outros"
+    
+    clean = str(ev).strip().lower()
+    # Substitui múltiplos espaços, hífens ou pontos por underline
+    clean = re.sub(r'[\s\.\-]+', '_', clean)
+    
+    # Mapeamento de sinônimos conhecidos para o padrão do ZapVoice
+    synonyms = {
+        "purchase_approved": "compra_aprovada",
+        "order_approved": "compra_aprovada",
+        "approved": "compra_aprovada",
+        "sale_approved": "compra_aprovada",
+        "paid": "compra_aprovada",
+        "completed": "compra_aprovada",
+        "complete": "compra_aprovada",
+        "purchase_complete": "compra_concluida",
+        "purchase_billet_printed": "boleto_impresso",
+        "billet_printed": "boleto_impresso",
+        "waiting_payment": "boleto_impresso",
+        "purchase_canceled": "reembolso",
+        "purchase_refunded": "reembolso",
+        "refunded": "reembolso",
+        "refund": "reembolso",
+        "purchase_protest": "reembolso",
+        "subscription_cancellation": "reembolso",
+        "purchase_delayed": "cartao_recusado",
+        "delayed": "cartao_recusado",
+        "refused": "cartao_recusado",
+        "abandoned_cart": "carrinho_abandonado",
+        "cart_abandoned": "carrinho_abandonado",
+        "purchase_out_of_shopping_cart": "checkout_pre_populado",
+        "purchase_expired": "pix_expirado",
+        "purchase_chargeback": "chargeback",
+        "charge_back": "chargeback",
+        "switch_plan": "troca_de_plano",
+        "update_subscription_charge_date": "alteracao_vencimento",
+    }
+    return synonyms.get(clean, clean)
+
+
 def parse_webhook_payload(platform: str, payload: dict) -> dict:
     """
     Função dedicada para extrair os dados padronizados de diferentes plataformas.
@@ -502,6 +551,9 @@ def parse_webhook_payload(platform: str, payload: dict) -> dict:
         result["first_name"] = parts[0] if parts else ""
     else:
         result["first_name"] = ""
+
+    # Normalização canônica universal do event_type
+    result["event_type"] = normalize_event_type(result.get("event_type"))
 
     return result
 

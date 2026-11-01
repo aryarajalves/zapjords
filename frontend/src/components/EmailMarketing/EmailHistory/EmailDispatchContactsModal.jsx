@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiX, FiMail, FiCheckCircle, FiXCircle, FiSearch, FiChevronLeft, FiChevronRight, FiUsers } from 'react-icons/fi';
 
 export default function EmailDispatchContactsModal({ dispatch, onClose }) {
@@ -23,10 +24,10 @@ export default function EmailDispatchContactsModal({ dispatch, onClose }) {
   const endIndex = Math.min(startIndex + PAGE_SIZE, filteredContacts.length);
   const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
 
-  return (
+  const modalContent = (
     <div
       data-testid="email-dispatch-contacts-modal"
-      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
     >
       <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Cabeçalho do Modal */}
@@ -165,4 +166,6 @@ export default function EmailDispatchContactsModal({ dispatch, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

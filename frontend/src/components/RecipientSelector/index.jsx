@@ -5,6 +5,7 @@ import Tabs from './components/Tabs';
 import ManualInput from './components/ManualInput';
 import FileUpload from './components/FileUpload';
 import TagSelector from './components/TagSelector';
+import KanbanSelector from './components/KanbanSelector';
 import ContactList from './components/ContactList';
 import ColumnSelectorModal from './components/Modals/ColumnSelectorModal';
 import ProcessingOverlay from './components/Modals/ProcessingOverlay';
@@ -90,7 +91,7 @@ const RecipientSelector = ({
                         saveTagsSearch={hook.saveTagsSearch}
                         setSaveTagsSearch={hook.setSaveTagsSearch}
                     />
-                ) : (
+                ) : hook.mode === 'tag' ? (
                     <TagSelector
                         selectedTags={hook.selectedTags}
                         setSelectedTags={hook.setSelectedTags}
@@ -107,6 +108,23 @@ const RecipientSelector = ({
                         setActiveDropdown={hook.setActiveDropdown}
                         loadContactsByTag={hook.loadContactsByTag}
                         isProcessing={hook.isProcessing}
+                    />
+                ) : (
+                    <KanbanSelector
+                        activeClient={hook.activeClient}
+                        selectedPipelines={hook.selectedKanbanPipelines}
+                        setSelectedPipelines={hook.setSelectedKanbanPipelines}
+                        selectedStages={hook.selectedKanbanStages}
+                        setSelectedStages={hook.setSelectedKanbanStages}
+                        onLoadContacts={hook.loadContactsFromKanban}
+                        isProcessing={hook.isProcessing}
+                        actionButtonLabel="Carregar Contatos do Kanban"
+                        accentColor="indigo"
+                        templateVariables={templateVariables}
+                        kanbanVariables={hook.kanbanVariables}
+                        setKanbanVariables={hook.setKanbanVariables}
+                        activeDropdown={hook.activeDropdown}
+                        setActiveDropdown={hook.setActiveDropdown}
                     />
                 )}
             </div>
