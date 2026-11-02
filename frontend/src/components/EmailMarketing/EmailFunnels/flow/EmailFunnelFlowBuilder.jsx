@@ -12,6 +12,7 @@ import { FiArrowLeft, FiSave, FiDownload, FiTrash2 } from 'react-icons/fi';
 import { emailNodeTypes } from './nodeTypes';
 import EmailFunnelSidebar from './EmailFunnelSidebar';
 import EmailContextMenu from './EmailContextMenu';
+import DeleteNodeConfirmModal from './DeleteNodeConfirmModal';
 import {
   createDefaultNodeData,
   mapStepToNodeType,
@@ -43,6 +44,7 @@ export default function EmailFunnelFlowBuilder({
   const [menu, setMenu] = useState(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const reactFlowWrapper = useRef(null);
+  const [nodeToDelete, setNodeToDelete] = useState(null);
 
   // Atualizar dados de um nó específico
   const handleUpdateNode = useCallback((nodeId, newData) => {
@@ -51,11 +53,25 @@ export default function EmailFunnelFlowBuilder({
     );
   }, []);
 
-  // Excluir um nó específico
+  // Solicitar exclusão de um nó específico (abre modal centralizado de confirmação)
   const handleDeleteNode = useCallback((nodeId) => {
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    setNodes((nds) => {
+      const target = nds.find((n) => n.id === nodeId);
+      if (target) {
+        setNodeToDelete(target);
+      }
+      return nds;
+    });
   }, []);
+
+  // Confirmar exclusão do nó e remover suas arestas conectadas
+  const handleConfirmDeleteNode = useCallback(() => {
+    if (!nodeToDelete) return;
+    const targetId = nodeToDelete.id;
+    setNodes((nds) => nds.filter((n) => n.id !== targetId));
+    setEdges((eds) => eds.filter((e) => e.source !== targetId && e.target !== targetId));
+    setNodeToDelete(null);
+  }, [nodeToDelete]);
 
   // Duplicar um nó específico
   const handleDuplicateNode = useCallback((nodeId) => {
@@ -349,6 +365,7 @@ export default function EmailFunnelFlowBuilder({
             onPaneContextMenu={onPaneContextMenu}
             onPaneClick={onPaneClick}
             onInit={setReactFlowInstance}
+            deleteKeyCode={null}
             fitView
             minZoom={0.2}
             maxZoom={1.5}
@@ -366,6 +383,13 @@ export default function EmailFunnelFlowBuilder({
               onAddNode={(type) => handleAddNode(type, true)}
             />
           )}
+
+          {/* Modal de Confirmação Centralizado para Deletar Nó */}
+      <DeleteNodeConfirmModal
+        node={nodeToDelete}
+        onCancel={() => setNodeToDelete(null)}
+        onConfirm={handleConfirmDeleteNode}
+      />
 
           {/* Dica no rodapé do canvas */}
           <div className="absolute bottom-4 right-4 bg-slate-900/80 border border-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl text-[11px] text-gray-400 pointer-events-none select-none">

@@ -71,6 +71,7 @@ from routers import (
     reminders,        # Lembretes de agendamento (Re-disparos de calendário)
     email_marketing,  # Disparador e Gestão de E-mail Marketing (Brevo, SES, Resend, SMTP)
     email_marketing_funnels, # Funis de E-mail Marketing e Sequências Inteligentes
+    email_marketing_analytics, # Analytics e Rastreamento de E-mail Marketing
     waba_payment,     # Métodos de pagamento e faturas da Meta WABA
     quick_messages,   # Respostas e mensagens rápidas
     checkout_presell, # Páginas de pré-venda e checkout
@@ -78,7 +79,8 @@ from routers import (
     crm,              # Kanban de Vendas e CRM Multi-Produto
     crm_stage_order,  # Reordenação de Colunas do Kanban via Drag & Drop
     crm_products,     # Catálogo de Produtos do CRM
-    infrastructure    # Infraestrutura & Recursos do Servidor
+    infrastructure,   # Infraestrutura & Recursos do Servidor
+    team_performance  # Desempenho da equipe e métricas de vendedores
 )
 
 # Webhooks de entrada (sistemas externos, gestão de eventos)
@@ -140,7 +142,7 @@ load_dotenv()
 
 # Habilita o /docs apenas em ambiente local (DEBUG=true no .env)
 # Documentação de API Swagger (/docs) e ReDoc (/redoc)
-ENABLE_DOCS = os.getenv("ENABLE_DOCS", "true").lower() == "true"
+ENABLE_DOCS = os.getenv("ENABLE_DOCS", "false").lower() == "true"
 
 app = FastAPI(
     title="ZapVoice - API Oficial de Automação & Mensageria",
@@ -259,10 +261,26 @@ logger.info(f"🔒 CORS origins enabled: {default_origins}")
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
+    # OWASP Base Security Headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # HSTS - Strict Transport Security (Força conexões HTTPS e previne SSL Stripping)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    # Permissions-Policy (Restringe recursos do navegador preservando microfone para áudio no chat)
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
+    # Content-Security-Policy (Mitigação de XSS e controle de fontes externas autorizadas)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data: blob: https: http:; "
+        "media-src 'self' data: blob: https: http:; "
+        "connect-src 'self' ws: wss: https: http:; "
+        "frame-ancestors 'none';"
+    )
     return response
 
 # Registro dos Roteadores
@@ -331,8 +349,11 @@ app.include_router(api_keys.router, prefix="/api")
 app.include_router(reminders.router, prefix="/api")
 app.include_router(email_marketing.router, prefix="/api/email", tags=["Email Marketing"])
 app.include_router(email_marketing_funnels.router, prefix="/api", tags=["Email Marketing Funnels"])
+app.include_router(email_marketing_analytics.router, prefix="/api/email-marketing", tags=["Email Marketing Analytics"])
+app.include_router(email_marketing_analytics.router, prefix="/api/email", tags=["Email Marketing Analytics"])
 app.include_router(waba_payment.router, prefix="/api", tags=["WABA Payment"])
 app.include_router(quick_messages.router, prefix="/api", tags=["QuickMessages"])
+app.include_router(team_performance.router, prefix="/api", tags=["Team Performance"])
 
 # Router público para atualização de campos de contatos via API Key
 app.include_router(contacts_public_router, prefix="/api", tags=["Contacts Public API"])

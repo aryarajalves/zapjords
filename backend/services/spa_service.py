@@ -83,6 +83,7 @@ def serve_spa_catchall_response(full_path: str):
         path_lower.startswith("api") 
         or path_lower.startswith("static") 
         or path_lower.startswith("docs") 
+        or path_lower.startswith("redoc")
         or path_lower.startswith("openapi") 
         or path_lower.startswith("triggers")
     ):

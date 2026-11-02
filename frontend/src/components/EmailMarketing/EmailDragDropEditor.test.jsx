@@ -236,4 +236,71 @@ describe('EmailDragDropEditor', () => {
     const hasVar = textareas.some(t => t.value.includes('{{primeiro_nome}}'));
     expect(hasVar).toBe(true);
   });
+
+  it('renderiza a prévia da mídia na barra lateral direita quando o bloco de imagem possui URL', () => {
+    render(<EmailDragDropEditor initialHtml="" onChangeHtml={() => {}} />);
+
+    // Adiciona bloco de imagem
+    const imgBlockBtn = screen.getByRole('button', { name: /Imagem/i });
+    fireEvent.click(imgBlockBtn);
+
+    // Deve exibir o painel de prévia da mídia na lateral direita
+    const previewPanel = screen.getByTestId('image-preview-panel');
+    expect(previewPanel).toBeInTheDocument();
+    expect(screen.getByText(/Prévia da Mídia:/i)).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-image-preview')).toBeInTheDocument();
+  });
+
+  it('permite adicionar e configurar o bloco de Contador Regressivo (countdown)', () => {
+    render(<EmailDragDropEditor initialHtml="" onChangeHtml={() => {}} />);
+
+    const countdownBtn = screen.getByRole('button', { name: /Contador/i });
+    fireEvent.click(countdownBtn);
+
+    expect(screen.getByText(/Título do Contador:/i)).toBeInTheDocument();
+    const titleInput = screen.getByDisplayValue('A Oferta Termina Em:');
+    expect(titleInput).toBeInTheDocument();
+  });
+
+  it('permite adicionar e configurar o bloco de Caixa de Destaque / Depoimento (callout)', () => {
+    render(<EmailDragDropEditor initialHtml="" onChangeHtml={() => {}} />);
+
+    const calloutBtn = screen.getByRole('button', { name: /Destaque/i });
+    fireEvent.click(calloutBtn);
+
+    expect(screen.getByText(/Texto do Destaque:/i)).toBeInTheDocument();
+    const authorInput = screen.getByDisplayValue('Especialista / Aluno');
+    expect(authorInput).toBeInTheDocument();
+  });
+
+  it('permite adicionar e configurar o bloco de Card de Produto (product_card)', () => {
+    render(<EmailDragDropEditor initialHtml="" onChangeHtml={() => {}} />);
+
+    const prodBtn = screen.getByRole('button', { name: /Card Produto/i });
+    fireEvent.click(prodBtn);
+
+    expect(screen.getByText(/Nome do Produto \/ Oferta:/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Mentoria & Acelerador de Vendas')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('12x de R$ 97,00')).toBeInTheDocument();
+  });
+
+  it('permite adicionar e configurar os blocos de 3 Colunas, Assinatura, Espaçador e Código HTML', () => {
+    render(<EmailDragDropEditor initialHtml="" onChangeHtml={() => {}} />);
+
+    // 3 Colunas
+    fireEvent.click(screen.getByRole('button', { name: /3 Colunas/i }));
+    expect(screen.getByText('Coluna 1')).toBeInTheDocument();
+
+    // Assinatura
+    fireEvent.click(screen.getByRole('button', { name: /Assinatura/i }));
+    expect(screen.getByText(/Nome do Especialista \/ Autor:/i)).toBeInTheDocument();
+
+    // Espaçador
+    fireEvent.click(screen.getByRole('button', { name: /Espaçador/i }));
+    expect(screen.getByText(/Altura do Espaço:/i)).toBeInTheDocument();
+
+    // Código HTML
+    fireEvent.click(screen.getByRole('button', { name: /Código HTML/i }));
+    expect(screen.getByText(/Código HTML Puro:/i)).toBeInTheDocument();
+  });
 });

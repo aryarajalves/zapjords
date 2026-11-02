@@ -273,3 +273,109 @@ async def enroll_contacts_manually(
                 enrolled += 1
 
     return {"message": f"{enrolled} contatos inscritos no funil com sucesso", "enrolled_count": enrolled}
+
+
+@router.post("/seed-newsletter-welcome", summary="Criar modelo e funil de Boas-Vindas à Newsletter em 1 clique")
+async def seed_newsletter_welcome_funnel(
+    client_id: int = Depends(get_validated_client_id),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Cria ou reutiliza o Template 'Boas-Vindas à Newsletter' e cria o Funil Automático
+    com gatilho na etiqueta 'newsletter'.
+    """
+    # 1. Localiza ou cria o template de Boas-Vindas
+    template = db.query(models.EmailTemplate).filter(
+        models.EmailTemplate.client_id == client_id,
+        models.EmailTemplate.name.ilike("%Boas-Vindas%Newsletter%")
+    ).first()
+
+    if not template:
+        welcome_html = (
+            "<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px;\">\n"
+            "  <div style=\"text-align: center; margin-bottom: 24px;\">\n"
+            "    <h1 style=\"color: #1e293b; font-size: 24px; font-weight: bold; margin: 0;\">Seja muito bem-vindo(a) à nossa Newsletter! 🎉</h1>\n"
+            "  </div>\n"
+            "  <p style=\"color: #334155; font-size: 16px; line-height: 1.6;\">\n"
+            "    Olá, <strong>{{primeiro_nome}}</strong>!\n"
+            "  </p>\n"
+            "  <p style=\"color: #334155; font-size: 15px; line-height: 1.6;\">\n"
+            "    É um prazer enorme ter você com a gente. A partir de agora, toda semana você vai receber em primeira mão as nossas melhores análises, novidades exclusivas e insights práticos diretamente na sua caixa de entrada.\n"
+            "  </p>\n"
+            "  <div style=\"background: #f1f5f9; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 6px; margin: 24px 0;\">\n"
+            "    <p style=\"margin: 0; font-weight: bold; color: #1e293b;\">📌 O que esperar das próximas edições:</p>\n"
+            "    <ul style=\"color: #475569; font-size: 14px; margin: 8px 0 0 16px; padding: 0;\">\n"
+            "      <li>Estratégias testadas no campo de batalha</li>\n"
+            "      <li>Novidades e tendências do mercado</li>\n"
+            "      <li>Ofertas e conteúdos para assinantes VIP</li>\n"
+            "    </ul>\n"
+            "  </div>\n"
+            "  <div style=\"text-align: center; margin: 30px 0;\">\n"
+            "    <a href=\"https://instagram.com\" style=\"background: #2563eb; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;\">Acompanhar Novidades no Instagram</a>\n"
+            "  </div>\n"
+            "  <p style=\"color: #64748b; font-size: 13px; text-align: center; margin-top: 32px;\">\n"
+            "    Caso não queira mais receber nossos e-mails, você pode <a href=\"{{unsubscribe_url}}\" style=\"color: #94a3b8; text-decoration: underline;\">cancelar sua inscrição aqui</a> a qualquer momento.\n"
+            "  </p>\n"
+            "</div>"
+        )
+        template = models.EmailTemplate(
+            client_id=client_id,
+            name="Boas-Vindas à Newsletter",
+            subject="Bem-vindo(a) à nossa Newsletter semanal! 💌",
+            body_html=welcome_html,
+            is_active=True
+        )
+        db.add(template)
+        db.commit()
+        db.refresh(template)
+
+    # 2. Localiza ou cria o funil de Boas-Vindas
+    funnel = db.query(models.EmailFunnel).filter(
+        models.EmailFunnel.client_id == client_id,
+        models.EmailFunnel.name.ilike("%Boas-Vindas%Newsletter%")
+    ).first()
+
+    if not funnel:
+        steps = [
+            {
+                "id": "step_1",
+                "type": "email",
+                "template_id": template.id,
+                "label": "E-mail de Boas-Vindas Imediato"
+            },
+            {
+                "id": "step_2",
+                "type": "tag_action",
+                "action": "add",
+                "tag": "newsletter_ativa",
+                "label": "Adicionar Etiqueta 'newsletter_ativa'"
+            }
+        ]
+        funnel = models.EmailFunnel(
+            client_id=client_id,
+            name="Boas-Vindas à Newsletter",
+            description="Envia automaticamente a edição inaugural de boas-vindas para todo lead que recebe a tag 'newsletter'.",
+            trigger_type="tag",
+            trigger_config={"tag": "newsletter"},
+            stop_tags=["descadastro", "cancelou"],
+            stop_on_purchase=False,
+            is_active=True,
+            steps=steps
+        )
+        db.add(funnel)
+        db.commit()
+        db.refresh(funnel)
+
+    return {
+        "status": "success",
+        "message": "Funil e Template de Boas-Vindas à Newsletter prontos para uso!",
+        "funnel": {
+            "id": funnel.id,
+            "name": funnel.name,
+            "trigger_tag": "newsletter",
+            "template_id": template.id,
+            "template_name": template.name,
+            "is_active": funnel.is_active
+        }
+    }

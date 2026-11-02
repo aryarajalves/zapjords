@@ -92,10 +92,61 @@ describe('KanbanCard Component', () => {
             />
         );
 
-        const chatBtn = screen.getByTitle('Abrir conversa no ZapVoice');
+        const chatBtn = screen.getByTitle(/Abrir conversa no ZapVoice/i);
         fireEvent.click(chatBtn);
 
         expect(handleOpenChat).toHaveBeenCalledWith('5511999998888', 'Lucas Silva');
+        expect(handleEdit).not.toHaveBeenCalled();
+    });
+
+    it('abre em nova aba com window.open ao clicar no botão de chat com ctrlKey', () => {
+        const handleEdit = vi.fn();
+        const handleOpenChat = vi.fn();
+        const originalOpen = window.open;
+        window.open = vi.fn();
+
+        try {
+            render(
+                <KanbanCard
+                    deal={mockDeal}
+                    onEdit={handleEdit}
+                    onDelete={vi.fn()}
+                    onOpenChat={handleOpenChat}
+                />
+            );
+
+            const chatBtn = screen.getByTestId('deal-chat-btn-101');
+            fireEvent.click(chatBtn, { ctrlKey: true });
+
+            expect(window.open).toHaveBeenCalledWith(
+                expect.stringContaining('view=chat_conversations'),
+                '_blank',
+                'noopener,noreferrer'
+            );
+            expect(handleOpenChat).not.toHaveBeenCalled();
+            expect(handleEdit).not.toHaveBeenCalled();
+        } finally {
+            window.open = originalOpen;
+        }
+    });
+
+    it('dispara onSendTemplate ao clicar no botão de disparar template', () => {
+        const handleEdit = vi.fn();
+        const handleSendTemplate = vi.fn();
+        render(
+            <KanbanCard
+                deal={mockDeal}
+                onEdit={handleEdit}
+                onDelete={vi.fn()}
+                onOpenChat={vi.fn()}
+                onSendTemplate={handleSendTemplate}
+            />
+        );
+
+        const templateBtn = screen.getByTestId('deal-send-template-btn-101');
+        fireEvent.click(templateBtn);
+
+        expect(handleSendTemplate).toHaveBeenCalledWith(mockDeal);
         expect(handleEdit).not.toHaveBeenCalled();
     });
 

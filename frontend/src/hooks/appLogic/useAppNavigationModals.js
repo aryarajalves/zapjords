@@ -2,7 +2,24 @@ import { useState, useEffect } from 'react';
 
 export function useAppNavigationModals(user, onResetFunnelState) {
   // View State
-  const [currentView, setCurrentView] = useState(localStorage.getItem('currentView') || 'bulk_sender');
+  const [currentView, setCurrentView] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const urlView = params.get('view');
+        const urlPhone = params.get('phone');
+        const urlName = params.get('name');
+        if (urlView) {
+          if (urlPhone) {
+            localStorage.setItem('crm_target_chat_phone', urlPhone);
+            if (urlName) localStorage.setItem('crm_target_chat_name', urlName);
+          }
+          return urlView;
+        }
+      }
+    } catch (_) {}
+    return localStorage.getItem('currentView') || 'bulk_sender';
+  });
 
   // Modal States
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -45,7 +62,21 @@ export function useAppNavigationModals(user, onResetFunnelState) {
   useEffect(() => {
     if (user && user.role === 'vendedor') {
       // vendedor_home é a tela de boas-vindas após fechar o chat
-      const allowedVendedorViews = ['chat_conversations', 'vendedor_home'];
+      const allowedVendedorViews = [
+        'chat_conversations',
+        'vendedor_home',
+        'sales_kanban',
+        'leads',
+        'appointments',
+        'schedules',
+        'history',
+        'templates',
+        'hot_leads',
+        'bulk_sender',
+        'recurring_schedules',
+        'import_history',
+        'blocked'
+      ];
       if (!allowedVendedorViews.includes(currentView)) {
         setCurrentView('chat_conversations');
       }

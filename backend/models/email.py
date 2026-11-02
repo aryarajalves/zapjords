@@ -65,9 +65,12 @@ class EmailDispatch(Base):
     total_contacts = Column(Integer, default=0)
     total_sent = Column(Integer, default=0)
     total_failed = Column(Integer, default=0)
+    total_opened = Column(Integer, default=0, nullable=False)
+    total_clicks = Column(Integer, default=0, nullable=False)
     
     scheduled_time = Column(DateTime, nullable=True)
     contacts_list = Column(JSON, nullable=True)
+    analytics_data = Column(JSON, nullable=True)  # {"clicks_by_url": {...}, "opens_timeline": [...]}
     failure_reason = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

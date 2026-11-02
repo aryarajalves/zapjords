@@ -209,6 +209,25 @@ export function useWebhookLeads(activeClient) {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Sincronização em tempo real quando o nome do contato é editado na conversa
+  useEffect(() => {
+    const handleContactNameUpdated = (e) => {
+      const { phone, name } = e.detail || {};
+      if (!phone || !name) return;
+      const cleanUpdated = phone.replace(/\D/g, '');
+      const suffix = cleanUpdated.slice(-8);
+      setLeads(prev => (prev || []).map(lead => {
+        const cleanLeadPhone = (lead.phone || '').replace(/\D/g, '');
+        if (cleanLeadPhone === cleanUpdated || (suffix && cleanLeadPhone.endsWith(suffix))) {
+          return { ...lead, name };
+        }
+        return lead;
+      }));
+    };
+    window.addEventListener('contact-name-updated', handleContactNameUpdated);
+    return () => window.removeEventListener('contact-name-updated', handleContactNameUpdated);
+  }, []);
+
   // Sub-hook de ações e mutações
   const {
     handleCleanTags,

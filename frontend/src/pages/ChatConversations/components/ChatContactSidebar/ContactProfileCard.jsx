@@ -1,5 +1,8 @@
-import React from 'react';
-import { FiShare2, FiUser, FiMessageSquare } from 'react-icons/fi';
+import React, { useState, useEffect, useRef } from 'react';
+import { FiShare2, FiUser, FiMessageSquare, FiEdit2, FiCheck, FiX, FiLoader } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import { API_URL } from '../../../../config';
+import { fetchWithAuth } from '../../../../AuthContext';
 
 export default function ContactProfileCard({
     selectedConvo,
@@ -10,8 +13,84 @@ export default function ContactProfileCard({
     onShareContact,
     userMessagesCount = 0,
     agentMessagesCount = 0,
-    totalMessagesCount = 0
+    totalMessagesCount = 0,
+    setConversations
 }) {
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [isSavingName, setIsSavingName] = useState(false);
+    const prevConvoIdRef = useRef(selectedConvo?.id);
+
+    useEffect(() => {
+        if (prevConvoIdRef.current !== selectedConvo?.id) {
+            prevConvoIdRef.current = selectedConvo?.id;
+            setIsEditingName(false);
+            setEditName(selectedConvo?.contact_name || '');
+        }
+    }, [selectedConvo?.id]);
+
+    const handleStartEditName = () => {
+        setEditName(selectedConvo?.contact_name || '');
+        setIsEditingName(true);
+    };
+
+    const handleCancelEditName = () => {
+        setIsEditingName(false);
+        setEditName(selectedConvo?.contact_name || '');
+    };
+
+    const handleSaveContactName = async () => {
+        const trimmed = editName.trim();
+        if (!trimmed) {
+            toast.error('O nome do contato não pode ser vazio');
+            return;
+        }
+        if (!selectedConvo?.id) return;
+
+        setIsSavingName(true);
+        try {
+            const res = await fetchWithAuth(`${API_URL}/chat/conversations/${selectedConvo.id}/contact-name`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contact_name: trimmed })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Falha ao atualizar o nome do contato');
+            }
+
+            const data = await res.json();
+            const updatedName = data.contact_name || trimmed;
+
+            // 1. Atualizar a conversa atual selecionada
+            setSelectedConvo?.(prev => (prev ? { ...prev, contact_name: updatedName } : prev));
+
+            // 2. Atualizar na lista lateral de conversas se disponível
+            setConversations?.(prev => (prev || []).map(c => 
+                (c.id === selectedConvo.id || c.phone === selectedConvo.phone)
+                    ? { ...c, contact_name: updatedName }
+                    : c
+            ));
+
+            // 3. Emitir evento global para que a aba Contatos (Leads) e o Kanban sincronizem em tempo real
+            window.dispatchEvent(new CustomEvent('contact-name-updated', {
+                detail: {
+                    id: selectedConvo.id,
+                    phone: selectedConvo.phone,
+                    name: updatedName
+                }
+            }));
+
+            toast.success('Nome do contato atualizado com sucesso!');
+            setIsEditingName(false);
+        } catch (error) {
+            toast.error(error.message || 'Erro ao atualizar o nome do contato');
+        } finally {
+            setIsSavingName(false);
+        }
+    };
+
     const isWindowClosed = !timeLeft24h || timeLeft24h === 'Janela Fechada' || String(timeLeft24h).toLowerCase().includes('fechada');
 
     return (
@@ -19,9 +98,85 @@ export default function ContactProfileCard({
             <div className="w-16 h-16 bg-blue-600 rounded-full mx-auto flex items-center justify-center text-white text-xl font-bold shadow-md">
                 {getFirstName(selectedConvo.contact_name || selectedConvo.phone || 'C')[0]}
             </div>
-            <div className="font-bold text-gray-800 dark:text-gray-100 text-sm break-words">
-                {selectedConvo.contact_name || 'Sem Nome'}
-            </div>
+
+            {/* Nome do Contato com edição inline e sincronização */}
+            {isEditingName ? (
+                <div
+                    className="flex items-center gap-1.5 justify-center px-2 py-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
+                    <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveContactName();
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                handleCancelEditName();
+                            }
+                        }}
+                        disabled={isSavingName}
+                        autoFocus
+                        placeholder="Nome do contato"
+                        data-testid="edit-contact-name-input"
+                        className="w-full text-center text-sm font-semibold px-2 py-1 bg-gray-100 dark:bg-white/10 border border-blue-500 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveContactName();
+                        }}
+                        disabled={isSavingName || !editName.trim()}
+                        className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition cursor-pointer disabled:opacity-40 shrink-0"
+                        title="Salvar nome (Enter)"
+                        data-testid="save-contact-name-btn"
+                    >
+                        {isSavingName ? <FiLoader className="animate-spin" size={14} /> : <FiCheck size={14} />}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancelEditName();
+                        }}
+                        disabled={isSavingName}
+                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition cursor-pointer shrink-0"
+                        title="Cancelar (Esc)"
+                        data-testid="cancel-contact-name-btn"
+                    >
+                        <FiX size={14} />
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center justify-center gap-1.5 group/name">
+                    <div
+                        className="font-bold text-gray-800 dark:text-gray-100 text-sm break-words cursor-pointer hover:text-blue-500 transition-colors"
+                        onClick={handleStartEditName}
+                        title="Clique para editar o nome do contato"
+                        data-testid="contact-name-display"
+                    >
+                        {selectedConvo.contact_name || 'Sem Nome'}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleStartEditName}
+                        className="p-1 text-gray-400 hover:text-blue-500 opacity-60 group-hover/name:opacity-100 transition-opacity cursor-pointer rounded"
+                        title="Editar nome do contato"
+                        data-testid="edit-contact-name-btn"
+                    >
+                        <FiEdit2 size={13} />
+                    </button>
+                </div>
+            )}
+
             <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
                 {selectedConvo.phone}
             </div>

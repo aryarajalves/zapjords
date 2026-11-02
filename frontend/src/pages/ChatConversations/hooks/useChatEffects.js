@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export function useChatEffects({
     engine,
@@ -94,7 +94,48 @@ export function useChatEffects({
         if (engine.loadPipelines) engine.loadPipelines();
     }, [activeClient]);
 
-    // Event listener global para seleção externa de conversa
+        const pendingTargetPhoneRef = useRef(() => {
+        if (typeof window === 'undefined') return null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPhone = urlParams.get('phone');
+        const urlName = urlParams.get('name') || '';
+
+        const localPhone = typeof localStorage !== 'undefined' ? localStorage.getItem('crm_target_chat_phone') : null;
+        const localName = typeof localStorage !== 'undefined' ? localStorage.getItem('crm_target_chat_name') : null;
+
+        const phone = localPhone || urlPhone;
+        const name = localName || urlName;
+        return phone ? { phone, name } : null;
+    });
+
+    const openTarget = useRef(pendingTargetPhoneRef.current());
+
+    // Abre a conversa pendente da URL ou CRM no momento exato em que o activeClient estiver pronto
+    useEffect(() => {
+        if (!activeClient?.id || !openTarget.current || !engine.openConversationByPhone) return;
+
+        const target = openTarget.current;
+        openTarget.current = null; // consumido, nunca repete em re-renders
+
+        if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('crm_target_chat_phone');
+            localStorage.removeItem('crm_target_chat_name');
+        }
+
+        if (typeof window !== 'undefined') {
+            try {
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('phone');
+                cleanUrl.searchParams.delete('name');
+                const searchStr = cleanUrl.searchParams.toString();
+                window.history.replaceState({}, '', cleanUrl.pathname + (searchStr ? '?' + searchStr : ''));
+            } catch (_) {}
+        }
+
+        engine.openConversationByPhone(target.phone, target.name);
+    }, [activeClient?.id, engine.openConversationByPhone]);
+
+    // Event listener global para seleÃ§Ã£o externa de conversa
     useEffect(() => {
         const handleSelectConvo = (event) => {
             const convo = event.detail;
@@ -108,20 +149,8 @@ export function useChatEffects({
             }
         };
         window.addEventListener('select-chat-convo', handleSelectConvo);
-
-        // Verificar se há conversa pendente vinda do CRM/Kanban via localStorage
-        const pendingPhone = localStorage.getItem('crm_target_chat_phone');
-        if (pendingPhone) {
-            localStorage.removeItem('crm_target_chat_phone');
-            const pendingName = localStorage.getItem('crm_target_chat_name') || '';
-            localStorage.removeItem('crm_target_chat_name');
-            if (engine.openConversationByPhone) {
-                engine.openConversationByPhone(pendingPhone, pendingName);
-            }
-        }
-
         return () => window.removeEventListener('select-chat-convo', handleSelectConvo);
-    }, [engine.openConversationById, engine.openConversationByPhone]);
+    }, [engine.openConversationById, engine.openConversationByPhone, setSelectedConvo]);
 
     // Recarregar mensagens da conversa ativa ao receber evento
     useEffect(() => {

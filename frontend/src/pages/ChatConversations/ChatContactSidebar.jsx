@@ -42,6 +42,7 @@ export default function ChatContactSidebar({
     getFirstName,
     activeClientId,
     conversations = [],
+    setConversations,
     openConversationById,
     isSearchMode = false,
     setIsSearchMode,
@@ -157,6 +158,7 @@ export default function ChatContactSidebar({
                 userMessagesCount={userMessagesCount}
                 agentMessagesCount={agentMessagesCount}
                 totalMessagesCount={totalMessagesCount}
+                setConversations={setConversations}
             />
 
             {/* Botão de Atalho para Pesquisar Mensagens (Estilo WhatsApp) */}

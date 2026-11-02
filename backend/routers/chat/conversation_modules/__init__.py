@@ -20,6 +20,7 @@ from .toggle_routes import (
     toggle_pin_conversation,
     toggle_urgent_conversation,
     reset_24h_window,
+    update_conversation_contact_name,
 )
 from .delete_routes import (
     router as delete_router,
@@ -53,6 +54,7 @@ __all__ = [
     "toggle_pin_conversation",
     "toggle_urgent_conversation",
     "reset_24h_window",
+    "update_conversation_contact_name",
     "clear_conversation_messages",
     "delete_conversation",
     "delete_conversations_bulk",

@@ -20,12 +20,15 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { LostReasonModal } from './components/LostReasonModal';
 import { LeadHistoryModal } from './components/LeadHistoryModal';
 import BulkTemplateModal from '../ChatConversations/Modals/BulkTemplateModal/BulkTemplateModal';
+import { toast } from 'react-hot-toast';
+import { API_URL } from '../../config';
 
 export default function SalesKanban({ onViewChange }) {
     const { isDragging, dragScrollProps } = useDragScroll();
     const { products, createProduct, updateProduct, deleteProduct } = useCrmProducts();
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [isBulkTemplateModalOpen, setIsBulkTemplateModalOpen] = useState(false);
+    const [individualTemplateDeal, setIndividualTemplateDeal] = useState(null);
     const [historyModalDeal, setHistoryModalDeal] = useState(null);
     const {
         pipelines,
@@ -157,6 +160,14 @@ export default function SalesKanban({ onViewChange }) {
         });
     };
 
+    const handleOpenSendTemplate = (deal) => {
+        if (!deal?.contact_phone) {
+            toast.error('Este contato não possui telefone cadastrado.');
+            return;
+        }
+        setIndividualTemplateDeal(deal);
+    };
+
     const handleConfirmDelete = async () => {
         if (deleteModal.type === 'bulk_deals') {
             await handleBulkDeleteDeals();
@@ -241,6 +252,7 @@ export default function SalesKanban({ onViewChange }) {
                             onDeleteDeal={confirmDeleteDeal}
                             onOpenChat={handleOpenChat}
                             onOpenHistory={(deal) => setHistoryModalDeal(deal)}
+                            onSendTemplate={handleOpenSendTemplate}
                             onEditStage={openEditStage}
                             selectedDealIds={selectedDealIds}
                             onToggleSelectDeal={toggleSelectDeal}
@@ -323,13 +335,23 @@ export default function SalesKanban({ onViewChange }) {
                 products={products}
             />
             <BulkTemplateModal
-                isOpen={isBulkTemplateModalOpen}
-                onClose={() => setIsBulkTemplateModalOpen(false)}
+                isOpen={isBulkTemplateModalOpen || Boolean(individualTemplateDeal)}
+                onClose={() => {
+                    setIsBulkTemplateModalOpen(false);
+                    setIndividualTemplateDeal(null);
+                }}
                 source="kanban"
-                dealIds={selectedDealIds}
-                selectedCount={selectedDealIds.length}
+                dealIds={individualTemplateDeal ? [individualTemplateDeal.id] : selectedDealIds}
+                selectedCount={individualTemplateDeal ? 1 : selectedDealIds.length}
                 activeClientId={clientId}
-                onSuccess={clearSelectedDeals}
+                onSuccess={() => {
+                    if (individualTemplateDeal) {
+                        setIndividualTemplateDeal(null);
+                    } else {
+                        clearSelectedDeals();
+                    }
+                    if (selectedPipelineId) fetchBoard(selectedPipelineId);
+                }}
             />
             <DeleteConfirmModal
                 isOpen={deleteModal.isOpen}

@@ -1,7 +1,8 @@
 import React from 'react';
 import {
   FiType, FiImage, FiExternalLink, FiVideo, FiColumns, FiMinus,
-  FiZap, FiDroplet, FiLayout, FiSliders, FiList, FiShare2, FiShield
+  FiZap, FiDroplet, FiLayout, FiSliders, FiList, FiShare2, FiShield,
+  FiClock, FiMessageCircle, FiShoppingBag, FiGrid, FiEdit3, FiMove, FiCode
 } from 'react-icons/fi';
 import { CONTACT_VARIABLES } from '../utils/emailHtmlParsers';
 
@@ -99,6 +100,55 @@ export default function EditorLeftSidebar({
                 className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
               >
                 <FiShare2 className="text-cyan-400" size={18} /> Redes Sociais
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('countdown')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiClock className="text-orange-400" size={18} /> Contador
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('callout')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiMessageCircle className="text-amber-300" size={18} /> Destaque
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('product_card')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiShoppingBag className="text-emerald-400" size={18} /> Card Produto
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('columns_3')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiGrid className="text-indigo-400" size={18} /> 3 Colunas
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('signature')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiEdit3 className="text-teal-400" size={18} /> Assinatura
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('spacer')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiMove className="text-violet-400" size={18} /> Espaçador
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddBlock('html_embed')}
+                className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 flex flex-col items-center gap-1.5 text-xs font-semibold transition-all hover:scale-105"
+              >
+                <FiCode className="text-pink-400" size={18} /> Código HTML
               </button>
               <button
                 type="button"

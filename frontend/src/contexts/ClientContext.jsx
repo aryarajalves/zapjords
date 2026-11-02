@@ -15,7 +15,15 @@ export const useClient = () => {
 
 export const ClientProvider = ({ children }) => {
     const [clients, setClients] = useState([]);
-    const [activeClient, setActiveClient] = useState(null);
+    const [activeClient, setActiveClient] = useState(() => {
+        try {
+            if (typeof window !== 'undefined') {
+                const cached = localStorage.getItem('cached_active_client');
+                if (cached) return JSON.parse(cached);
+            }
+        } catch (_) {}
+        return null;
+    });
     const [loading, setLoading] = useState(true);
     const { isAuthenticated } = useAuth();
 
@@ -40,11 +48,14 @@ export const ClientProvider = ({ children }) => {
                     const stored = data.find(c => c.id === parseInt(storedClientId));
                     if (stored) {
                         setActiveClient(stored);
+                        try { localStorage.setItem('cached_active_client', JSON.stringify(stored)); } catch (_) {}
                     } else {
                         setActiveClient(data[0] || null);
+                        try { if (data[0]) localStorage.setItem('cached_active_client', JSON.stringify(data[0])); } catch (_) {}
                     }
                 } else {
                     setActiveClient(data[0] || null);
+                        try { if (data[0]) localStorage.setItem('cached_active_client', JSON.stringify(data[0])); } catch (_) {}
                 }
             }
         } catch (err) {
@@ -66,6 +77,7 @@ export const ClientProvider = ({ children }) => {
         if (client) {
             setActiveClient(client);
             localStorage.setItem('activeClientId', client.id.toString());
+            try { localStorage.setItem('cached_active_client', JSON.stringify(client)); } catch (_) {}
             toast.success(`Alterado para: ${client.name}`);
         }
     };

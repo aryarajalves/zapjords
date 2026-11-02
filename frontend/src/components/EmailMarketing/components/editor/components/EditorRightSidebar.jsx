@@ -5,6 +5,7 @@ import { useClient } from '../../../../../contexts/ClientContext';
 import EditorTextSettings from './EditorTextSettings';
 import EditorSocialSettings from './EditorSocialSettings';
 import EditorListFooterSettings from './EditorListFooterSettings';
+import EditorAdvancedBlockSettings from './EditorAdvancedBlockSettings';
 
 export default function EditorRightSidebar({
   activeBlock,
@@ -140,6 +141,29 @@ export default function EditorRightSidebar({
                   className="w-full p-2 bg-slate-800 border border-white/10 rounded-lg text-xs text-white"
                 />
               </div>
+
+              {activeBlock.url && (
+                <div className="pt-3 border-t border-white/10 space-y-2" data-testid="image-preview-panel">
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span className="font-medium text-gray-300">Prévia da Mídia:</span>
+                    <span className="text-[10px] text-emerald-400 font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                      Carregada
+                    </span>
+                  </div>
+                  <div className="relative overflow-hidden rounded-xl border border-white/10 bg-slate-950/70 p-2 flex items-center justify-center min-h-[90px]">
+                    <img
+                      src={activeBlock.url}
+                      alt="Pré-visualização da imagem"
+                      data-testid="sidebar-image-preview"
+                      className="w-full h-auto max-h-44 object-contain rounded-lg shadow-sm"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22300%22%20height%3D%22150%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20150%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%2394a3b8%3Bfont-weight%3Abold%3Bfont-family%3Asans-serif%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22300%22%20height%3D%22150%22%20fill%3D%22%231e293b%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2260%22%20y%3D%2280%22%3EPr%C3%A9via%20da%20Imagem%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E";
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -250,6 +274,25 @@ export default function EditorRightSidebar({
                   className="w-full p-2 bg-slate-800 border border-white/10 rounded-lg text-xs text-white"
                 />
               </div>
+
+              {activeBlock.url && (
+                <div className="pt-3 border-t border-white/10 space-y-2" data-testid="video-preview-panel">
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span className="font-medium text-gray-300">Prévia do Vídeo:</span>
+                    <span className="text-[10px] text-blue-400 font-semibold px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+                      Player
+                    </span>
+                  </div>
+                  <div className="relative overflow-hidden rounded-xl border border-white/10 bg-slate-950/70 p-1">
+                    <video
+                      src={activeBlock.url}
+                      controls
+                      data-testid="sidebar-video-preview"
+                      className="w-full max-h-44 rounded-lg bg-black object-contain"
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -263,6 +306,11 @@ export default function EditorRightSidebar({
 
           {activeBlock.type === 'footer' && (
             <EditorListFooterSettings activeBlock={activeBlock} onUpdateActiveBlock={onUpdateActiveBlock} />
+          )}
+
+          {/* Configurações dos Novos Blocos Avançados */}
+          {['countdown', 'callout', 'product_card', 'columns_3', 'signature', 'spacer', 'html_embed'].includes(activeBlock.type) && (
+            <EditorAdvancedBlockSettings activeBlock={activeBlock} onUpdateActiveBlock={onUpdateActiveBlock} />
           )}
         </div>
       ) : (

@@ -295,6 +295,21 @@ def upsert_webhook_lead(db: Session, client_id: int, platform: str, parsed_data:
         except Exception as e_crm:
             logger.warning(f"⚠️ [CRM HOOK] Erro não-bloqueante ao processar lead no CRM: {e_crm}")
 
+        # Hook Automático de Funil de E-mail Marketing por Tag (ex: Newsletter)
+        try:
+            added_tags = tags_to_add if 'tags_to_add' in locals() and tags_to_add else []
+            if lead.email and added_tags:
+                from services.email_funnel_service import dispatch_email_funnels_by_tag_background
+                dispatch_email_funnels_by_tag_background(
+                    client_id=client_id,
+                    lead_id=lead.id,
+                    contact_email=lead.email,
+                    contact_name=lead.name,
+                    new_tags=added_tags
+                )
+        except Exception as e_em:
+            logger.warning(f"⚠️ [EMAIL FUNNEL HOOK] Erro ao disparar funil por tag: {e_em}")
+
         return lead
     except Exception as e:
         logger.error(f"❌ [LEAD SERVICE] Erro ao upsert lead: {e}")

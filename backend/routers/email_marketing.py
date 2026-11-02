@@ -401,7 +401,7 @@ async def create_bulk_email_dispatch(
             to_email=c["email"],
             subject=template.subject,
             body_html=template.body_html,
-            recipient_name=c
+            recipient_name=c, dispatch_id=dispatch.id
         )
         if res.get("success"):
             sent_count += 1

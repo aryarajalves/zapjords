@@ -9,7 +9,10 @@ import {
   FiFilter,
   FiChevronLeft,
   FiChevronRight,
-  FiUsers
+  FiUsers,
+  FiBarChart2,
+  FiEye,
+  FiMousePointer
 } from 'react-icons/fi';
 
 export function StatusBadge({ status }) {
@@ -43,6 +46,7 @@ export default function EmailHistoryTable({
   clearFilters,
   setDeleteTarget,
   onViewContacts,
+  onViewAnalytics,
   currentPage,
   setCurrentPage,
   totalPages,
@@ -82,79 +86,112 @@ export default function EmailHistoryTable({
               <th className="px-6 py-4">Campanha</th>
               <th className="px-6 py-4">Etiqueta</th>
               <th className="px-6 py-4">Contatos</th>
+              <th className="px-6 py-4">Analytics / Engajamento</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4">Data (Horário de Brasília)</th>
               <th className="px-6 py-4 text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {currentHistory.map(item => (
-              <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-all">
-                <td className="px-6 py-4">
-                  <div className="font-bold text-gray-800 dark:text-white">{item.title}</div>
-                  <div className="text-xs text-gray-500 truncate max-w-xs">📌 {item.subject}</div>
-                </td>
-                <td className="px-6 py-4">
-                  {item.tag_name ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-lg">
-                      <FiTag size={12} /> {item.tag_name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">Todos</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    type="button"
-                    onClick={() => onViewContacts && onViewContacts(item)}
-                    title="Ver contatos deste disparo (20 por página)"
-                    className="flex items-center gap-2.5 text-xs px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-slate-700/50 hover:bg-blue-500/10 hover:text-blue-500 border border-gray-200 dark:border-white/5 transition-all cursor-pointer group"
-                  >
-                    <span className="font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-500">🚀 {item.total_contacts}</span>
-                    <span className="text-green-600 dark:text-green-400 font-semibold">✅ {item.total_sent}</span>
-                    {item.total_failed > 0 && (
-                      <span className="text-red-500 font-semibold">❌ {item.total_failed}</span>
+            {currentHistory.map(item => {
+              const openPercent = item.total_sent > 0 ? Math.round(((item.total_opened || 0) / item.total_sent) * 100) : 0;
+              const clickPercent = item.total_sent > 0 ? Math.round(((item.total_clicks || 0) / item.total_sent) * 100) : 0;
+
+              return (
+                <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-all">
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-gray-800 dark:text-white">{item.title}</div>
+                    <div className="text-xs text-gray-500 truncate max-w-xs">📌 {item.subject}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {item.tag_name ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-lg">
+                        <FiTag size={12} /> {item.tag_name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">Todos</span>
                     )}
-                  </button>
-                </td>
-                <td className="px-6 py-4">
-                  <StatusBadge status={item.status} />
-                  {item.failure_reason && (
-                    <div className="mt-1 text-[10px] text-red-400 max-w-[200px] leading-tight" title={item.failure_reason}>
-                      ⚠️ {item.failure_reason.length > 80 ? item.failure_reason.slice(0, 80) + '...' : item.failure_reason}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-xs text-gray-500 font-mono">
-                  {formatDate(item.created_at)}
-                  {item.scheduled_time && (
-                    <div className={`mt-0.5 ${item.status === 'scheduled' ? 'text-indigo-400' : 'text-gray-400'}`}>
-                      🗓️ Agendado: {formatDate(item.scheduled_time)}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-1">
+                  </td>
+                  <td className="px-6 py-4">
                     <button
                       type="button"
                       onClick={() => onViewContacts && onViewContacts(item)}
-                      className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
-                      title="Ver contatos do disparo (20 por página)"
+                      title="Ver contatos deste disparo (20 por página)"
+                      className="flex items-center gap-2.5 text-xs px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-slate-700/50 hover:bg-blue-500/10 hover:text-blue-500 border border-gray-200 dark:border-white/5 transition-all cursor-pointer group"
                     >
-                      <FiUsers size={16} />
+                      <span className="font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-500">🚀 {item.total_contacts}</span>
+                      <span className="text-green-600 dark:text-green-400 font-semibold">✅ {item.total_sent}</span>
+                      {item.total_failed > 0 && (
+                        <span className="text-red-500 font-semibold">❌ {item.total_failed}</span>
+                      )}
                     </button>
+                  </td>
+                  <td className="px-6 py-4">
                     <button
                       type="button"
-                      onClick={() => setDeleteTarget(item)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                      title="Deletar registro do histórico"
+                      onClick={() => onViewAnalytics && onViewAnalytics(item)}
+                      title="Ver métricas de Abertura e Cliques da Newsletter"
+                      className="flex flex-col gap-1 text-xs px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-slate-700/50 hover:bg-blue-500/10 hover:border-blue-500/30 border border-gray-200 dark:border-white/5 transition-all text-left group cursor-pointer"
                     >
-                      <FiTrash2 size={16} />
+                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold">
+                        <FiEye size={12} />
+                        <span>{openPercent}%</span>
+                        <span className="text-[10px] text-gray-400 font-normal">({item.total_opened || 0})</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold">
+                        <FiMousePointer size={12} />
+                        <span>{clickPercent}% CTR</span>
+                        <span className="text-[10px] text-gray-400 font-normal">({item.total_clicks || 0})</span>
+                      </div>
                     </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={item.status} />
+                    {item.failure_reason && (
+                      <div className="mt-1 text-[10px] text-red-400 max-w-[200px] leading-tight" title={item.failure_reason}>
+                        ⚠️ {item.failure_reason.length > 80 ? item.failure_reason.slice(0, 80) + '...' : item.failure_reason}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-xs text-gray-500 font-mono">
+                    {formatDate(item.created_at)}
+                    {item.scheduled_time && (
+                      <div className={`mt-0.5 ${item.status === 'scheduled' ? 'text-indigo-400' : 'text-gray-400'}`}>
+                        🗓️ Agendado: {formatDate(item.scheduled_time)}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onViewAnalytics && onViewAnalytics(item)}
+                        className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all"
+                        title="Ver Analytics e Engajamento da Newsletter"
+                      >
+                        <FiBarChart2 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onViewContacts && onViewContacts(item)}
+                        className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                        title="Ver contatos do disparo (20 por página)"
+                      >
+                        <FiUsers size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Deletar registro do histórico"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

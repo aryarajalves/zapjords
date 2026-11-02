@@ -658,3 +658,111 @@ async def check_and_cancel_funnels_on_purchase(db: Session, client_id: int, cont
         logger.info(f"{count} execuções de funil de e-mail canceladas para {contact_email} por Compra Aprovada")
 
     return count
+
+
+async def trigger_email_funnels_by_tag(
+    db: Session, 
+    client_id: int, 
+    lead_id: Optional[int], 
+    contact_email: str, 
+    contact_name: Optional[str], 
+    new_tags: List[str]
+) -> List[int]:
+    """
+    Aciona automaticamente funis de e-mail marketing configurados com gatilho de Tag (ex: newsletter).
+    Quando um lead recebe uma tag correspondente, ele é matriculado e o primeiro passo é executado imediatamente.
+    """
+    if not contact_email or not new_tags:
+        return []
+
+    clean_email = str(contact_email).strip().lower()
+    normalized_incoming_tags = {str(t).strip().lower() for t in new_tags if str(t).strip()}
+
+    if not normalized_incoming_tags:
+        return []
+
+    active_funnels = db.query(EmailFunnel).filter(
+        EmailFunnel.client_id == client_id,
+        EmailFunnel.is_active == True,
+        EmailFunnel.trigger_type == "tag"
+    ).all()
+
+    enrolled_ids = []
+
+    for funnel in active_funnels:
+        config_tag = (funnel.trigger_config or {}).get("tag") or ""
+        config_tag_clean = str(config_tag).strip().lower()
+
+        if config_tag_clean and config_tag_clean in normalized_incoming_tags:
+            existing = db.query(EmailFunnelExecution).filter(
+                EmailFunnelExecution.client_id == client_id,
+                EmailFunnelExecution.funnel_id == funnel.id,
+                EmailFunnelExecution.contact_email == clean_email,
+                EmailFunnelExecution.status.in_(["active", "waiting_delay"])
+            ).first()
+
+            if existing:
+                continue
+
+            try:
+                exec_item = await enroll_contact_in_funnel(
+                    db=db,
+                    client_id=client_id,
+                    funnel_id=funnel.id,
+                    contact_email=clean_email,
+                    contact_name=contact_name,
+                    lead_id=lead_id
+                )
+                if exec_item:
+                    enrolled_ids.append(exec_item.id)
+                    logger.info(f"🎯 [EMAIL FUNNEL] Lead {clean_email} matriculado automaticamente no funil '{funnel.name}' por tag '{config_tag_clean}'.")
+            except Exception as e:
+                logger.error(f"Erro ao matricular {clean_email} no funil {funnel.id}: {e}")
+
+    return enrolled_ids
+
+
+def dispatch_email_funnels_by_tag_background(
+    client_id: int, 
+    lead_id: Optional[int], 
+    contact_email: str, 
+    contact_name: Optional[str], 
+    new_tags: List[str]
+):
+    """
+    Despacha em background de forma segura e com sessão própria o disparo de funis de e-mail por tag.
+    Pode ser chamado de qualquer rota síncrona ou assíncrona.
+    """
+    if not contact_email or not new_tags:
+        return
+
+    import asyncio
+    import threading
+
+    clean_email = str(contact_email).strip()
+    tags_copy = [str(t).strip() for t in new_tags if str(t).strip()]
+
+    def _worker():
+        from database import SessionLocal
+        db = SessionLocal()
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(
+                trigger_email_funnels_by_tag(
+                    db=db,
+                    client_id=client_id,
+                    lead_id=lead_id,
+                    contact_email=clean_email,
+                    contact_name=contact_name,
+                    new_tags=tags_copy
+                )
+            )
+            loop.close()
+        except Exception as err:
+            logger.error(f"Erro no background worker de funil de e-mail por tag: {err}")
+        finally:
+            db.close()
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()

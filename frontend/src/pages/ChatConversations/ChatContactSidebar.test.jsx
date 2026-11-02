@@ -6,6 +6,12 @@ import ContactProfileCard from './components/ChatContactSidebar/ContactProfileCa
 import ContactTagsSection from './components/ChatContactSidebar/ContactTagsSection';
 import MaximizedNoteModal from './components/ChatContactSidebar/MaximizedNoteModal';
 import NewTagModal from './components/ChatContactSidebar/NewTagModal';
+import { fetchWithAuth } from '../../AuthContext';
+
+vi.mock('../../AuthContext', () => ({
+    fetchWithAuth: vi.fn(),
+    useAuth: vi.fn(() => ({ activeClient: { id: 1 } }))
+}));
 
 describe('ChatContactSidebar and Subcomponents', () => {
     const mockSelectedConvo = {
@@ -263,6 +269,75 @@ describe('ChatContactSidebar and Subcomponents', () => {
             expect(closeBtn).toBeInTheDocument();
             fireEvent.click(closeBtn);
             expect(handleClose).toHaveBeenCalledTimes(1);
+        });
+
+        it('permite abrir o modo de edição do nome do contato, editar e cancelar', () => {
+            render(<ChatContactSidebar {...defaultProps} />);
+
+            const editBtn = screen.getByTestId('edit-contact-name-btn');
+            expect(editBtn).toBeInTheDocument();
+            fireEvent.click(editBtn);
+
+            const input = screen.getByTestId('edit-contact-name-input');
+            expect(input).toBeInTheDocument();
+            expect(input.value).toBe('Maria Silva');
+
+            fireEvent.change(input, { target: { value: 'Maria Silva VIP' } });
+            expect(input.value).toBe('Maria Silva VIP');
+
+            // Cancelar
+            const cancelBtn = screen.getByTestId('cancel-contact-name-btn');
+            fireEvent.click(cancelBtn);
+
+            expect(screen.queryByTestId('edit-contact-name-input')).not.toBeInTheDocument();
+            expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+        });
+
+        it('salva o nome do contato chamando a API e atualizando os estados', async () => {
+            const setSelectedConvo = vi.fn();
+            const setConversations = vi.fn();
+            fetchWithAuth.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ status: 'ok', contact_name: 'Maria Silva VIP' })
+            });
+
+            const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+            render(
+                <ChatContactSidebar
+                    {...defaultProps}
+                    setSelectedConvo={setSelectedConvo}
+                    setConversations={setConversations}
+                />
+            );
+
+            // Clica no display do nome para iniciar edição
+            const nameDisplay = screen.getByTestId('contact-name-display');
+            fireEvent.click(nameDisplay);
+
+            const input = screen.getByTestId('edit-contact-name-input');
+            fireEvent.change(input, { target: { value: 'Maria Silva VIP' } });
+
+            const saveBtn = screen.getByTestId('save-contact-name-btn');
+            fireEvent.click(saveBtn);
+
+            await vi.waitFor(() => {
+                expect(fetchWithAuth).toHaveBeenCalledWith(
+                    expect.stringContaining('/chat/conversations/123/contact-name'),
+                    expect.objectContaining({
+                        method: 'PATCH',
+                        body: JSON.stringify({ contact_name: 'Maria Silva VIP' })
+                    })
+                );
+                expect(setSelectedConvo).toHaveBeenCalled();
+            });
+
+            expect(setConversations).toHaveBeenCalled();
+            expect(dispatchSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'contact-name-updated'
+                })
+            );
         });
     });
 });

@@ -14,6 +14,7 @@ export function useEmailFunnels() {
   const [activeFunnelForExecutions, setActiveFunnelForExecutions] = useState(null);
   const [deleteConfirmFunnel, setDeleteConfirmFunnel] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [seedingNewsletter, setSeedingNewsletter] = useState(false);
 
   const getHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
@@ -129,6 +130,30 @@ export function useEmailFunnels() {
     }
   };
 
+  const handleSeedNewsletterWelcome = async () => {
+    setSeedingNewsletter(true);
+    try {
+      const res = await fetch(`${API_URL}/email/funnels/seed-newsletter-welcome`, {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message || 'Funil de Boas-Vindas da Newsletter criado com sucesso!');
+        fetchFunnels();
+        fetchTemplates();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.detail || 'Erro ao criar funil de boas-vindas da newsletter.');
+      }
+    } catch (err) {
+      console.error('Erro ao criar funil de boas-vindas:', err);
+      toast.error('Erro de conexão ao criar funil de boas-vindas.');
+    } finally {
+      setSeedingNewsletter(false);
+    }
+  };
+
   return {
     funnels,
     templates,
@@ -144,9 +169,11 @@ export function useEmailFunnels() {
     deleteConfirmFunnel,
     setDeleteConfirmFunnel,
     deleting,
+    seedingNewsletter,
     fetchFunnels,
     handleToggleStatus,
     handleDeleteFunnel,
-    handleSaveFunnel
+    handleSaveFunnel,
+    handleSeedNewsletterWelcome
   };
 }

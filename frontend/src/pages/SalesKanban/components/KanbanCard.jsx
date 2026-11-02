@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2, FiClock, FiFileText, FiCalendar } from 'react-icons/fi';
+import { FiDollarSign, FiGlobe, FiTag, FiPhone, FiMessageSquare, FiTrash2, FiClock, FiFileText, FiCalendar, FiZap } from 'react-icons/fi';
 import { getChannelConfig, getFollowupStatus, getWindow24hStatus } from '../utils/kanbanCardUtils';
 import { formatBrasiliaDateTime } from '../utils/kanbanDateUtils';
 
@@ -13,6 +13,7 @@ export function KanbanCard({
     onDelete,
     onOpenChat,
     onOpenHistory,
+    onSendTemplate,
     isSelected = false,
     onToggleSelect
 }) {
@@ -287,11 +288,41 @@ export function KanbanCard({
                         </button>
                     )}
 
+                    {onSendTemplate && (
+                        <button
+                            type="button"
+                            data-testid={`deal-send-template-btn-${deal.id}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSendTemplate(deal);
+                            }}
+                            className="p-1.5 hover:bg-amber-500/15 text-slate-400 hover:text-amber-400 border border-transparent hover:border-amber-500/30 rounded-lg transition-all cursor-pointer"
+                            title="Disparar template do WhatsApp para este contato"
+                            aria-label={`Disparar template para ${deal.contact_name || deal.contact_phone}`}
+                        >
+                            <FiZap size={13} />
+                        </button>
+                    )}
+
                     <button
                         type="button"
+                        data-testid={`deal-chat-btn-${deal.id}`}
                         onClick={(e) => {
                             e.stopPropagation();
-                            onOpenChat(deal.contact_phone, deal.contact_name);
+                            if (e.ctrlKey || e.metaKey) {
+                                const chatUrl = `${window.location.origin}${window.location.pathname}?view=chat_conversations&phone=${encodeURIComponent(deal.contact_phone)}${deal.contact_name ? `&name=${encodeURIComponent(deal.contact_name)}` : ''}`;
+                                window.open(chatUrl, '_blank', 'noopener,noreferrer');
+                            } else {
+                                onOpenChat(deal.contact_phone, deal.contact_name);
+                            }
+                        }}
+                        onAuxClick={(e) => {
+                            if (e.button === 1) {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const chatUrl = `${window.location.origin}${window.location.pathname}?view=chat_conversations&phone=${encodeURIComponent(deal.contact_phone)}${deal.contact_name ? `&name=${encodeURIComponent(deal.contact_name)}` : ''}`;
+                                window.open(chatUrl, '_blank', 'noopener,noreferrer');
+                            }
                         }}
                         className={`relative p-1.5 border rounded-lg transition-all cursor-pointer ${
                             unreadCount > 0
@@ -300,8 +331,8 @@ export function KanbanCard({
                         }`}
                         title={
                             unreadCount > 0
-                                ? `Abrir conversa no ZapVoice (${unreadCount} não lida(s))`
-                                : 'Abrir conversa no ZapVoice'
+                                ? `Abrir conversa no ZapVoice (${unreadCount} não lida(s)) - Dica: Ctrl+Clique para abrir em nova aba`
+                                : 'Abrir conversa no ZapVoice - Dica: Ctrl+Clique para abrir em nova aba'
                         }
                     >
                         <FiMessageSquare size={13} />

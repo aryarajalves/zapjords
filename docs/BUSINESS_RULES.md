@@ -449,7 +449,12 @@ ead).
 - [x] A configuração da API Key da Brevo e do Remetente deve ser individual por Cliente?
   - **Decisão:** Sim, cada cliente ativo (`client_id`) possui suas próprias credenciais da Brevo (`brevo_api_key`, `from_email`, `from_name`) configuradas de forma isolada e segura.
 - [x] Escopo da Primeira Versão (MVP Completo):
-  - **Decisão:** Foco inicial na configuração da Brevo por cliente, criação/edição de templates com variáveis, disparador em massa (imediato/agendado por tags, Kanban ou CSV/manual) e histórico de envios com status de sucesso/falha. Rastreamento detalhado de abertura/cliques via webhooks fica para a próxima fase.
+  - **Decisão:** Foco inicial na configuração da Brevo por cliente, criação/edição de templates com variáveis, disparador em massa (imediato/agendado por tags, Kanban ou CSV/manual) e histórico de envios com status de sucesso/falha.
+- [x] Métricas e Rastreamento Detalhado de Abertura e Cliques (Analytics de Newsletter):
+  - **Decisão:** Injeção automática de pixel invisível 1x1 (/api/email-marketing/track/open/{dispatch_id}/{recipient_hash}) para contabilizar taxa de abertura única e envelopamento transparente de links (/api/email-marketing/track/click?d=...&r=...&url=...) com redirecionamento 302 para contabilizar cliques (CTR) e ranking de links mais clicados por edição.
+  - **Modal de Analytics:** Disponível diretamente na aba de Histórico, apresentando 4 KPIs (Destinatários, Entregues, Abertura %, CTR %), barra de funil de conversão, ranking de URLs clicadas e filtragem de leitores (Todos, Abertos, Clicaram, Falhas) com paginação.
+- [x] Funil Automático de Boas-Vindas à Newsletter:
+  - **Decisão:** Gatilho automático em tempo real no cadastro ou atribuição de etiquetas: qualquer lead que recebe a tag configurada (ex: newsletter) é imediatamente inscrito no funil e recebe a edição inaugural de boas-vindas sem necessidade de intervenção manual. Botão de 1 clique para geração do modelo pré-configurado com design de alta conversão.
 
 
 ### 21. Sistema de Funis de E-mail Marketing (Sequências Automáticas com Delays e Parada Inteligente)
@@ -469,3 +474,33 @@ ead).
 - **Controle de Execuções e Paginação**:
   - As execuções do funil (EmailFunnelExecution) registram o histórico de cada passo executado, horários e possíveis falhas.
   - A visualização dos leads inscritos no funil conta com paginação obrigatória de **20 contatos por vez**, alinhada com as diretrizes do sistema.
+
+
+### 22. Módulo de Desempenho da Equipe (Produtividade dos Vendedores)
+- **Controle de Acesso Rígido**: Acessível exclusivamente para usuários com papéis `super_admin` e `admin`. Vendedores (`vendedor`) e usuários comuns (`user`) não visualizam o item na barra lateral e são bloqueados caso tentem acessar a rota diretamente.
+- **Métricas de Produtividade**:
+  - **Contatos Únicos Conversados**: Contabiliza a quantidade de leads distintos que receberam pelo menos uma mensagem manual (`sender_type = 'user'` com `user_id = vendedor.id` e `user_id IS NOT NULL`) dentro do intervalo selecionado (Hoje, Esta Semana, Este Mês ou Período Customizado).
+  - **Volume de Mensagens Enviadas**: Total de mensagens enviadas exclusivamente por atendentes e vendedores humanos da equipe.
+  - **Exclusão de Disparos em Massa e Templates Automáticos**: Mensagens enviadas por funis automáticos, disparos em massa (Bulk), webhooks ou qualquer rotina do sistema sem um vendedor humano associado (`user_id is None`) **NÃO** são contabilizadas nos cartões de métricas, **NÃO** geram registros de atendente e **NÃO** aparecem na lista de contatos conversados. O painel reflete 100% o esforço humano da equipe de vendas.
+  - **Leads no CRM e Movimentações**: Total de oportunidades criadas ou movimentadas no Kanban pelo vendedor.
+- **Auditoria de Conversas**: Exibição da listagem nominal de contatos conversados com link direto para abrir e auditar a conversa no Chat ZapVoice.
+
+
+### 23. Níveis de Acesso e Permissões do Perfil Vendedor (`vendedor`)
+- **Objetivo**: Garantir que membros da equipe de vendas tenham autonomia operacional para negociação, prospecção e atendimento, mantendo dados estratégicos e administrativos protegidos.
+- **Telas e Funcionalidades Permitidas para Vendedor**:
+  - **Kanban de Vendas (`sales_kanban`)**: Acesso completo ao CRM para mover negócios, alterar valores, cadastrar notas e gerenciar pipelines.
+  - **Atendimento / Chat (`chat_conversations`)**: Conversas individuais no WhatsApp, envio de mensagens rápidas, áudios e notas internas.
+  - **Contatos (`leads`)**: Consulta de contatos, histórico, telefones e etiquetas para prospecção.
+  - **Agendamentos (`appointments`)**: Consulta de reuniões e compromissos marcados.
+  - **Agenda de Disparos e Histórico (`schedules`, `history`)**: Consulta e acompanhamento de disparos agendados e executados.
+  - **Disparo Recorrente Criado (`recurring_schedules`)**: Acompanhamento de disparos recorrentes.
+  - **Disparo em Massa (`bulk_sender`)**: Execução de disparos em lote para suas listas/tags.
+  - **Criar Template (`templates`)**: Criação e consulta de templates de mensagem para agilizar o atendimento.
+  - **Leads Quentes (`hot_leads`)**: Visualização de leads capturados em páginas de alta conversão.
+  - **Histórico de Importação de Contatos (`import_history`) e Contatos Bloqueados (`blocked`)**: Consulta operacional de base de contatos.
+- **Telas e Funcionalidades Restritas (Acesso Negado a Vendedores)**:
+  - **Desempenho da Equipe (`team_performance`)**: Exclusivo para administradores e diretores (auditoria e ranking geral).
+  - **Financeiro (`financial`)**: Exclusivo para administradores (faturamento e custos de saldo).
+  - **Gestão de Usuários (`users`)**: Exclusivo para administradores.
+  - **Infraestrutura, Logs, Backups e Configurações de Webhooks**: Exclusivo para administradores.

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiArrowUp, FiArrowDown, FiTrash2, FiVideo } from 'react-icons/fi';
+import EditorCanvasAdvancedBlocks from './EditorCanvasAdvancedBlocks';
 
 export default function EditorCanvas({
   blocks,
@@ -136,6 +137,9 @@ export default function EditorCanvas({
                     </div>
                   </div>
                 )}
+
+                {/* Blocos Avançados (countdown, callout, product_card, columns_3, signature, spacer, html_embed) */}
+                <EditorCanvasAdvancedBlocks block={b} />
               </div>
             );
           })

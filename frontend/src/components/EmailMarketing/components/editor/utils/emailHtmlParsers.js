@@ -1,3 +1,5 @@
+import { renderAdvancedBlockToHtml, parseAdvancedBlockFromElement } from './emailAdvancedBlocksExport';
+
 // Variáveis disponíveis na aba de contatos
 export const CONTACT_VARIABLES = [
   { code: '{{primeiro_nome}}', label: 'Primeiro Nome' },
@@ -139,8 +141,11 @@ export function exportBlocksToHtml(blocks, globalStyles) {
         `;
       }
 
-      default:
+      default: {
+        const advancedHtml = renderAdvancedBlockToHtml(b);
+        if (advancedHtml !== null) return advancedHtml;
         return '';
+      }
     }
   }).join('');
 
@@ -197,6 +202,14 @@ export function parseHtmlToBlocks(html) {
       if (children.length > 0) {
         children.forEach((el, idx) => {
           const id = `b-restored-${idx}-${Date.now()}`;
+
+          // 0. Blocos Avançados (countdown, callout, product_card, columns_3, signature, spacer, html_embed)
+          const advancedBlock = parseAdvancedBlockFromElement(el, id);
+          if (advancedBlock) {
+            blocks.push(advancedBlock);
+            return;
+          }
+
           const textContent = el.textContent || '';
           const innerHtml = el.innerHTML || '';
 

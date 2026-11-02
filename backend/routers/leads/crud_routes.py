@@ -179,6 +179,19 @@ def create_manual_lead(
     
     if not lead:
         raise HTTPException(status_code=500, detail="Erro ao criar/atualizar lead.")
+
+    # Disparar funil de e-mail marketing se possuir e-mail e tags
+    if lead.email and lead.client_id and lead.tags:
+        tags_list = [t.strip() for t in lead.tags.split(",") if t.strip()]
+        if tags_list:
+            from services.email_funnel_service import dispatch_email_funnels_by_tag_background
+            dispatch_email_funnels_by_tag_background(
+                client_id=lead.client_id,
+                lead_id=lead.id,
+                contact_email=lead.email,
+                contact_name=lead.name,
+                new_tags=tags_list
+            )
         
     return lead
 
@@ -225,6 +238,9 @@ def update_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead não encontrado")
 
+    old_tags_raw = lead.tags or ""
+    old_tags = [t.strip().lower() for t in old_tags_raw.split(",") if t.strip()]
+
     update_data = lead_in.model_dump(exclude_unset=True) if hasattr(lead_in, "model_dump") else lead_in.dict(exclude_unset=True)
     if "phone" in update_data and update_data["phone"]:
         clean_phone = re.sub(r"\D", "", update_data["phone"])
@@ -238,6 +254,22 @@ def update_lead(
     lead.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(lead)
+
+    # Disparar funil de e-mail marketing caso novas tags tenham sido adicionadas
+    if lead.email and lead.client_id:
+        new_tags_raw = lead.tags or ""
+        new_tags_list = [t.strip() for t in new_tags_raw.split(",") if t.strip()]
+        added_tags = [t for t in new_tags_list if t.lower() not in old_tags]
+        if added_tags:
+            from services.email_funnel_service import dispatch_email_funnels_by_tag_background
+            dispatch_email_funnels_by_tag_background(
+                client_id=lead.client_id,
+                lead_id=lead.id,
+                contact_email=lead.email,
+                contact_name=lead.name,
+                new_tags=added_tags
+            )
+
     return lead
 
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { FiPlus, FiFilter, FiPlay, FiPause, FiEdit2, FiTrash2, FiUsers, FiClock, FiMail, FiCheckCircle, FiShield } from 'react-icons/fi';
+import { FiPlus, FiFilter, FiPlay, FiPause, FiEdit2, FiTrash2, FiUsers, FiClock, FiMail, FiCheckCircle, FiShield, FiZap } from 'react-icons/fi';
 import { useEmailFunnels } from './useEmailFunnels';
 import EmailFunnelEditorModal from './EmailFunnelEditorModal';
 import EmailFunnelExecutionsModal from './EmailFunnelExecutionsModal';
@@ -22,9 +22,11 @@ export default function EmailFunnelsTab() {
     deleteConfirmFunnel,
     setDeleteConfirmFunnel,
     deleting,
+    seedingNewsletter,
     handleToggleStatus,
     handleDeleteFunnel,
-    handleSaveFunnel
+    handleSaveFunnel,
+    handleSeedNewsletterWelcome
   } = useEmailFunnels();
 
   return (
@@ -41,15 +43,27 @@ export default function EmailFunnelsTab() {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingFunnel(null);
-            setEditorOpen(true);
-          }}
-          className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all shrink-0"
-        >
-          <FiPlus size={16} /> Novo Funil de E-mail
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSeedNewsletterWelcome}
+            disabled={seedingNewsletter}
+            className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+            title="Cria automaticamente o funil e template de Boas-Vindas para a tag 'newsletter'"
+          >
+            <FiZap size={15} /> {seedingNewsletter ? 'Criando...' : '⚡ Boas-Vindas Newsletter'}
+          </button>
+
+          <button
+            onClick={() => {
+              setEditingFunnel(null);
+              setEditorOpen(true);
+            }}
+            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all shrink-0 cursor-pointer"
+          >
+            <FiPlus size={16} /> Novo Funil de E-mail
+          </button>
+        </div>
       </div>
 
       {/* Grid de Funis */}
@@ -64,15 +78,24 @@ export default function EmailFunnelsTab() {
           <p className="text-xs text-gray-400 max-w-md mx-auto mb-4">
             Automatize sua comunicação disparando sequências de e-mails personalizadas com tempos de espera configuráveis.
           </p>
-          <button
-            onClick={() => {
-              setEditingFunnel(null);
-              setEditorOpen(true);
-            }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs inline-flex items-center gap-2 transition-all"
-          >
-            <FiPlus size={14} /> Criar Primeiro Funil
-          </button>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <button
+              onClick={handleSeedNewsletterWelcome}
+              disabled={seedingNewsletter}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs inline-flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <FiZap size={14} /> {seedingNewsletter ? 'Criando...' : '⚡ Ativar Boas-Vindas Newsletter'}
+            </button>
+            <button
+              onClick={() => {
+                setEditingFunnel(null);
+                setEditorOpen(true);
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs inline-flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <FiPlus size={14} /> Criar Primeiro Funil
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -233,7 +256,7 @@ export default function EmailFunnelsTab() {
                 type="button"
                 disabled={deleting}
                 onClick={() => setDeleteConfirmFunnel(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl text-xs font-semibold transition-colors"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
@@ -241,7 +264,7 @@ export default function EmailFunnelsTab() {
                 type="button"
                 disabled={deleting}
                 onClick={handleDeleteFunnel}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-rose-500/20"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-rose-500/20 cursor-pointer"
               >
                 {deleting ? 'Excluindo...' : 'Sim, Excluir'}
               </button>

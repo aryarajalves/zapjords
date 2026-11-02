@@ -28,6 +28,7 @@ import CheckoutPresellPage from '../../pages/CheckoutPresellPage';
 import CapturePageAdmin from '../../pages/CapturePageAdmin';
 import SalesKanban from '../../pages/SalesKanban';
 import EmailMarketingMain from '../EmailMarketing/EmailMarketingMain';
+import TeamPerformance from '../../pages/TeamPerformance';
 
 export default function AppContentViewRouter({ logic }) {
   const pagesStatus = logic.user?.pages_status;
@@ -148,6 +149,24 @@ export default function AppContentViewRouter({ logic }) {
 
       {logic.currentView === 'tutorial' && <TutorialPage />}
       {logic.currentView === 'log_viewer' && <LogViewer />}
+
+      {logic.currentView === 'team_performance' && (
+        ['super_admin', 'admin'].includes(logic.user?.role) ? (
+          <TeamPerformance
+            onNavigateToChat={(convoId) => {
+              logic.setCurrentView('chat_conversations');
+              setTimeout(() => {
+                const event = new CustomEvent('select-chat-convo', { detail: { id: convoId } });
+                window.dispatchEvent(event);
+              }, 100);
+            }}
+          />
+        ) : (
+          <div className="p-8 text-center text-red-500 font-semibold bg-red-500/10 rounded-2xl border border-red-500/20">
+            Acesso não autorizado. Esta página é restrita a administradores.
+          </div>
+        )
+      )}
 
       {logic.currentView === 'human_agents' && (
         <HumanAgents

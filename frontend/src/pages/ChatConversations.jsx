@@ -429,6 +429,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             getFirstName={getFirstName}
                             activeClientId={activeClient?.id}
                             conversations={engine.conversations}
+                            setConversations={engine.setConversations}
                             openConversationById={engine.openConversationById}
                             isSearchMode={isSearchMode}
                             setIsSearchMode={setIsSearchMode}

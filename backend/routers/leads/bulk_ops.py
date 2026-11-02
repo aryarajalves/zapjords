@@ -134,6 +134,21 @@ def _add_tags_to_lead(lead, new_tags_str: str, db: Optional[Session] = None) -> 
                 if c_changed:
                     convo.labels = c_new
                     flag_modified(convo, "labels")
+
+        # Disparar funil de e-mail marketing caso possua e-mail
+        if lead.email and lead.client_id and new_tags:
+            try:
+                from services.email_funnel_service import dispatch_email_funnels_by_tag_background
+                dispatch_email_funnels_by_tag_background(
+                    client_id=lead.client_id,
+                    lead_id=lead.id,
+                    contact_email=lead.email,
+                    contact_name=lead.name,
+                    new_tags=new_tags
+                )
+            except Exception as ef_err:
+                logger.warning(f"Erro ao disparar funil de email em bulk_tag: {ef_err}")
+
     return changed
 
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiHome, FiLayers, FiClock, FiSettings, FiLogOut, FiSlash, FiUsers, FiGitMerge, FiPlus, FiCalendar, FiZap, FiDollarSign, FiDatabase, FiInstagram, FiHelpCircle, FiTerminal, FiMessageSquare, FiTrello, FiX, FiServer, FiMail } from 'react-icons/fi';
+import { FiHome, FiLayers, FiClock, FiSettings, FiLogOut, FiSlash, FiUsers, FiGitMerge, FiPlus, FiCalendar, FiZap, FiDollarSign, FiDatabase, FiInstagram, FiHelpCircle, FiTerminal, FiMessageSquare, FiTrello, FiX, FiServer, FiMail, FiTrendingUp } from 'react-icons/fi';
 import ClientSelector from './ClientSelector';
 import ConfirmModal from './ConfirmModal';
 import { useClient } from '../contexts/ClientContext';
@@ -57,29 +57,30 @@ export default function Sidebar({
 
     const menuItems = [
         // Campanhas
-        { id: 'bulk_sender', label: 'Disparo em Massa', icon: FiHome, roles: ['super_admin', 'admin', 'premium'], category: 'campanhas' },
+        { id: 'bulk_sender', label: 'Disparo em Massa', icon: FiHome, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'campanhas' },
         { id: 'email_marketing', label: 'E-mail Marketing', icon: FiMail, roles: ['super_admin', 'admin', 'premium'], category: 'campanhas' },
         { id: 'sales_kanban', label: 'Kanban de Vendas', icon: FiTrello, roles: ['super_admin', 'admin', 'premium', 'vendedor', 'user'], category: 'campanhas' },
-        { id: 'recurring_schedules', label: 'Disparo Recorrente Criado', icon: FiClock, roles: ['super_admin', 'admin', 'premium'], category: 'campanhas' },
-        { id: 'schedules', label: 'Agenda de Disparos', icon: FiCalendar, roles: ['super_admin', 'admin', 'premium', 'user'], category: 'campanhas' },
-        { id: 'history', label: 'Histórico', icon: FiClock, roles: ['super_admin', 'admin', 'premium', 'user'], category: 'campanhas' },
+        { id: 'recurring_schedules', label: 'Disparo Recorrente Criado', icon: FiClock, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'campanhas' },
+        { id: 'schedules', label: 'Agenda de Disparos', icon: FiCalendar, roles: ['super_admin', 'admin', 'premium', 'user', 'vendedor'], category: 'campanhas' },
+        { id: 'history', label: 'Histórico', icon: FiClock, roles: ['super_admin', 'admin', 'premium', 'user', 'vendedor'], category: 'campanhas' },
 
         // Criação de Páginas
-        { id: 'hot_leads', label: 'Leads Quentes', icon: FiZap, roles: ['super_admin', 'admin', 'premium'], category: 'paginas' },
+        { id: 'hot_leads', label: 'Leads Quentes', icon: FiZap, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'paginas' },
 
         // Automação
-        { id: 'templates', label: 'Criar Template', icon: FiPlus, roles: ['super_admin', 'admin', 'premium'], category: 'automacao' },
+        { id: 'templates', label: 'Criar Template', icon: FiPlus, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'automacao' },
         { id: 'funnels', label: 'Meus Funis', icon: FiLayers, roles: ['super_admin', 'admin', 'premium'], category: 'automacao' },
         { id: 'integrations', label: 'Integrações Webhook', icon: FiZap, roles: ['super_admin', 'admin', 'premium'], category: 'automacao' },
         { id: 'instagram_automation', label: 'Automação Instagram', icon: FiInstagram, roles: ['super_admin', 'admin', 'premium'], category: 'automacao' },
 
         // Contatos
         { id: 'chat_conversations', label: 'Atendimento', icon: FiMessageSquare, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'contatos' },
+        { id: 'team_performance', label: 'Desempenho da Equipe', icon: FiTrendingUp, roles: ['super_admin', 'admin'], category: 'contatos' },
         { id: 'human_agents', label: 'Atendente humano', icon: FiUsers, roles: ['super_admin', 'admin', 'premium'], category: 'contatos' },
-        { id: 'leads', label: 'Contatos', icon: FiUsers, roles: ['super_admin', 'admin', 'premium'], category: 'contatos' },
-        { id: 'appointments', label: 'Agendamentos', icon: FiCalendar, roles: ['super_admin', 'admin', 'premium'], category: 'contatos' },
-        { id: 'import_history', label: 'Histórico importação de contatos', icon: FiClock, roles: ['super_admin', 'admin', 'premium'], category: 'contatos' },
-        { id: 'blocked', label: 'Contatos Bloqueados', icon: FiSlash, roles: ['super_admin', 'admin', 'premium'], category: 'contatos' },
+        { id: 'leads', label: 'Contatos', icon: FiUsers, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'contatos' },
+        { id: 'appointments', label: 'Agendamentos', icon: FiCalendar, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'contatos' },
+        { id: 'import_history', label: 'Histórico importação de contatos', icon: FiClock, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'contatos' },
+        { id: 'blocked', label: 'Contatos Bloqueados', icon: FiSlash, roles: ['super_admin', 'admin', 'premium', 'vendedor'], category: 'contatos' },
 
 
         // Administração

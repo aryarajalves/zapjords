@@ -136,6 +136,72 @@ export default function EmailDragDropEditor({ initialHtml, onChangeHtml }) {
         showTiktok: false,
         showWebsite: true
       };
+    } else if (type === 'countdown') {
+      newBlock = {
+        ...newBlock,
+        title: 'A Oferta Termina Em:',
+        days: '02',
+        hours: '14',
+        minutes: '35',
+        seconds: '48',
+        bgColor: '#0f172a',
+        textColor: '#ffffff',
+        accentColor: '#ef4444'
+      };
+    } else if (type === 'callout') {
+      newBlock = {
+        ...newBlock,
+        title: 'Aviso Importante',
+        text: 'Insira aqui uma mensagem de grande destaque, benefício irresistível ou depoimento de aluno.',
+        author: 'Especialista / Aluno',
+        borderColor: '#3b82f6',
+        bgColor: '#f8fafc',
+        textColor: '#1e293b'
+      };
+    } else if (type === 'product_card') {
+      newBlock = {
+        ...newBlock,
+        productTitle: 'Mentoria & Acelerador de Vendas',
+        productDesc: 'Acesso completo ao treinamento, encontros ao vivo e modelos validados.',
+        imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop',
+        originalPrice: 'R$ 1.997,00',
+        discountPrice: '12x de R$ 97,00',
+        buttonText: 'Garantir Vaga com Desconto',
+        buttonUrl: 'https://',
+        buttonBgColor: '#10b981'
+      };
+    } else if (type === 'columns_3') {
+      newBlock = {
+        ...newBlock,
+        col1Icon: '⚡',
+        col1Title: 'Acesso Imediato',
+        col1Text: 'Receba seus acessos por e-mail e WhatsApp em minutos.',
+        col2Icon: '🛡️',
+        col2Title: 'Garantia de 7 Dias',
+        col2Text: 'Risco zero com devolução integral e sem burocracia.',
+        col3Icon: '💬',
+        col3Title: 'Suporte VIP',
+        col3Text: 'Equipe pronta para tirar dúvidas no WhatsApp.'
+      };
+    } else if (type === 'signature') {
+      newBlock = {
+        ...newBlock,
+        authorName: 'Aryaraj Fernandes',
+        authorRole: 'Fundador & Especialista de Vendas',
+        company: 'ZapVoice Soluções Digitais',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop',
+        signatureText: 'Aryaraj F.'
+      };
+    } else if (type === 'spacer') {
+      newBlock = {
+        ...newBlock,
+        height: 30
+      };
+    } else if (type === 'html_embed') {
+      newBlock = {
+        ...newBlock,
+        htmlCode: '<div style="text-align: center; padding: 12px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; color: #475569; font-size: 13px;">🔒 <strong>Compra 100% Segura</strong> com Criptografia SSL de 256 bits</div>'
+      };
     } else if (type === 'footer') {
       newBlock = {
         ...newBlock,

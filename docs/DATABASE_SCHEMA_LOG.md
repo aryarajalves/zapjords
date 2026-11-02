@@ -24,12 +24,18 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 - **`sales_pipelines`**: Pipelines de vendas por produto no Kanban de Vendas.
 - **`sales_pipeline_stages`**: Estágios / colunas customizadas de cada pipeline de produto.
 - **`sales_deals`**: Cards e oportunidades de venda com status, valor e contato.
+- **`email_configs`**: Configurações de provedores de e-mail marketing (Brevo, SES, Resend, SMTP).
+- **`email_templates`**: Modelos de e-mail marketing e newsletters com blocos visuais.
+- **`email_dispatches`**: Disparos em massa e newsletters com contadores de envio, aberturas, cliques e dados analíticos.
+- **`email_funnels`**: Funis automáticos de e-mail marketing (boas-vindas, nutrição, gatilhos por tag).
+- **`email_funnel_executions`**: Histórico e execução passo a passo dos leads nos funis de e-mail.
 
 ---
 
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 02/11/2026 | Métricas e Analytics de E-mail Marketing (Taxa de Abertura e Cliques) | `email_dispatches` | `total_opened` (INTEGER DEFAULT 0), `total_clicks` (INTEGER DEFAULT 0), `analytics_data` (JSON/JSONB DEFAULT '{}') | `backend/add_email_analytics_columns.py` |
 | 31/10/2026 | Suporte a Bloqueio de E-mail na Blacklist (Descadastro Cirúrgico) | `blocked_contacts` | `email` (VARCHAR(255) NULL, INDEXADO), `phone` ajustado para nullable | `backend/scripts/database/add_email_to_blocked_contacts.py` |
 | 30/10/2026 | Data de Venda e Linha do Tempo / Histórico de Lead no CRM | `sales_deals`, `sales_deal_activities` | `won_at` (TIMESTAMP WITH TIME ZONE) em `sales_deals`; Tabela nova `sales_deal_activities` (`id`, `deal_id`, `client_id`, `activity_type`, `title`, `description`, `metadata_info`, `created_at`) | `backend/scripts/database/add_deal_won_at_and_activities_table.py` |
 | 30/10/2026 | Suporte a Disparo por E-mail Marketing em Gatilhos de Webhook | webhook_event_mappings | email_active (BOOLEAN DEFAULT FALSE), email_template_id (INTEGER, FK), email_funnel_id (INTEGER, FK), email_subject (VARCHAR) | ackend/scripts/add_email_marketing_columns_to_webhook_mappings.py |

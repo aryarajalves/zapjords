@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -226,3 +227,93 @@ async def reset_24h_window(
             "last_contact_message_at": convo.last_contact_message_at.isoformat() if convo.last_contact_message_at else None
         }
     }
+
+
+class UpdateContactNamePayload(BaseModel):
+    contact_name: str
+
+
+@router.patch("/chat/conversations/{conversation_id}/contact-name")
+async def update_conversation_contact_name(
+    conversation_id: int,
+    payload: UpdateContactNamePayload,
+    client_id: int = Depends(get_client_id),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    convo = db.query(models.ChatConversation).filter(
+        models.ChatConversation.id == conversation_id,
+        models.ChatConversation.client_id == client_id
+    ).first()
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    new_name = payload.contact_name.strip() if payload.contact_name else ""
+    if not new_name:
+        raise HTTPException(status_code=400, detail="O nome do contato não pode ser vazio.")
+
+    # 1. Atualizar nome na conversa atual e conversas associadas ao mesmo telefone
+    convo.contact_name = new_name
+    db.query(models.ChatConversation).filter(
+        models.ChatConversation.client_id == client_id,
+        models.ChatConversation.phone == convo.phone
+    ).update({"contact_name": new_name}, synchronize_session=False)
+
+    # 2. Atualizar automaticamente na aba de Contatos (WebhookLead)
+    target_phone = convo.phone
+    leads_updated = 0
+    if target_phone:
+        clean_phone = ''.join(filter(str.isdigit, str(target_phone)))
+        suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
+
+        leads = db.query(models.WebhookLead).filter(
+            models.WebhookLead.client_id == client_id,
+            or_(
+                models.WebhookLead.phone == target_phone,
+                models.WebhookLead.phone == clean_phone,
+                models.WebhookLead.phone.like(f"%{suffix}")
+            )
+        ).all()
+
+        if leads:
+            for lead in leads:
+                lead.name = new_name
+                lead.updated_at = datetime.now(timezone.utc)
+                leads_updated += 1
+        else:
+            # Se ainda não existir lead cadastrado na aba de contatos, cria automaticamente
+            new_lead = models.WebhookLead(
+                client_id=client_id,
+                name=new_name,
+                phone=clean_phone or target_phone,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            db.add(new_lead)
+            leads_updated += 1
+
+        # 3. Atualizar também oportunidades no Kanban (SalesDeal) caso existam
+        deals = db.query(models.SalesDeal).filter(
+            models.SalesDeal.client_id == client_id,
+            or_(
+                models.SalesDeal.contact_phone == target_phone,
+                models.SalesDeal.contact_phone == clean_phone,
+                models.SalesDeal.contact_phone.like(f"%{suffix}")
+            )
+        ).all()
+        for deal in deals:
+            deal.contact_name = new_name
+            deal.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(convo)
+
+    logger.info(f"👤 [UPDATE_CONTACT_NAME] Nome do contato atualizado para '{new_name}' na conversa #{conversation_id} (Leads sincronizados: {leads_updated}) por User {current_user.id}.")
+
+    return {
+        "status": "ok",
+        "contact_name": convo.contact_name,
+        "phone": convo.phone,
+        "leads_updated": leads_updated
+    }
+

@@ -15,8 +15,8 @@ def require_role(allowed_roles: list):
 # Dependências específicas
 require_super_admin = require_role(["super_admin"])
 require_admin = require_role(["super_admin", "admin"])
-require_premium = require_role(["super_admin", "admin", "premium"])
-require_user = require_role(["super_admin", "admin", "premium", "user"])
+require_premium = require_role(["super_admin", "admin", "premium", "vendedor"])
+require_user = require_role(["super_admin", "admin", "premium", "user", "vendedor"])
 
 import json
 from core.logger import logger

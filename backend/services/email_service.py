@@ -9,9 +9,56 @@ from core.encryption import decrypt_token
 
 logger = setup_logger("email_service")
 
-async def send_single_email(config, to_email: str, subject: str, body_html: str, recipient_name: str = None) -> dict:
+def inject_email_tracking(body_html: str, dispatch_id: int, recipient_email: str, base_url: str) -> str:
     """
-    Envia um único e-mail utilizando a configuração do cliente (Amazon SES, Resend ou SMTP).
+    Injeta o pixel de rastreamento de abertura e envelopa links para rastreamento de cliques (CTR).
+    """
+    import base64
+    import urllib.parse
+    import re
+
+    if not body_html or not dispatch_id:
+        return body_html
+
+    clean_email = str(recipient_email or "").strip().lower()
+    rec_hash = base64.urlsafe_b64encode(clean_email.encode("utf-8")).decode("utf-8").rstrip("=")
+
+    # 1. Envelopar links <a href="...">
+    def replace_link(match):
+        full_tag = match.group(0)
+        attr_part = match.group(1)
+        original_url = match.group(2)
+
+        if (original_url.startswith("#") or
+            original_url.startswith("mailto:") or
+            original_url.startswith("tel:") or
+            "unsubscribe" in original_url.lower() or
+            "/track/" in original_url):
+            return full_tag
+
+        encoded_dest = urllib.parse.quote(original_url, safe="")
+        track_url = f"{base_url}/api/email-marketing/track/click?d={dispatch_id}&r={rec_hash}&url={encoded_dest}"
+        return full_tag.replace(attr_part, f'href="{track_url}"')
+
+    link_pattern = re.compile(r'<a\s+[^>]*?(href=["\']([^"\']+)["\'])[^>]*?>', re.IGNORECASE)
+    tracked_html = link_pattern.sub(replace_link, body_html)
+
+    # 2. Injetar pixel invisível 1x1 para rastrear abertura
+    pixel_url = f"{base_url}/api/email-marketing/track/open/{dispatch_id}/{rec_hash}"
+    pixel_img = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;outline:none;" />'
+
+    if "</body>" in tracked_html.lower():
+        idx = tracked_html.lower().rfind("</body>")
+        tracked_html = tracked_html[:idx] + pixel_img + tracked_html[idx:]
+    else:
+        tracked_html = f"{tracked_html}\n{pixel_img}"
+
+    return tracked_html
+
+async def send_single_email(config, to_email: str, subject: str, body_html: str, recipient_name: str = None, dispatch_id: int = None) -> dict:
+    """
+    Envia um único e-mail utilizando a configuração do cliente (Amazon SES, Resend, Brevo ou SMTP).
+    Suporta injeção automática de rastreamento de aberturas e cliques quando dispatch_id é fornecido.
     """
     if not config:
         return {"success": False, "error": "Configuração de e-mail não encontrada"}
@@ -69,6 +116,10 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
     for key, val in replacements.items():
         body_html = body_html.replace(key, str(val))
         subject = subject.replace(key, str(val))
+
+    # Injetar rastreamento de abertura e cliques para campanhas/disparos com ID
+    if dispatch_id:
+        body_html = inject_email_tracking(body_html, dispatch_id, to_email, base_url)
 
     # 0. BREVO / SENDINBLUE (API HTTP v3)
     if provider == "brevo":
@@ -239,4 +290,3 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
         except Exception as e_smtp:
             logger.error(f"❌ [EMAIL-SMTP] Erro ao enviar via SMTP: {e_smtp}")
             return {"success": False, "error": f"SMTP: {str(e_smtp)}"}
-

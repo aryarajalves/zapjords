@@ -2,15 +2,18 @@ import React from 'react';
 import { FiMessageSquare, FiX, FiHome, FiClock, FiLayers, FiUsers, FiGlobe, FiTrello } from 'react-icons/fi';
 
 const NAV_SHORTCUTS = [
-    { view: 'webhook_integrations', label: 'Integração Webhook', icon: FiGlobe },
-    { view: 'bulk_sender', label: 'Disparo em Massa', icon: FiHome },
-    { view: 'history',     label: 'Histórico de Disparos', icon: FiClock },
-    { view: 'funnels',     label: 'Funis', icon: FiLayers },
-    { view: 'sales_kanban', label: 'Kanban', icon: FiTrello },
-    { view: 'leads',       label: 'Contatos', icon: FiUsers },
+    { view: 'webhook_integrations', label: 'Integração Webhook', icon: FiGlobe, roles: ['super_admin', 'admin', 'premium'] },
+    { view: 'bulk_sender', label: 'Disparo em Massa', icon: FiHome, roles: ['super_admin', 'admin', 'premium', 'vendedor'] },
+    { view: 'history',     label: 'Histórico de Disparos', icon: FiClock, roles: ['super_admin', 'admin', 'premium', 'user', 'vendedor'] },
+    { view: 'funnels',     label: 'Funis', icon: FiLayers, roles: ['super_admin', 'admin', 'premium'] },
+    { view: 'sales_kanban', label: 'Kanban', icon: FiTrello, roles: ['super_admin', 'admin', 'premium', 'user', 'vendedor'] },
+    { view: 'leads',       label: 'Contatos', icon: FiUsers, roles: ['super_admin', 'admin', 'premium', 'vendedor'] },
 ];
 
 export default function ChatHeaderNav({ activeClient, user, onClose, onNavigate }) {
+    const userRole = user?.role || 'user';
+    const visibleShortcuts = NAV_SHORTCUTS.filter(s => s.roles.includes(userRole));
+
     return (
         <div
             data-testid="chat-header-nav"
@@ -27,7 +30,7 @@ export default function ChatHeaderNav({ activeClient, user, onClose, onNavigate 
             </div>
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar scrollbar-none py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {user?.role !== 'vendedor' && NAV_SHORTCUTS.map(s => {
+                    {visibleShortcuts.map(s => {
                         const Icon = s.icon;
                         return (
                             <button
