@@ -85,7 +85,7 @@ export function MessageTemplateButtons({ buttons = [] }) {
     );
 }
 
-export function MessageTemplateFailureBanner({ msg, onRetry, isRetrying }) {
+export function MessageTemplateFailureBanner({ msg, onRetry, onEditAndRetry, isRetrying }) {
     const isFailed = msg.meta_data?.status === 'failed' || msg.status === 'failed' || Boolean(msg.meta_data?.failure_reason);
     if (!isFailed) return null;
 
@@ -97,7 +97,22 @@ export function MessageTemplateFailureBanner({ msg, onRetry, isRetrying }) {
                 <span>⚠️</span>
                 <span className="truncate">{reason}</span>
             </div>
-            <div className="mt-2 flex justify-end">
+            <div className="mt-2.5 flex items-center justify-end gap-2 flex-wrap">
+                {onEditAndRetry && (
+                    <button
+                        type="button"
+                        disabled={isRetrying}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEditAndRetry(msg);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 active:scale-95 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-md hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-blue-400/30"
+                        title="Editar variáveis e parâmetros do template antes de reenviar"
+                    >
+                        <span>✏️</span>
+                        <span>Editar e Reenviar</span>
+                    </button>
+                )}
                 <button
                     type="button"
                     disabled={isRetrying}

@@ -3,6 +3,7 @@ import { FiShare2, FiUser, FiMessageSquare, FiEdit2, FiCheck, FiX, FiLoader } fr
 import { toast } from 'react-hot-toast';
 import { API_URL } from '../../../../config';
 import { fetchWithAuth } from '../../../../AuthContext';
+import ContactInstagramField from './ContactInstagramField';
 
 export default function ContactProfileCard({
     selectedConvo,
@@ -183,6 +184,13 @@ export default function ContactProfileCard({
             <div className="text-[11px] text-gray-400">
                 ID da Conversa: #{selectedConvo.id}
             </div>
+
+            {/* Campo do Instagram (@usuario) com edição inline e link direto */}
+            <ContactInstagramField
+                selectedConvo={selectedConvo}
+                setSelectedConvo={setSelectedConvo}
+                setConversations={setConversations}
+            />
 
             {/* Contabilização de Mensagens (Usuário vs Agente) */}
             <div className="pt-2 text-left space-y-1.5">

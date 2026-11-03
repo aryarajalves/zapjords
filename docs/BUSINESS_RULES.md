@@ -70,9 +70,10 @@ Este documento centraliza as definições de comportamento do sistema e os requi
 - **Registro Automático na Conversa**: Sempre que um funil for iniciado para um contato (por Nova Conversa, Palavra-chave ou Disparo Manual), uma mensagem de sistema (`message_type='funnel_event'`) é criada na conversa com os metadados do disparo (`trigger_id`, `funnel_id`, `funnel_name`).
 - **Botão "Ver Pipeline do Funil"**: A notificação no chat conta com um botão de ação rápida que abre o modal da Pipeline (`AutomationPipelineModal`), permitindo ao operador auditar visualmente a árvore de execução, os nós processados e as etiquetas atribuídas ao lead.
 
-### 12. Redisparo Imediato de Templates com Falha na Conversa
+### 12. Redisparo Imediato e Edição de Templates com Falha na Conversa
 - **Identificação Visual de Falhas**: Se a Meta rejeitar o envio do template ou reportar status `failed` (ex: serviço temporariamente indisponível), o balão da mensagem no chat exibe o alerta de erro detalhado.
 - **Botão "▶ Disparar Novamente"**: Disponibiliza um botão de reenvio com feedback em tempo real. O backend limpa o histórico restritivo de 24 horas para aquele template e contato e realiza uma nova tentativa de envio via Meta API, atualizando o status da mensagem sem necessidade de recarregar a tela.
+- **Botão "✏️ Editar e Reenviar"**: Em casos onde o envio falhou por divergência de parâmetros (ex: erro `#132000 Number of parameters does not match expected`) ou dados incorretos/incompletos, o botão abre o modal do template com o template e variáveis pré-preenchidas para edição e correção imediata. Ao salvar e reenviar, o backend atualiza o conteúdo da mensagem com as novas variáveis, atualiza os components e realiza o redisparo, marcando a mensagem como enviada sem necessidade de redigitar do zero.
 
 ### 13. Distinção entre Segmentação Local (Leads) e Atendimento (Chat)
 - **Segmentação Local (ZapVoice)**: Atua exclusivamente sobre o banco de contatos e leads do ZapVoice (`WebhookLead`). É utilizada para adicionar/remover tags de segmentação de contatos (usadas para filtros, listas e disparos em massa) ou gerenciar a Blacklist local (bloquear/desbloquear número). **Não altera marcadores/etiquetas da conversa no Chat.**
@@ -504,3 +505,16 @@ ead).
   - **Financeiro (`financial`)**: Exclusivo para administradores (faturamento e custos de saldo).
   - **Gestão de Usuários (`users`)**: Exclusivo para administradores.
   - **Infraestrutura, Logs, Backups e Configurações de Webhooks**: Exclusivo para administradores.
+
+### 24. Identificação e Edição do Instagram do Contato no Painel de Atendimento (Chat)
+- **Localização e Ergonomia**: O campo de identificação do Instagram (`@usuario`) fica localizado na coluna lateral direita de detalhes do contato no Chat (`ContactProfileCard` / `ContactInstagramField`), posicionado logo abaixo do telefone e do identificador da conversa (`ID da Conversa: #...`) e acima da contabilização de mensagens.
+- **Visualização e Link Direto**:
+  - Quando o contato possui Instagram cadastrado, exibe um badge estilizado com gradiente sutil nos tons da marca do Instagram, o ícone oficial da rede social, o arroba `@usuario` clicável que abre diretamente o perfil em nova aba (`https://instagram.com/usuario`) e um botão de ação com ícone de lápis para edição rápida.
+  - Quando o contato ainda não possui Instagram cadastrado, exibe um botão discreto no padrão glassmorphic/borda suave intitulado `Adicionar @instagram`. Ao clicar, ativa instantaneamente o modo de edição inline.
+- **Sanitização Automática de Entrada**:
+  - Aceita inputs com ou sem arroba inicial (ex: `@usuario` ou `usuario`), URLs completas (ex: `https://instagram.com/usuario/` ou `http://www.instagram.com/usuario`), removendo espaços em branco, barras e prefixos automaticamente tanto no frontend quanto no backend.
+  - Se o usuário salvar o campo em branco ou apenas com espaços, o sistema limpa o cadastro setando `instagram = null`.
+- **Sincronização Multi-Tenant e Cross-Table**:
+  - Ao salvar via endpoint `PATCH /chat/conversations/{id}/instagram`, o valor é atualizado na conversa selecionada, replicado para todas as demais conversas do mesmo número de telefone no cliente e sincronizado diretamente no cadastro do lead em `webhook_leads`.
+  - Dispara evento `contact-instagram-updated` no navegador para que outros componentes e abas atualizem o dado em tempo real sem necessidade de reload de página.
+

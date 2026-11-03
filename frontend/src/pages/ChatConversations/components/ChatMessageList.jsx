@@ -29,7 +29,8 @@ export default function ChatMessageList({
     handleCopyMessageContent,
     handleDeleteMessage,
     onOpenPipelineByTriggerId,
-    onRetryTemplateMessage
+    onRetryTemplateMessage,
+    onEditAndRetryTemplateMessage
 }) {
     const contactInitial = (selectedConvo?.contact_name || selectedConvo?.phone || 'C').charAt(0).toUpperCase();
     const contactDisplayName = selectedConvo?.contact_name || selectedConvo?.phone || 'contato';
@@ -205,6 +206,7 @@ export default function ChatMessageList({
                                     onOpenContextMenu={handleOpenContextMenu}
                                     onOpenPipelineByTriggerId={onOpenPipelineByTriggerId}
                                     onRetryTemplateMessage={onRetryTemplateMessage}
+                                    onEditAndRetryTemplateMessage={onEditAndRetryTemplateMessage}
                                     onOpenMessageInfo={setMessageInfoModalMsg}
                                 />
                             </React.Fragment>

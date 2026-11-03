@@ -4,8 +4,11 @@ export default function SendTemplateModalFooter({
   selectedTemplate,
   windowOpen,
   onClose,
-  onSend
+  onSend,
+  retryMessage = null
 }) {
+  const isRetry = Boolean(retryMessage);
+
   return (
     <div className="px-6 py-4 border-t border-white/5 bg-[#0a0f1d] flex items-center justify-between shrink-0">
       <div>
@@ -35,9 +38,13 @@ export default function SendTemplateModalFooter({
           type="button"
           onClick={onSend}
           disabled={!selectedTemplate}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none text-white rounded-xl transition-all text-sm font-medium shadow-lg shadow-blue-600/10 cursor-pointer"
+          className={`px-5 py-2 disabled:opacity-50 disabled:pointer-events-none text-white rounded-xl transition-all text-sm font-medium shadow-lg cursor-pointer ${
+            isRetry
+              ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
+              : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/10'
+          }`}
         >
-          Enviar Template
+          {isRetry ? 'Corrigir e Reenviar' : 'Enviar Template'}
         </button>
       </div>
     </div>

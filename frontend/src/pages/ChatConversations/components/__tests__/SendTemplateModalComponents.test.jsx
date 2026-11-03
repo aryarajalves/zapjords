@@ -111,6 +111,21 @@ describe('SendTemplateModal Submodules', () => {
       fireEvent.click(closeBtn);
       expect(onCloseMock).toHaveBeenCalledTimes(1);
     });
+
+    it('renderiza modo de edição e reenvio com erro anterior quando retryMessage é fornecido', () => {
+      const onCloseMock = vi.fn();
+      const retryMessage = {
+        id: 11,
+        meta_data: {
+          failure_reason: '(#132000) Number of parameters does not match the expected number of params'
+        }
+      };
+      render(<SendTemplateModalHeader onClose={onCloseMock} retryMessage={retryMessage} />);
+
+      expect(screen.getByText('Editar e Reenviar Template WhatsApp')).toBeInTheDocument();
+      expect(screen.getByText(/Edite os parâmetros antes de realizar o reenvio/i)).toBeInTheDocument();
+      expect(screen.getByText(/Number of parameters does not match/i)).toBeInTheDocument();
+    });
   });
 
   describe('TemplateSelectorSection', () => {
@@ -185,6 +200,20 @@ describe('SendTemplateModal Submodules', () => {
       );
 
       expect(screen.getByText(/Custo de HSM \(Janela Fechada\)/i)).toBeInTheDocument();
+    });
+
+    it('renderiza botão "Corrigir e Reenviar" quando retryMessage é fornecido', () => {
+      render(
+        <SendTemplateModalFooter
+          selectedTemplate={{ name: 'tpl_1' }}
+          windowOpen={true}
+          onClose={vi.fn()}
+          onSend={vi.fn()}
+          retryMessage={{ id: 99 }}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Corrigir e Reenviar/i })).toBeInTheDocument();
     });
   });
 

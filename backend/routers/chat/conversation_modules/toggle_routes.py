@@ -25,11 +25,15 @@ async def assign_conversation(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     user_id = payload.get("user_id")
     old_assigned = convo.assigned_user.full_name if convo.assigned_user else None
@@ -79,11 +83,15 @@ async def mark_as_read(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     mark_conversation_read_for_user(convo, getattr(current_user, "id", None))
     db.commit()
@@ -103,11 +111,15 @@ async def mark_as_unread(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     restored_count = mark_conversation_unread_for_user(convo, getattr(current_user, "id", None))
     db.commit()
@@ -128,11 +140,15 @@ async def toggle_pin_conversation(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     pinned = payload.get("pinned", False)
     convo.pinned = pinned
@@ -149,11 +165,15 @@ async def toggle_urgent_conversation(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     urgent = payload.get("urgent", False)
     convo.urgent = urgent
@@ -169,11 +189,15 @@ async def reset_24h_window(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     old_time = datetime.now(timezone.utc) - timedelta(hours=25)
     convo.last_contact_message_at = old_time
@@ -242,11 +266,15 @@ async def update_conversation_contact_name(
     db: Session = Depends(get_db)
 ):
     convo = db.query(models.ChatConversation).filter(
-        models.ChatConversation.id == conversation_id,
-        models.ChatConversation.client_id == client_id
+        models.ChatConversation.id == conversation_id
     ).first()
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
 
     new_name = payload.contact_name.strip() if payload.contact_name else ""
     if not new_name:
@@ -313,6 +341,83 @@ async def update_conversation_contact_name(
     return {
         "status": "ok",
         "contact_name": convo.contact_name,
+        "phone": convo.phone,
+        "leads_updated": leads_updated
+    }
+
+
+class UpdateContactInstagramPayload(BaseModel):
+    instagram: Optional[str] = None
+
+
+@router.patch("/chat/conversations/{conversation_id}/instagram")
+async def update_conversation_contact_instagram(
+    conversation_id: int,
+    payload: UpdateContactInstagramPayload,
+    client_id: int = Depends(get_client_id),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    convo = db.query(models.ChatConversation).filter(
+        models.ChatConversation.id == conversation_id
+    ).first()
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+
+    if current_user.role != "super_admin" and convo.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado a esta conversa.")
+
+    effective_client_id = convo.client_id
+
+    raw_insta = (payload.instagram or "").strip()
+    if raw_insta:
+        # Sanitizar: remove @ inicial, URLs completas de instagram.com, espaços e barras
+        raw_insta = raw_insta.replace("https://www.instagram.com/", "").replace("http://www.instagram.com/", "")
+        raw_insta = raw_insta.replace("https://instagram.com/", "").replace("http://instagram.com/", "")
+        raw_insta = raw_insta.replace("instagram.com/", "").strip("/")
+        if raw_insta.startswith("@"):
+            raw_insta = raw_insta[1:].strip()
+        new_instagram = raw_insta[:100] if raw_insta else None
+    else:
+        new_instagram = None
+
+    # 1. Atualizar instagram na conversa atual e em conversas com o mesmo telefone
+    convo.instagram = new_instagram
+    db.query(models.ChatConversation).filter(
+        models.ChatConversation.client_id == convo.client_id,
+        models.ChatConversation.phone == convo.phone
+    ).update({"instagram": new_instagram}, synchronize_session=False)
+
+    # 2. Atualizar em WebhookLead caso exista
+    target_phone = convo.phone
+    leads_updated = 0
+    if target_phone:
+        clean_phone = ''.join(filter(str.isdigit, str(target_phone)))
+        suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
+
+        leads = db.query(models.WebhookLead).filter(
+            models.WebhookLead.client_id == convo.client_id,
+            or_(
+                models.WebhookLead.phone == target_phone,
+                models.WebhookLead.phone == clean_phone,
+                models.WebhookLead.phone.like(f"%{suffix}")
+            )
+        ).all()
+
+        if leads:
+            for lead in leads:
+                lead.instagram = new_instagram
+                lead.updated_at = datetime.now(timezone.utc)
+                leads_updated += 1
+
+    db.commit()
+    db.refresh(convo)
+
+    logger.info(f"📸 [UPDATE_CONTACT_INSTAGRAM] Instagram do contato atualizado para '{new_instagram}' na conversa #{conversation_id} (Leads: {leads_updated}) por User {current_user.id}.")
+
+    return {
+        "status": "ok",
+        "instagram": convo.instagram,
         "phone": convo.phone,
         "leads_updated": leads_updated
     }

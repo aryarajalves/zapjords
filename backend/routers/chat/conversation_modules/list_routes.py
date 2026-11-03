@@ -37,6 +37,7 @@ def _format_conversation_dict(
         "client_id": c.client_id,
         "phone": c.phone,
         "contact_name": c.contact_name,
+        "instagram": getattr(c, "instagram", None),
         "last_message_content": c.last_message_content,
         "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
         "status": c.status,

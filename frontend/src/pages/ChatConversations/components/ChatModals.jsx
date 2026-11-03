@@ -27,6 +27,8 @@ export default function ChatModals({
     chatOps,
     showTemplateModal,
     setShowTemplateModal,
+    retryTemplateMessage,
+    setRetryTemplateMessage,
     isMaximizedInputOpen,
     setIsMaximizedInputOpen,
     showFunnelModal,
@@ -141,12 +143,26 @@ export default function ChatModals({
 
             <SendTemplateModal
                 isOpen={showTemplateModal}
-                onClose={() => setShowTemplateModal(false)}
+                onClose={() => {
+                    setShowTemplateModal(false);
+                    setRetryTemplateMessage?.(null);
+                }}
+                retryMessage={retryTemplateMessage}
                 activeClient={activeClient}
                 selectedConvo={selectedConvo}
-                onSendSuccess={(sentMsg) => {
-                    engine.setMessages(prev => [...prev, sentMsg]);
-                    engine.setShouldScrollToBottom(true);
+                onSendSuccess={(sentMsg, retriedOriginalMsg) => {
+                    if (retriedOriginalMsg?.id) {
+                        engine.setMessages(prev => prev.map(m => m.id === retriedOriginalMsg.id ? {
+                            ...m,
+                            ...sentMsg,
+                            content: sentMsg.content || m.content,
+                            meta_data: sentMsg.meta_data || { ...m.meta_data, status: 'sent', can_retry: false }
+                        } : m));
+                    } else {
+                        engine.setMessages(prev => [...prev, sentMsg]);
+                        engine.setShouldScrollToBottom(true);
+                    }
+                    setRetryTemplateMessage?.(null);
                     if (selectedConvo?.id && engine.setConversations) {
                         engine.setConversations(prev => prev.map(c => c.id === selectedConvo.id ? { ...c, unread_count: 0 } : c));
                     }

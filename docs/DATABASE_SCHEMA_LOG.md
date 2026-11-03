@@ -35,6 +35,7 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 03/11/2026 | Suporte ao @ do Instagram do Contato no Chat e Leads | chat_conversations, webhook_leads | instagram (VARCHAR(100) NULL, INDEXADO) | ackend/scripts/database/add_instagram_to_conversations_and_leads.py |
 | 02/11/2026 | Métricas e Analytics de E-mail Marketing (Taxa de Abertura e Cliques) | `email_dispatches` | `total_opened` (INTEGER DEFAULT 0), `total_clicks` (INTEGER DEFAULT 0), `analytics_data` (JSON/JSONB DEFAULT '{}') | `backend/add_email_analytics_columns.py` |
 | 31/10/2026 | Suporte a Bloqueio de E-mail na Blacklist (Descadastro Cirúrgico) | `blocked_contacts` | `email` (VARCHAR(255) NULL, INDEXADO), `phone` ajustado para nullable | `backend/scripts/database/add_email_to_blocked_contacts.py` |
 | 30/10/2026 | Data de Venda e Linha do Tempo / Histórico de Lead no CRM | `sales_deals`, `sales_deal_activities` | `won_at` (TIMESTAMP WITH TIME ZONE) em `sales_deals`; Tabela nova `sales_deal_activities` (`id`, `deal_id`, `client_id`, `activity_type`, `title`, `description`, `metadata_info`, `created_at`) | `backend/scripts/database/add_deal_won_at_and_activities_table.py` |

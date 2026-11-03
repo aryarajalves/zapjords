@@ -8,7 +8,8 @@ export function useSendTemplate({
   onClose,
   activeClient,
   selectedConvo,
-  onSendSuccess
+  onSendSuccess,
+  retryMessage = null
 }) {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -91,6 +92,76 @@ export function useSendTemplate({
       setTemplateParams({});
     }
   }, [isOpen, activeClient?.id]);
+
+  // Pré-selecionar e pré-preencher variáveis quando aberto em modo de correção/reenvio
+  useEffect(() => {
+    if (!isOpen || !retryMessage || templates.length === 0) return;
+
+    const targetTplName = retryMessage.meta_data?.template_name || 
+      (retryMessage.content?.startsWith("[Template: ") 
+        ? retryMessage.content.replace("[Template: ", "").replace("]", "").trim() 
+        : null);
+
+    if (!targetTplName) return;
+
+    const found = templates.find(t => t.name.toLowerCase() === targetTplName.toLowerCase());
+    if (found) {
+      setSelectedTemplate(found);
+
+      // Preencher variáveis
+      const varsMap = {};
+      const matches = (found.body_text || '').match(/\{\{\d+\}\}/g) || [];
+      const uniqueVars = [...new Set(matches.map(m => parseInt(m.replace(/[{}]/g, ''))))].sort((a, b) => a - b);
+
+      let componentsVars = {};
+      if (retryMessage.meta_data?.components && Array.isArray(retryMessage.meta_data.components)) {
+        for (const comp of retryMessage.meta_data.components) {
+          if (comp.type === 'body' && Array.isArray(comp.parameters)) {
+            comp.parameters.forEach((param, idx) => {
+              if (param.type === 'text' && param.text !== undefined) {
+                componentsVars[idx + 1] = String(param.text);
+              }
+            });
+          }
+        }
+      }
+
+      // Tentar extrair do content da mensagem anterior se não houver components salvos
+      if (Object.keys(componentsVars).length === 0 && retryMessage.content && found.body_text) {
+        const parts = found.body_text.split(/\{\{\d+\}\}/);
+        if (parts.length >= 2) {
+          const prefix = parts[0];
+          const suffix = parts[1];
+          let remaining = retryMessage.content;
+          if (remaining.startsWith(prefix)) {
+            remaining = remaining.substring(prefix.length);
+            const endIdx = suffix ? remaining.indexOf(suffix) : remaining.length;
+            if (endIdx > 0) {
+              const extractedVal = remaining.substring(0, endIdx).trim();
+              if (extractedVal) {
+                componentsVars[1] = extractedVal;
+              }
+            }
+          }
+        }
+      }
+
+      uniqueVars.forEach((vNum, idx) => {
+        if (componentsVars[vNum] !== undefined) {
+          varsMap[vNum] = componentsVars[vNum];
+        } else if (idx === 0 && contactFirstName) {
+          varsMap[vNum] = contactFirstName;
+        } else {
+          varsMap[vNum] = "";
+        }
+      });
+      setVariables(varsMap);
+
+      if (retryMessage.media_url) {
+        setTemplateParams({ 'HEADER_0': retryMessage.media_url });
+      }
+    }
+  }, [isOpen, retryMessage, templates]);
 
   const handleSelectTemplate = (tpl) => {
     setSelectedTemplate(tpl);
@@ -202,9 +273,14 @@ export function useSendTemplate({
       }
     });
 
-    const toastId = toast.loading('Enviando template...');
+    const isRetry = Boolean(retryMessage?.id);
+    const toastId = toast.loading(isRetry ? 'Reenviando template corrigido...' : 'Enviando template...');
     try {
-      const res = await fetch(`${API_URL}/chat/conversations/${selectedConvo.id}/template`, {
+      const endpoint = isRetry
+        ? `${API_URL}/chat/conversations/${selectedConvo.id}/messages/${retryMessage.id}/retry-template`
+        : `${API_URL}/chat/conversations/${selectedConvo.id}/template`;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -221,12 +297,14 @@ export function useSendTemplate({
 
       if (res.ok) {
         const sentMsg = await res.json();
-        if (sentMsg.sent_as_text) {
+        if (isRetry) {
+          toast.success(sentMsg.message || 'Template corrigido e reenviado com sucesso!', { id: toastId });
+        } else if (sentMsg.sent_as_text) {
           toast.success('✉️ Enviado como mensagem gratuita (janela aberta)!', { id: toastId });
         } else {
           toast.success('📨 Template HSM enviado!', { id: toastId });
         }
-        onSendSuccess?.(sentMsg);
+        onSendSuccess?.(sentMsg, retryMessage);
 
         if (selectedFunnelId) {
           try {
@@ -251,7 +329,7 @@ export function useSendTemplate({
 
         onClose?.();
       } else {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || 'Erro ao enviar template.');
       }
     } catch (err) {

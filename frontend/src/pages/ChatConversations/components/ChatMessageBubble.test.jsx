@@ -322,6 +322,40 @@ describe('ChatMessageBubble Unit Tests', () => {
         expect(onRetryMock).toHaveBeenCalledWith(failedTplMsg);
     });
 
+    it('renderiza botão Editar e Reenviar e dispara callback quando clicado', () => {
+        const onEditAndRetryMock = vi.fn();
+        const failedParamMsg = {
+            id: 11,
+            sender_type: 'user',
+            message_type: 'text',
+            content: 'Fala 5522981820807 tudo bem?',
+            timestamp: new Date().toISOString(),
+            meta_data: {
+                is_template: true,
+                template_name: 'recuperacao_responderdepois_kanban',
+                status: 'failed',
+                failure_reason: '(#132000) Number of parameters does not match the expected number of params'
+            }
+        };
+
+        render(
+            <ChatMessageBubble
+                msg={failedParamMsg}
+                selectedConvo={{ id: 10, contact_name: 'Lucas Jordão', phone: '5522981820807' }}
+                allMessages={[failedParamMsg]}
+                getMediaSrc={() => ''}
+                formatMessageTimestamp={() => '16:45'}
+                onEditAndRetryTemplateMessage={onEditAndRetryMock}
+            />
+        );
+
+        expect(screen.getByText(/Number of parameters does not match/i)).toBeInTheDocument();
+        const editBtn = screen.getByRole('button', { name: /Editar e Reenviar/i });
+        expect(editBtn).toBeInTheDocument();
+        fireEvent.click(editBtn);
+        expect(onEditAndRetryMock).toHaveBeenCalledWith(failedParamMsg);
+    });
+
     it('renderiza indicador de leitura (dois tiques azuis) com status "read"', () => {
         const readMsg = {
             id: 20,

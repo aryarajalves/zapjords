@@ -339,6 +339,84 @@ describe('ChatContactSidebar and Subcomponents', () => {
                 })
             );
         });
+
+        it('renderiza o botão Adicionar @instagram quando conversa não tem instagram', () => {
+            render(<ChatContactSidebar {...defaultProps} selectedConvo={{ ...mockSelectedConvo, instagram: null }} />);
+            const addInstaBtn = screen.getByTestId('add-contact-instagram-btn');
+            expect(addInstaBtn).toBeInTheDocument();
+            expect(screen.getByText('Adicionar @instagram')).toBeInTheDocument();
+
+            fireEvent.click(addInstaBtn);
+            const input = screen.getByTestId('edit-contact-instagram-input');
+            expect(input).toBeInTheDocument();
+
+            const cancelBtn = screen.getByTestId('cancel-contact-instagram-btn');
+            fireEvent.click(cancelBtn);
+            expect(screen.queryByTestId('edit-contact-instagram-input')).not.toBeInTheDocument();
+        });
+
+        it('renderiza o badge do instagram com link direto quando preenchido', () => {
+            render(
+                <ChatContactSidebar
+                    {...defaultProps}
+                    selectedConvo={{ ...mockSelectedConvo, instagram: 'maria_insta' }}
+                />
+            );
+            const link = screen.getByTestId('contact-instagram-link');
+            expect(link).toBeInTheDocument();
+            expect(link).toHaveAttribute('href', 'https://instagram.com/maria_insta');
+            expect(screen.getByText('@maria_insta')).toBeInTheDocument();
+
+            const editBtn = screen.getByTestId('edit-contact-instagram-btn');
+            expect(editBtn).toBeInTheDocument();
+        });
+
+        it('salva o instagram do contato chamando a API PATCH e emitindo evento', async () => {
+            const setSelectedConvo = vi.fn();
+            const setConversations = vi.fn();
+            fetchWithAuth.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ status: 'ok', instagram: 'maria_insta_oficial' })
+            });
+
+            const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+            render(
+                <ChatContactSidebar
+                    {...defaultProps}
+                    selectedConvo={{ ...mockSelectedConvo, instagram: null }}
+                    setSelectedConvo={setSelectedConvo}
+                    setConversations={setConversations}
+                />
+            );
+
+            const addInstaBtn = screen.getByTestId('add-contact-instagram-btn');
+            fireEvent.click(addInstaBtn);
+
+            const input = screen.getByTestId('edit-contact-instagram-input');
+            fireEvent.change(input, { target: { value: '@maria_insta_oficial' } });
+
+            const saveBtn = screen.getByTestId('save-contact-instagram-btn');
+            fireEvent.click(saveBtn);
+
+            await vi.waitFor(() => {
+                expect(fetchWithAuth).toHaveBeenCalledWith(
+                    expect.stringContaining('/chat/conversations/123/instagram'),
+                    expect.objectContaining({
+                        method: 'PATCH',
+                        body: JSON.stringify({ instagram: '@maria_insta_oficial' })
+                    })
+                );
+                expect(setSelectedConvo).toHaveBeenCalled();
+            });
+
+            expect(setConversations).toHaveBeenCalled();
+            expect(dispatchSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'contact-instagram-updated'
+                })
+            );
+        });
     });
 });
 

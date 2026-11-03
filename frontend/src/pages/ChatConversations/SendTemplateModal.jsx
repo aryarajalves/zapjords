@@ -17,7 +17,8 @@ export default function SendTemplateModal({
   onClose,
   activeClient,
   selectedConvo,
-  onSendSuccess
+  onSendSuccess,
+  retryMessage = null
 }) {
   const {
     templates,
@@ -45,7 +46,8 @@ export default function SendTemplateModal({
     onClose,
     activeClient,
     selectedConvo,
-    onSendSuccess
+    onSendSuccess,
+    retryMessage
   });
 
   if (!isOpen) return null;
@@ -57,7 +59,7 @@ export default function SendTemplateModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-[#0f172a] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
         {/* Header do Modal */}
-        <SendTemplateModalHeader onClose={onClose} />
+        <SendTemplateModalHeader onClose={onClose} retryMessage={retryMessage} />
 
         {/* Conteúdo do Modal */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -126,6 +128,7 @@ export default function SendTemplateModal({
           windowOpen={windowOpen}
           onClose={onClose}
           onSend={handleSend}
+          retryMessage={retryMessage}
         />
       </div>
     </div>

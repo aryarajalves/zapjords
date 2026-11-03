@@ -39,6 +39,7 @@ const ChatMessageBubble = React.memo(function ChatMessageBubble({
     onOpenContextMenu,
     onOpenPipelineByTriggerId,
     onRetryTemplateMessage,
+    onEditAndRetryTemplateMessage,
     onOpenMessageInfo
 }) {
     const isSystem = msg.sender_type === 'system';
@@ -221,11 +222,12 @@ const ChatMessageBubble = React.memo(function ChatMessageBubble({
                     <MessageTemplateButtons buttons={msg.meta_data?.buttons} />
                 )}
 
-                {/* Banner de Falha com Botão para Disparar Novamente o mesmo Template */}
+                {/* Banner de Falha com Botão para Disparar Novamente ou Editar e Reenviar o Template */}
                 {isTemplate && (
                     <MessageTemplateFailureBanner
                         msg={msg}
                         onRetry={handleRetry}
+                        onEditAndRetry={onEditAndRetryTemplateMessage}
                         isRetrying={isRetryingTemplate}
                     />
                 )}

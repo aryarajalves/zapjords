@@ -11,6 +11,7 @@ class ChatConversation(Base):
     
     phone = Column(String, index=True, nullable=False)
     contact_name = Column(String, nullable=True)
+    instagram = Column(String(100), nullable=True, index=True)
     last_message_content = Column(String, nullable=True)
     last_message_at = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, default="open", index=True)  # open, resolved, archived

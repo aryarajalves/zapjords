@@ -7,6 +7,7 @@ export function useChatModalState() {
         typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
     );
     const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const [retryTemplateMessage, setRetryTemplateMessage] = useState(null);
     const [isMaximizedInputOpen, setIsMaximizedInputOpen] = useState(false);
     const [showFunnelModal, setShowFunnelModal] = useState(false);
     const [replyingTo, setReplyingTo] = useState(null);
@@ -64,6 +65,7 @@ export function useChatModalState() {
     return {
         showRightSidebar, setShowRightSidebar,
         showTemplateModal, setShowTemplateModal,
+        retryTemplateMessage, setRetryTemplateMessage,
         isMaximizedInputOpen, setIsMaximizedInputOpen,
         showFunnelModal, setShowFunnelModal,
         replyingTo, setReplyingTo,

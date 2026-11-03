@@ -67,6 +67,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
     const {
         showRightSidebar, setShowRightSidebar,
         showTemplateModal, setShowTemplateModal,
+        retryTemplateMessage, setRetryTemplateMessage,
         isMaximizedInputOpen, setIsMaximizedInputOpen,
         showFunnelModal, setShowFunnelModal,
         replyingTo, setReplyingTo,
@@ -195,6 +196,8 @@ export default function ChatConversations({ onClose, onNavigate }) {
                 chatOps={chatOps}
                 showTemplateModal={showTemplateModal}
                 setShowTemplateModal={setShowTemplateModal}
+                retryTemplateMessage={retryTemplateMessage}
+                setRetryTemplateMessage={setRetryTemplateMessage}
                 isMaximizedInputOpen={isMaximizedInputOpen}
                 setIsMaximizedInputOpen={setIsMaximizedInputOpen}
                 showFunnelModal={showFunnelModal}
@@ -370,6 +373,10 @@ export default function ChatConversations({ onClose, onNavigate }) {
                                     handleDeleteMessage={noteAndAi.handleDeleteNoteMsg}
                                     onOpenPipelineByTriggerId={chatOps.handleOpenPipelineByTriggerId}
                                     onRetryTemplateMessage={chatOps.handleRetryTemplateMessage}
+                                    onEditAndRetryTemplateMessage={(msg) => {
+                                        setRetryTemplateMessage(msg);
+                                        setShowTemplateModal(true);
+                                    }}
                                 />
 
                                 <ActiveChatInput

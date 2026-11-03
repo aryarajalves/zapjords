@@ -362,6 +362,7 @@ class WebhookLead(Base):
     phone = Column(String, index=True)
     bsud = Column(String, nullable=True, index=True)
     email = Column(String, index=True)
+    instagram = Column(String(100), nullable=True, index=True)
     
     last_event_type = Column(String)
     last_event_at = Column(DateTime(timezone=True), server_default=func.now())

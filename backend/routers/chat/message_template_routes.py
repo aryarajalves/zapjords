@@ -1,6 +1,7 @@
 import asyncio
+from typing import Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -241,12 +242,14 @@ async def send_chat_template(
 async def retry_failed_template_message(
     conversation_id: int,
     message_id: int,
+    payload: Optional[dict] = Body(default=None),
     client_id: int = Depends(get_client_id),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Redispara o template para o mesmo contato quando tiver ocorrido falha.
+    Permite atualizar dados/parâmetros via payload antes do reenvio.
     Limpa bloqueio temporário de histórico de templates e envia via Meta API.
     """
     convo = db.query(models.ChatConversation).filter(
@@ -264,6 +267,18 @@ async def retry_failed_template_message(
         raise HTTPException(status_code=404, detail="Mensagem não encontrada.")
 
     meta_data = dict(msg.meta_data or {})
+
+    # Se recebemos payload editado pelo usuário na interface
+    if payload and isinstance(payload, dict):
+        if payload.get("template_name"):
+            meta_data["template_name"] = payload.get("template_name")
+        if payload.get("language"):
+            meta_data["language"] = payload.get("language")
+        if payload.get("components") is not None:
+            meta_data["components"] = payload.get("components")
+        if payload.get("button_actions") is not None:
+            meta_data["button_actions"] = payload.get("button_actions")
+
     template_name = meta_data.get("template_name")
     if not template_name:
         if msg.content and msg.content.startswith("[Template: "):
@@ -313,12 +328,48 @@ async def retry_failed_template_message(
             if wa_msg_id:
                 wa_msg_id = wa_msg_id.replace("wamid.", "")
 
+    # Recalcular texto da mensagem com novas variáveis se houver template em cache
+    try:
+        tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
+            models.WhatsAppTemplateCache.client_id == client_id,
+            models.WhatsAppTemplateCache.name == template_name
+        ).first()
+        if tpl_cache and tpl_cache.body:
+            content_preview = tpl_cache.body
+            if components:
+                body_params = []
+                for comp in components:
+                    if comp.get("type") == "body":
+                        for param in comp.get("parameters", []):
+                            if param.get("type") == "text":
+                                body_params.append(str(param.get("text")))
+                for idx, val in enumerate(body_params):
+                    content_preview = content_preview.replace(f"{{{{{idx+1}}}}}", val)
+            msg.content = content_preview
+    except Exception as e_content:
+        logger.warning(f"Aviso ao recalcular conteúdo de template reenviado: {e_content}")
+
+    # Atualizar mídia de cabeçalho se houver nos components
+    if components:
+        for comp in components:
+            if comp.get("type") == "header":
+                params = comp.get("parameters", [])
+                if params and isinstance(params, list):
+                    header_param = params[0]
+                    p_type = header_param.get("type")
+                    if p_type in ["image", "video", "document"]:
+                        media_obj = header_param.get(p_type, {})
+                        if media_obj.get("link"):
+                            msg.media_url = media_obj.get("link")
+
     meta_data["status"] = "sent"
     meta_data.pop("failure_reason", None)
     meta_data["can_retry"] = False
     msg.wa_message_id = wa_msg_id or msg.wa_message_id
     msg.meta_data = meta_data
     msg.timestamp = datetime.now(timezone.utc)
+    convo.last_message_content = msg.content
+    convo.last_message_at = msg.timestamp
     db.commit()
     db.refresh(msg)
 

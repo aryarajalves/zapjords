@@ -1,6 +1,6 @@
-# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.1.9 — Versão Estável)
+# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.2.0 — Versão Estável)
 
-Versão estável com **Painel de Desempenho da Equipe em Tempo Real via WebSockets**, **Controle de Acesso e Permissões de Vendedor no Kanban e Atendimento**, **Sistema Avançado de E-mail Marketing & Newsletter com Gatilho de Tags e Analytics**, **Disparo Individual de Template pelo Kanban de Vendas**, **Edição de Contato Sincronizada no Chat com Propagação em Tempo Real para a Aba Contatos**, **Atalho de Nova Aba Instantâneo no Kanban (Ctrl + Clique com Cache de Cliente Ativo)**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Arquitetura Modular Clean Code**.
+Versão estável com **Edição e Reenvio Imediato de Templates com Falha no Chat**, **Identificação e Edição do Instagram do Contato no Painel de Atendimento**, **Painel de Desempenho da Equipe em Tempo Real via WebSockets**, **Controle de Acesso e Permissões de Vendedor no Kanban e Atendimento**, **Sistema Avançado de E-mail Marketing & Newsletter com Gatilho de Tags e Analytics**, **Disparo Individual de Template pelo Kanban de Vendas**, **Edição de Contato Sincronizada no Chat com Propagação em Tempo Real para a Aba Contatos**, **Atalho de Nova Aba Instantâneo no Kanban (Ctrl + Clique com Cache de Cliente Ativo)**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Arquitetura Modular Clean Code**.
 
 O **ZapVoice** é um ecossistema completo e profissional de automação e marketing de alta performance integrado à **API Oficial do WhatsApp (Meta)**. 
 
@@ -65,6 +65,8 @@ Visualização e controle de conversas diretamente no painel do ZapVoice:
 *   **Carregamento Premium**: Modal centralizado com spinner dinâmico e desfoque de fundo (backdrop-blur) ao carregar conversas com rolagem automática inteligente para a última mensagem.
 *   **Integração de Webhook de Memória**: O envio do template HSM notifica imediatamente o assistente de IA/n8n com o conteúdo de texto resolvido e o ID interno da mensagem.
 *   **Proteção de Sobrescrita de Nomes**: Mecanismo no backend que protege o nome real dos contatos e impede que webhooks externos os sobrescrevam com valores genéricos (como `Lead_3586`).
+*   **Edição e Reenvio de Templates com Falha**: Permite corrigir parâmetros e reenviar templates diretamente do balão de erro no chat sem recarregar a tela.
+*   **Identificação do Instagram do Contato**: Visualização, inserção e edição inline do Instagram (@usuario) com link direto para o perfil externo e sincronização automática na base de contatos.
 *   **Marcadores/Labels**: Gerenciamento de tags e rótulos aplicados a cada conversa para segmentação ágil.
 *   **Remoção Automática de Etiquetas**: Configuração de etiquetas a serem removidas automaticamente da conversa do chat interno quando a janela de 24 horas expira.
 *   **Filtro de Conversas por Data**: Possibilidade de segmentar conversas no atendimento em tempo real por data específica ou intervalo de datas (De/Até).

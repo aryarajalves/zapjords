@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from sqlalchemy.orm import Session
 import models
@@ -120,3 +120,98 @@ async def test_retry_failed_template_message(mock_get_cw, db_session: Session):
     assert updated_msg.meta_data.get("status") == "sent"
     assert "failure_reason" not in updated_msg.meta_data
     assert updated_msg.meta_data.get("can_retry") is False
+
+
+@pytest.mark.asyncio
+async def test_retry_failed_template_with_edited_payload(db_session, monkeypatch):
+    """
+    Testa o reenvio de template com edição de dados (payload com novos components e variáveis).
+    Valida se as novas variáveis substituem o texto e o status é atualizado para 'sent'.
+    """
+    client = models.Client(name="Cliente Edit Retry")
+    db_session.add(client)
+    db_session.commit()
+    db_session.refresh(client)
+
+    convo = models.ChatConversation(
+        client_id=client.id,
+        phone="5522981820807",
+        contact_name="Lucas Jordão",
+        status="open"
+    )
+    db_session.add(convo)
+    db_session.commit()
+    db_session.refresh(convo)
+
+    # Cache do template com variável {{1}}
+    tpl_cache = models.WhatsAppTemplateCache(
+        id=99887766,
+        client_id=client.id,
+        name="recuperacao_responderdepois_kanban",
+        language="pt_BR",
+        category="MARKETING",
+        body="Fala {{1}} tudo bem? Tive um volume imenso de pessoas para responder..."
+    )
+    db_session.add(tpl_cache)
+    db_session.commit()
+
+    # Mensagem com erro de parâmetros (#132000)
+    failed_msg = models.ChatMessage(
+        conversation_id=convo.id,
+        sender_type="user",
+        message_type="text",
+        content="Fala 5522981820807 tudo bem? Tive um volume imenso de pessoas para responder...",
+        wa_message_id="wamid.PARAM_ERROR",
+        meta_data={
+            "is_template": True,
+            "template_name": "recuperacao_responderdepois_kanban",
+            "status": "failed",
+            "failure_reason": "(#132000) Number of parameters does not match the expected number of params",
+            "can_retry": True
+        }
+    )
+    db_session.add(failed_msg)
+    db_session.commit()
+    db_session.refresh(failed_msg)
+
+    # Mock do cliente de WhatsApp
+    mock_cw = MagicMock()
+    mock_cw.send_template = AsyncMock(return_value={"messages": [{"id": "wamid.RETRY_EDITED_999"}]})
+    monkeypatch.setattr("routers.chat.message_template_routes._get_cw_client", lambda client_id: mock_cw)
+
+    mock_user = MagicMock()
+    mock_user.id = 1
+
+    # Payload editado com parâmetro corrigido 'Lucas'
+    payload_edit = {
+        "template_name": "recuperacao_responderdepois_kanban",
+        "language": "pt_BR",
+        "components": [
+            {
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": "Lucas"}
+                ]
+            }
+        ]
+    }
+
+    res = await retry_failed_template_message(
+        conversation_id=convo.id,
+        message_id=failed_msg.id,
+        payload=payload_edit,
+        client_id=client.id,
+        current_user=mock_user,
+        db=db_session
+    )
+
+    assert res["status"] == "ok"
+    assert res["wa_message_id"] == "RETRY_EDITED_999"
+
+    # Verificar banco de dados
+    updated_msg = db_session.query(models.ChatMessage).filter(models.ChatMessage.id == failed_msg.id).first()
+    assert updated_msg.meta_data.get("status") == "sent"
+    assert updated_msg.meta_data.get("can_retry") is False
+    assert "failure_reason" not in updated_msg.meta_data
+    # Deve ter recalculado o conteúdo com a variável corrigida
+    assert "Fala Lucas tudo bem?" in updated_msg.content
