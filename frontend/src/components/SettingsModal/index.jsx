@@ -17,6 +17,7 @@ import AdvancedTab from './tabs/AdvancedTab';
 import ApiKeysTab from './tabs/ApiKeysTab';
 import LabelsTab from './tabs/LabelsTab';
 import QuickMessagesTab from './tabs/QuickMessagesTab';
+import AICopilotTab from './tabs/AICopilotTab';
 
 const SettingsModal = ({ isOpen, onClose, onSaved }) => {
     const logic = useSettingsLogic(isOpen, onClose, onSaved);
@@ -131,6 +132,13 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                                     label="Mensagens Rápidas" 
                                     icon={FiZap} 
                                 />
+                                <TabButton 
+                                    id="ai_copilot" 
+                                    activeTab={logic.activeTab} 
+                                    onClick={logic.setActiveTab} 
+                                    label="Inteligência Artificial" 
+                                    icon={FiCpu} 
+                                />
                             </>
                         )}
                     </div>
@@ -153,7 +161,7 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                     {/* Header da Área de Conteúdo */}
                     <div className="px-4 py-2.5 md:px-6 md:py-4 flex items-center justify-between border-b border-gray-100 dark:border-white/5 bg-white dark:bg-[#1e293b] shrink-0">
                         <span className="text-[11px] md:text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                            Aba Ativa: {logic.activeTab === 'geral' ? 'Básico' : logic.activeTab === 'whatsapp' ? 'WhatsApp' : logic.activeTab === 'instagram' ? 'Instagram' : logic.activeTab === 'advanced' ? 'Avançado' : logic.activeTab === 'api_tokens' ? 'Tokens de API' : logic.activeTab === 'marcadores' ? 'Marcadores' : 'Mensagens Rápidas'}
+                            Aba Ativa: {logic.activeTab === 'geral' ? 'Básico' : logic.activeTab === 'whatsapp' ? 'WhatsApp' : logic.activeTab === 'instagram' ? 'Instagram' : logic.activeTab === 'advanced' ? 'Avançado' : logic.activeTab === 'api_tokens' ? 'Tokens de API' : logic.activeTab === 'marcadores' ? 'Marcadores' : logic.activeTab === 'ai_copilot' ? 'Inteligência Artificial' : 'Mensagens Rápidas'}
                         </span>
                         <button
                             type="button"
@@ -281,6 +289,10 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                                 activeClient={logic.activeClient}
                             />
                         )}
+
+                        {logic.activeTab === 'ai_copilot' && (
+                            <AICopilotTab />
+                        )}
                     </div>
 
                     {/* Footer Actions */}
@@ -290,9 +302,9 @@ const SettingsModal = ({ isOpen, onClose, onSaved }) => {
                             onClick={onClose}
                             className="px-3.5 py-2 md:px-5 md:py-2.5 text-xs md:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors cursor-pointer"
                         >
-                            {['api_tokens', 'marcadores', 'mensagens_rapidas'].includes(logic.activeTab) ? 'Fechar' : 'Cancelar'}
+                            {['api_tokens', 'marcadores', 'mensagens_rapidas', 'ai_copilot'].includes(logic.activeTab) ? 'Fechar' : 'Cancelar'}
                         </button>
-                        {!['api_tokens', 'marcadores', 'mensagens_rapidas'].includes(logic.activeTab) && (
+                        {!['api_tokens', 'marcadores', 'mensagens_rapidas', 'ai_copilot'].includes(logic.activeTab) && (
                             <button
                                 type="submit"
                                 disabled={logic.loading}

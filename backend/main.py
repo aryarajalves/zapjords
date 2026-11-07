@@ -80,7 +80,8 @@ from routers import (
     crm_stage_order,  # Reordenação de Colunas do Kanban via Drag & Drop
     crm_products,     # Catálogo de Produtos do CRM
     infrastructure,   # Infraestrutura & Recursos do Servidor
-    team_performance  # Desempenho da equipe e métricas de vendedores
+    team_performance, # Desempenho da equipe e métricas de vendedores
+    ai_copilot        # Copiloto de Atendimento e Vendas com IA
 )
 
 # Webhooks de entrada (sistemas externos, gestão de eventos)
@@ -364,6 +365,7 @@ app.include_router(crm.router, prefix="/api")
 app.include_router(crm_stage_order.router, prefix="/api")
 app.include_router(crm_products.router, prefix="/api")
 app.include_router(infrastructure.router, prefix="/api")
+app.include_router(ai_copilot.router, prefix="/api/ai", tags=["AI Copilot"])
 
 # --- Fim dos Webhooks ---
 

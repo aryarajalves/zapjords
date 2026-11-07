@@ -35,6 +35,10 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 07/11/2026 | Prompts de IA Personalizáveis por Produto / Contexto | i_prompt_presets | Tabela nova completa (id, client_id, 
+ame, product_identifier, prompt_text, is_default, created_at, updated_at) | ackend/add_ai_prompt_presets_table.py |
+| 07/11/2026 | Copiloto de Atendimento com IA & Financeiro de Tokens | i_usage_logs | Tabela nova completa (id, client_id, user_id, conversation_id, contact_phone, contact_name, model, prompt_tokens, completion_tokens, 	otal_tokens, cost_usd, cost_brl, question_preview, 
+esponse_preview, created_at) | ackend/add_ai_copilot_tables.py |
 | 03/11/2026 | Suporte ao @ do Instagram do Contato no Chat e Leads | chat_conversations, webhook_leads | instagram (VARCHAR(100) NULL, INDEXADO) | ackend/scripts/database/add_instagram_to_conversations_and_leads.py |
 | 02/11/2026 | Métricas e Analytics de E-mail Marketing (Taxa de Abertura e Cliques) | `email_dispatches` | `total_opened` (INTEGER DEFAULT 0), `total_clicks` (INTEGER DEFAULT 0), `analytics_data` (JSON/JSONB DEFAULT '{}') | `backend/add_email_analytics_columns.py` |
 | 31/10/2026 | Suporte a Bloqueio de E-mail na Blacklist (Descadastro Cirúrgico) | `blocked_contacts` | `email` (VARCHAR(255) NULL, INDEXADO), `phone` ajustado para nullable | `backend/scripts/database/add_email_to_blocked_contacts.py` |
@@ -129,6 +133,7 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 | 21/07/2026 | Página de Captura e Checkout Presell | `checkout_configs`, `checkout_leads` | Tabelas completas de configuração e leads capturados | `backend/create_checkout_presell_tables.py` |
 | 21/07/2026 | Título da Aba do Navegador no Checkout | `checkout_configs` | `page_tab_title` | `sync_postgres_schema.py` |
 | 23/10/2026 | Ações de Kanban de Vendas em Gatilhos de Webhook | `webhook_event_mappings` | `kanban_active`, `kanban_pipeline_id`, `kanban_stage_id`, `kanban_product_name`, `kanban_value`, `kanban_lost_reason` | `backend/scripts/database/add_kanban_to_webhook_mappings.py` |
+| 07/11/2026 | Sistema de Copiloto de IA e Métricas Financeiras | `ai_usage_logs` | Tabela nova completa (`client_id`, `user_id`, `conversation_id`, `contact_phone`, `contact_name`, `model`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`, `cost_brl`, `question_preview`, `response_preview`, `created_at`) | `backend/add_ai_copilot_tables.py` |
 
 
 

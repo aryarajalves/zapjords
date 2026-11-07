@@ -40,9 +40,13 @@ from .verification_code import EmailVerificationCode
 from .password_reset_token import PasswordResetToken
 from .crm import SalesPipeline, SalesPipelineStage, SalesDeal, CRMProduct
 from .infrastructure import InfrastructureAlertConfig, InfrastructurePeakLog
+from .ai_usage import AIUsageLog
+from .ai_prompt_preset import AIPromptPreset
 
 # This allows importing all models from the models package
 __all__ = [
+    "AIPromptPreset",
+    "AIUsageLog",
     "Base",
     "user_clients",
     "User",
@@ -104,4 +108,3 @@ __all__ = [
     "ChatMessage",
     "QuickMessage",
 ]
-

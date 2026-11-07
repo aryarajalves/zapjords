@@ -518,3 +518,14 @@ ead).
   - Ao salvar via endpoint `PATCH /chat/conversations/{id}/instagram`, o valor é atualizado na conversa selecionada, replicado para todas as demais conversas do mesmo número de telefone no cliente e sincronizado diretamente no cadastro do lead em `webhook_leads`.
   - Dispara evento `contact-instagram-updated` no navegador para que outros componentes e abas atualizem o dado em tempo real sem necessidade de reload de página.
 
+
+
+### 23. Copiloto de Atendimento Comercial com IA & Prompts por Produto
+- **Objetivo**: Auxiliar o time comercial e atendentes a responder contatos no WhatsApp com contexto rico (Histórico recente, Janela de 24h, Pipelines/Estágios do Kanban de Vendas, @ do Instagram e Notas Internas).
+- **Múltiplos Prompts por Produto**:
+    - Cada cliente pode cadastrar múltiplos prompts personalizados vinculados a produtos ou objetivos específicos (ex: 'Geral', 'Produto X', 'Mentoria', etc).
+    - O atendente pode alternar no seletor de produtos diretamente na janela do chat flutuante, aplicando imediatamente o prompt específico do produto para a resposta.
+- **Visualização Expandida (Editor Maximizado)**:
+    - O editor de prompts nas configurações possui modo tela cheia/maximizado com backdrop escuro e foco de edição amplo.
+- **Rastreabilidade e Financeiro**:
+    - Toda resposta gerada registra tokens de entrada/saída e custos calculados em USD e BRL na tabela i_usage_logs.
