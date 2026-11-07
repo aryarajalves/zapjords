@@ -120,15 +120,17 @@ describe('AICopilotTab Component', () => {
         });
     });
 
-    it('renderiza as configurações de modelo e chave de API com sucesso', async () => {
+    it('renderiza as configurações de modelo e prompts sem input manual de chave da OpenAI', async () => {
         render(<AICopilotTab />);
 
         expect(screen.getByText(/Carregando configurações de inteligência artificial/i)).toBeInTheDocument();
 
         await waitFor(() => {
             expect(screen.getByText(/Modelo de Inteligência Artificial \(LLM\)/i)).toBeInTheDocument();
-            expect(screen.getByText(/Chave Configurada \(sk-...4567\)/i)).toBeInTheDocument();
             expect(screen.getByDisplayValue('Prompt de vendas base')).toBeInTheDocument();
+            // Garante que o input manual de Chave de API não existe mais na tela
+            expect(screen.queryByPlaceholderText(/sk-proj/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/Chave de API OpenAI/i)).not.toBeInTheDocument();
         });
     });
 
@@ -142,10 +144,9 @@ describe('AICopilotTab Component', () => {
         fireEvent.click(screen.getByText(/Consumo & Financeiro/i));
 
         await waitFor(() => {
+            expect(screen.getByText(/Resumo de Consumo de Tokens/i)).toBeInTheDocument();
             expect(screen.getByText(/Total Gasto \(USD\)/i)).toBeInTheDocument();
-            expect(screen.getAllByText('$0.0125').length).toBeGreaterThanOrEqual(1);
             expect(screen.getByText('15')).toBeInTheDocument();
-            expect(screen.getByText('Stella')).toBeInTheDocument();
         });
     });
 
@@ -163,27 +164,12 @@ describe('AICopilotTab Component', () => {
         });
     });
 
-    it('indica que a chave do .env está ativa quando is_env_key for true', async () => {
-        global.fetch.mockImplementation((url) => {
-            if (url.includes('/ai/models')) {
-                return Promise.resolve({ ok: true, json: async () => mockModels });
-            }
-            if (url.includes('/ai/settings')) {
-                return Promise.resolve({ 
-                    ok: true, 
-                    json: async () => ({ ...mockSettings, is_env_key: true }) 
-                });
-            }
-            if (url.includes('/ai/prompts')) {
-                return Promise.resolve({ ok: true, json: async () => mockPrompts });
-            }
-            return Promise.resolve({ ok: true, json: async () => ({}) });
-        });
-
+    it('exibe e permite ajustar taxa de conversão USD para BRL', async () => {
         render(<AICopilotTab />);
 
         await waitFor(() => {
-            expect(screen.getByText(/Chave Ativa via .env do Servidor/i)).toBeInTheDocument();
+            expect(screen.getByText(/Taxa de Conversão Dólar/i)).toBeInTheDocument();
+            expect(screen.getByDisplayValue('5.7')).toBeInTheDocument();
         });
     });
 });

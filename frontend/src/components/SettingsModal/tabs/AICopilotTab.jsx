@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    FiSave, FiDollarSign, FiCheck, FiEye, FiEyeOff,
+    FiSave, FiDollarSign, FiCheck,
     FiRefreshCw, FiSliders
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -18,11 +18,6 @@ export default function AICopilotTab() {
     // Estados de Modelos & Conexão
     const [models, setModels] = useState([]);
     const [selectedModel, setSelectedModel] = useState('gpt-6.1-sol');
-    const [apiKey, setApiKey] = useState('');
-    const [hasApiKey, setHasApiKey] = useState(false);
-    const [isEnvKey, setIsEnvKey] = useState(false);
-    const [maskedApiKey, setMaskedApiKey] = useState('');
-    const [showApiKey, setShowApiKey] = useState(false);
     const [temperature, setTemperature] = useState(0.7);
     const [usdToBrl, setUsdToBrl] = useState(5.70);
     const isReasoningModel = selectedModel.includes('gpt-5') || selectedModel.includes('gpt-6');
@@ -68,9 +63,6 @@ export default function AICopilotTab() {
             if (resSettings.ok) {
                 const dataS = await resSettings.json();
                 setSelectedModel(dataS.model || 'gpt-6.1-sol');
-                setHasApiKey(dataS.has_api_key);
-                setIsEnvKey(Boolean(dataS.is_env_key));
-                setMaskedApiKey(dataS.masked_api_key || '');
                 setDefaultPromptBase(dataS.default_prompt || '');
                 setTemperature(dataS.temperature ?? 0.7);
                 setUsdToBrl(dataS.usd_to_brl ?? 5.70);
@@ -123,9 +115,6 @@ export default function AICopilotTab() {
                 usd_to_brl: Number(usdToBrl)
             };
 
-            if (apiKey.trim()) {
-                payload.api_key = apiKey.trim();
-            }
 
             const res = await fetchWithAuth(`${API_URL}/ai/settings`, {
                 method: 'POST',
@@ -149,10 +138,6 @@ export default function AICopilotTab() {
             if (res.ok) {
                 const updated = await res.json();
                 toast.success('Configurações de IA salvas com sucesso!');
-                setApiKey('');
-                setHasApiKey(updated.has_api_key);
-                setIsEnvKey(Boolean(updated.is_env_key));
-                setMaskedApiKey(updated.masked_api_key || '');
             } else {
                 const errData = await res.json();
                 toast.error(errData.detail || 'Falha ao salvar configurações.');
@@ -226,42 +211,6 @@ export default function AICopilotTab() {
                                 </div>
                             );
                         })()}
-                    </div>
-
-                    {/* Chave de API OpenAI */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                Chave de API OpenAI (sk-...)
-                            </label>
-                            {hasApiKey && (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                                    <FiCheck size={12} />
-                                    {isEnvKey ? 'Chave Ativa via .env do Servidor' : `Chave Configurada (${maskedApiKey})`}
-                                </span>
-                            )}
-                        </div>
-                        <div className="relative">
-                            <input
-                                type={showApiKey ? 'text' : 'password'}
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                placeholder={hasApiKey ? (isEnvKey ? 'Chave do .env ativa (digite para sobrescrever)...' : 'Digite para alterar a chave atual...') : 'sk-proj-...'}
-                                className="w-full px-4 py-2.5 pr-10 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowApiKey(!showApiKey)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                            >
-                                {showApiKey ? <FiEyeOff size={16} /> : <FiEye size={16} />}
-                            </button>
-                        </div>
-                        {isEnvKey && (
-                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                ✨ A chave configurada no arquivo <code className="font-mono bg-emerald-500/10 px-1 py-0.5 rounded">.env</code> do servidor já está ativa por padrão.
-                            </p>
-                        )}
                     </div>
 
                     {/* Gerenciador de Prompts por Produto com Maximizar */}

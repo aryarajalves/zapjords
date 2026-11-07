@@ -141,8 +141,8 @@ DIRETRIZES FUNDAMENTAIS:
    - Se a Janela de 24h estiver ABERTA, sugira mensagens diretas, perguntas de engajamento ou quebra de objeções.
    - Se a Janela de 24h estiver FECHADA, lembre o atendente de que no WhatsApp Oficial apenas Templates HSM aprovados podem iniciar o contato.
 4. Estrutura de Retorno:
-   - Sempre forneça uma mensagem pronta entre aspas ou bloco para o vendedor apenas copiar e enviar.
-   - Inclua uma dica rápida (1 a 2 linhas) explicando a psicologia da abordagem de venda adotada.
+   - Sempre forneça a mensagem pronta para envio delimitada claramente entre aspas duplas "..." ou em bloco de citação (>), sem misturar com suas explicações.
+   - Qualquer orientação ou psicologia de venda deve vir estritamente ao final, precedida por "**Dica:**" em um parágrafo separado.
 5. Foco em Fechamento: Conduza suavemente para o próximo passo (ex: tirar dúvidas, agendar reunião, enviar link de pagamento ou validar interesse)."""
 
 def calculate_token_cost(model_id: str, prompt_tokens: int, completion_tokens: int, usd_to_brl: float = DEFAULT_USD_TO_BRL) -> Tuple[float, float]:

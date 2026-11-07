@@ -9,6 +9,7 @@ import { fetchWithAuth } from '../../AuthContext';
 import { API_URL } from '../../config';
 import { useClient } from '../../contexts/ClientContext';
 import FloatingAIChatMessages from './FloatingAIChatMessages';
+import { extractCleanMessageToSend } from './aiMessageExtractor';
 
 export default function FloatingAIChat({ selectedConvo, onInsertMessage }) {
     if (!selectedConvo) return null;
@@ -139,11 +140,7 @@ export default function FloatingAIChat({ selectedConvo, onInsertMessage }) {
     };
 
     const handleCopy = (text, idx) => {
-        let cleanText = text;
-        const match = text.match(/"([^"]+)"/);
-        if (match && match[1].length > 10) {
-            cleanText = match[1];
-        }
+        const cleanText = extractCleanMessageToSend(text);
         navigator.clipboard.writeText(cleanText);
         setCopiedIndex(idx);
         toast.success('Resposta copiada para a área de transferência!');
@@ -151,11 +148,7 @@ export default function FloatingAIChat({ selectedConvo, onInsertMessage }) {
     };
 
     const handleInsert = (text) => {
-        let cleanText = text;
-        const match = text.match(/"([^"]+)"/);
-        if (match && match[1].length > 10) {
-            cleanText = match[1];
-        }
+        const cleanText = extractCleanMessageToSend(text);
         if (onInsertMessage) {
             onInsertMessage(cleanText);
             toast.success('Inserido na caixa de mensagem do chat!');
