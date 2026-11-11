@@ -147,7 +147,7 @@ ENABLE_DOCS = os.getenv("ENABLE_DOCS", "false").lower() == "true"
 
 app = FastAPI(
     title="ZapVoice - API Oficial de Automação & Mensageria",
-    version="2.2.4",
+    version="2.2.5",
     docs_url="/docs" if ENABLE_DOCS else None,
     redoc_url="/redoc" if ENABLE_DOCS else None,
     openapi_url="/openapi.json" if ENABLE_DOCS else None,
