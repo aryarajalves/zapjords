@@ -63,9 +63,12 @@ async def execute_webhook_resend_logic(
 
     # Encontrar mapeamentos correspondentes
     detected_feedback = parsed_data.get("feedback_filter_detected")
+    search_events = list(set([event_type, normalize_event_type(event_type), normalize_event_type(event_type).replace("_", " "), normalize_event_type(event_type).replace(" ", "_")]))
+    if event_type in ("inscricao", "inscrição"):
+        search_events.extend(["inscricao", "inscrição"])
     all_mappings = db.query(models.WebhookEventMapping).filter(
         models.WebhookEventMapping.integration_id == integration.id,
-        models.WebhookEventMapping.event_type.in_(list(set([event_type, normalize_event_type(event_type), normalize_event_type(event_type).replace("_", " "), normalize_event_type(event_type).replace(" ", "_")])))
+        models.WebhookEventMapping.event_type.in_(search_events)
     ).all()
     
     # Fallback para mapeamento 'outros' se não houver mapeamento específico

@@ -18,6 +18,7 @@ export function useIntegrations(activeClient) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState(null);
   const [bulkResendProgress, setBulkResendProgress] = useState(null);
+  const [pinningId, setPinningId] = useState(null);
 
   const [leadTags, setLeadTags] = useState([]);
   const [formData, setFormData] = useState({
@@ -245,6 +246,38 @@ export function useIntegrations(activeClient) {
     }
   };
 
+  const handleTogglePin = async (integration) => {
+    if (!integration || !activeClient) return;
+    const isCurrentlyPinned = Boolean(integration.is_pinned);
+    const pinnedCount = (integrations || []).filter(i => i.is_pinned).length;
+    if (!isCurrentlyPinned && pinnedCount >= 5) {
+      toast.error('Você já atingiu o limite de 5 integrações fixadas no topo.');
+      return;
+    }
+
+    setPinningId(integration.id);
+    try {
+      const res = await fetchWithAuth(
+        `${API_URL}/webhook-integrations/${integration.id}/pin`,
+        { method: 'PATCH' },
+        activeClient.id
+      );
+      if (res.ok) {
+        const updated = await res.json();
+        toast.success(updated.is_pinned ? 'Integração fixada no topo!' : 'Integração desafixada do topo.');
+        await fetchIntegrations(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.detail || 'Erro ao alterar fixação da integração.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro de conexão ao fixar integração.');
+    } finally {
+      setPinningId(null);
+    }
+  };
+
   const openNewModal = () => {
     setEditingIntegration(null);
     setFormData({
@@ -315,6 +348,8 @@ export function useIntegrations(activeClient) {
     fetchIntegrations,
     handleSaveIntegration,
     handleDeleteIntegration,
+    handleTogglePin,
+    pinningId,
     openNewModal,
     openEditModal,
     leadTags,

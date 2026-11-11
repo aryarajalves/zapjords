@@ -8,7 +8,7 @@ import models
 from core.deps import get_db, get_current_user
 from core.logger import setup_logger
 from config_loader import get_setting
-from .common import get_client_id, ResendAgentFlowPayload, ReactRequest
+from .common import get_client_id, ResendAgentFlowPayload, ReactRequest, mark_conversation_read_for_all
 
 logger = setup_logger("ChatRouter.Messages.Actions")
 
@@ -217,7 +217,43 @@ async def react_to_message(
             flag_modified(msg_obj, "meta_data")
             db.commit()
 
-        return {"status": "success", "response": res, "message_id": target_wamid, "emoji": payload.emoji}
+        # Ao adicionar uma reação à mensagem, marca a conversa como lida
+        convo = None
+        if msg_obj and getattr(msg_obj, "conversation_id", None):
+            convo = db.query(models.ChatConversation).filter(
+                models.ChatConversation.id == msg_obj.conversation_id
+            ).first()
+        if not convo and payload.phone:
+            convo = db.query(models.ChatConversation).filter(
+                models.ChatConversation.client_id == client_id,
+                models.ChatConversation.phone == payload.phone
+            ).first()
+
+        if payload.emoji and convo:
+            mark_conversation_read_for_all(convo)
+            db.commit()
+            logger.info(f"📖 [REACT_READ] Conversa #{convo.id} ({payload.phone}) marcada como lida devido à reação enviada.")
+            try:
+                from rabbitmq_client import rabbitmq
+                await rabbitmq.publish_event("conversation_updated", {
+                    "id": convo.id,
+                    "client_id": client_id,
+                    "unread_count": 0,
+                    "user_read_states": {},
+                    "last_message_content": convo.last_message_content,
+                    "last_message_at": convo.last_message_at.isoformat() if convo.last_message_at else None
+                })
+            except Exception as e_up:
+                logger.error(f"Erro no broadcast de conversation_updated na reação: {e_up}")
+
+        return {
+            "status": "success",
+            "response": res,
+            "message_id": target_wamid,
+            "emoji": payload.emoji,
+            "conversation_id": convo.id if convo else None,
+            "unread_count": 0 if (payload.emoji and convo) else (convo.unread_count if convo else 0)
+        }
     except Exception as e:
         logger.error(f"❌ [REACT] Erro ao enviar reação: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao enviar reação: {str(e)}")

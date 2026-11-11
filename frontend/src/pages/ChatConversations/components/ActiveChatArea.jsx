@@ -78,6 +78,7 @@ export default function ActiveChatArea({
                         isChatMaximized={isChatMaximized}
                         setIsChatMaximized={setIsChatMaximized}
                         onOpenCrm={() => setIsCrmModalOpen(true)}
+                        setShowTemplateModal={setShowTemplateModal}
                     />
 
                     <ActiveChatBanner

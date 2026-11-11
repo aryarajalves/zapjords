@@ -175,6 +175,10 @@ Abaixo, detalho cada tela identificada no sistema e as dúvidas que precisamos s
 
 ### 3. Integrações Webhook (`integrations`)
 - **Propósito**: Configurar o recebimento de dados de plataformas externas.
+- **Fixação de Integrações no Topo (`is_pinned`)**:
+    - O usuário pode fixar até 5 integrações de webhook no topo da tabela de integrações.
+    - Tentativas de fixar mais de 5 integrações devem ser rejeitadas com erro amigável (`HTTP 400`: "Você já atingiu o limite de 5 integrações fixadas no topo.").
+    - As integrações fixadas são priorizadas na ordenação, ordenadas da mais recentemente fixada para a mais antiga (`pinned_at.desc()`), seguidas pelas integrações não fixadas por ordem de criação (`created_at.asc()`).
 - **Dúvidas UI/UX**:
     - [x] Devemos ter um "Testador de Webhook" integrado que simula um payload para validar se o funil dispara corretamente?
         - **Resposta**: Já existe um botão "Testar" que cumpre essa função.

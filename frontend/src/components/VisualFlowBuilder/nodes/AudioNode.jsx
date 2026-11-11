@@ -174,11 +174,12 @@ const AudioNode = ({ id, data }) => {
                                     <VariableSelector onSelect={(v) => data.onChange(id, { ...data, privateNoteContent: (data.privateNoteContent || '') + v })} />
                                 </div>
                                 <textarea
-                                    className="w-full text-xs p-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none nodrag"
+                                    className="w-full text-xs p-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none nodrag nopan nowheel"
                                     rows={3}
                                     placeholder="Conteúdo da nota privada..."
                                     value={data.privateNoteContent || ''}
                                     onChange={(e) => data.onChange(id, { ...data, privateNoteContent: e.target.value })}
+                                    onWheel={(e) => e.stopPropagation()}
                                 />
                             </div>
                         )}

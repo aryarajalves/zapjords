@@ -270,6 +270,20 @@ export function useChatMessagesFetch({
       });
     });
 
+    // Ao reagir a uma mensagem do usuário, zera a contagem de não lidas da conversa
+    if (emoji) {
+      if (typeof setSelectedConvo === 'function') {
+        setSelectedConvo(prev => (prev ? { ...prev, unread_count: 0 } : prev));
+      }
+      if (typeof setConversations === 'function') {
+        setConversations(prev => (
+          Array.isArray(prev)
+            ? prev.map(c => (Number(c.id) === Number(selectedConvo?.id) ? { ...c, unread_count: 0 } : c))
+            : prev
+        ));
+      }
+    }
+
     try {
       const res = await fetchWithAuth(`${API_URL}/chat/react`, {
         method: 'POST',

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FiCopy, FiCheck, FiActivity, FiPlay, FiZap, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import { toast } from 'react-hot-toast';
 import { WEBHOOK_BASE_URL } from '../../../config';
 
@@ -20,7 +21,9 @@ export default function IntegrationsTable({
   onOpenDispatchHistory,
   onOpenTestModal,
   onOpenEditModal,
-  onOpenDeleteModal
+  onOpenDeleteModal,
+  onTogglePin,
+  pinningId
 }) {
   const [copiedId, setCopiedId] = useState(null);
 
@@ -81,18 +84,57 @@ export default function IntegrationsTable({
             <tr><td colSpan="6" className="px-8 py-20 text-center text-gray-500 italic">Nenhuma integração encontrada.</td></tr>
           ) : paginatedIntegrations.map((item) => {
             const isRecentlyUpdated = Boolean(recentUpdatedIntegrationIds && recentUpdatedIntegrationIds.has(String(item.id)));
+            const isPinned = Boolean(item.is_pinned);
+            const isPinningThis = pinningId === item.id;
             return (
             <tr key={item.id} className={`transition-all group ${
               isRecentlyUpdated
                 ? 'bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06]'
+                : isPinned
+                ? 'bg-amber-500/[0.025] dark:bg-amber-500/[0.04] hover:bg-amber-500/[0.05]'
                 : 'hover:bg-gray-50 dark:hover:bg-white/[0.01]'
             }`}>
               <td className="px-4 py-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold text-xs shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePin?.(item);
+                    }}
+                    disabled={isPinningThis}
+                    title={isPinned ? "Desafixar do topo" : "Fixar no topo (máximo 5)"}
+                    aria-label={isPinned ? "Desafixar do topo" : "Fixar no topo"}
+                    className={`p-1.5 rounded-lg transition-all shrink-0 cursor-pointer active:scale-90 ${
+                      isPinned
+                        ? 'text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 shadow-sm shadow-amber-400/10'
+                        : 'text-gray-400 hover:text-amber-400 hover:bg-white/5 opacity-50 hover:opacity-100'
+                    }`}
+                  >
+                    {isPinningThis ? (
+                      <span className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin inline-block" />
+                    ) : isPinned ? (
+                      <BsPinAngleFill size={14} className="text-amber-400" />
+                    ) : (
+                      <BsPinAngle size={14} />
+                    )}
+                  </button>
+
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold text-xs shrink-0 relative">
                     {(item.name || '?').charAt(0).toUpperCase()}
+                    {isPinned && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-gray-900" title="Fixado no topo" />
+                    )}
                   </div>
-                  <span className="font-bold text-sm text-gray-900 dark:text-white whitespace-nowrap">{item.name}</span>
+
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-sm text-gray-900 dark:text-white whitespace-nowrap">{item.name}</span>
+                    {isPinned && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                        Fixado
+                      </span>
+                    )}
+                  </div>
                 </div>
               </td>
               <td className="px-4 py-4">
@@ -168,6 +210,23 @@ export default function IntegrationsTable({
                     className="shrink-0 text-[9px] font-black bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-md hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1 uppercase tracking-tighter whitespace-nowrap cursor-pointer"
                   >
                     <FiZap size={10} fill="currentColor" /> Testar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePin?.(item);
+                    }}
+                    disabled={isPinningThis}
+                    className={`shrink-0 p-1 transition-all active:scale-90 cursor-pointer ${
+                      isPinned
+                        ? 'text-amber-400 hover:text-amber-300'
+                        : 'text-gray-400 hover:text-amber-400'
+                    }`}
+                    title={isPinned ? "Desafixar do topo" : "Fixar no topo (máximo 5)"}
+                    aria-label={isPinned ? "Desafixar do topo" : "Fixar no topo"}
+                  >
+                    {isPinned ? <BsPinAngleFill size={13} /> : <BsPinAngle size={13} />}
                   </button>
                   <button
                     onClick={() => onOpenEditModal(item)}

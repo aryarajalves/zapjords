@@ -9,6 +9,8 @@ vi.mock('react-icons/fi', () => ({
     FiRefreshCw: () => <span data-testid="icon-refresh" />,
     FiFileText: () => <span data-testid="icon-file-text" />,
     FiMusic: () => <span data-testid="icon-music" />,
+    FiMaximize2: () => <span data-testid="icon-maximize" />,
+    FiMinimize2: () => <span data-testid="icon-minimize" />,
 }));
 
 describe('MediaPreviewModal', () => {
@@ -110,6 +112,77 @@ describe('MediaPreviewModal', () => {
         );
 
         fireEvent.click(screen.getByRole('button', { name: /Enviar/i }));
+        expect(onSend).toHaveBeenCalledTimes(1);
+    });
+
+    it('permite maximizar o campo de legenda para textarea e minimizar novamente', () => {
+        const mediaPreview = {
+            messageType: 'image',
+            localUrl: 'blob:http://localhost/fake-img',
+            file: new File(['fake'], 'foto.jpg', { type: 'image/jpeg' }),
+        };
+
+        render(
+            <MediaPreviewModal
+                mediaPreview={mediaPreview}
+                previewCaption="Texto inicial da legenda"
+                setPreviewCaption={vi.fn()}
+                isSendingMedia={false}
+                onClose={vi.fn()}
+                onSend={vi.fn()}
+            />
+        );
+
+        // No estado compacto, deve renderizar o input de texto
+        const inputCompacto = screen.getByDisplayValue('Texto inicial da legenda');
+        expect(inputCompacto.tagName).toBe('INPUT');
+
+        // Clica no botão de Maximizar
+        const maximizeBtns = screen.getAllByRole('button', { name: /maximizar/i });
+        expect(maximizeBtns.length).toBeGreaterThan(0);
+        fireEvent.click(maximizeBtns[0]);
+
+        // Agora deve renderizar um textarea com a legenda
+        const textareaExpandido = screen.getByDisplayValue('Texto inicial da legenda');
+        expect(textareaExpandido.tagName).toBe('TEXTAREA');
+        expect(screen.getByText(/caracteres/i)).toBeInTheDocument();
+        expect(screen.getByText(/Ctrl \+ Enter/i)).toBeInTheDocument();
+
+        // Clica no botão de Minimizar
+        const minimizeBtns = screen.getAllByRole('button', { name: /minimizar/i });
+        expect(minimizeBtns.length).toBeGreaterThan(0);
+        fireEvent.click(minimizeBtns[0]);
+
+        // Volta a ser um input
+        const inputRestaurado = screen.getByDisplayValue('Texto inicial da legenda');
+        expect(inputRestaurado.tagName).toBe('INPUT');
+    });
+
+    it('dispara onSend com Ctrl + Enter no textarea maximizado', () => {
+        const onSend = vi.fn();
+        const mediaPreview = {
+            messageType: 'image',
+            localUrl: 'blob:http://localhost/fake-img',
+            file: new File(['fake'], 'foto.jpg', { type: 'image/jpeg' }),
+        };
+
+        render(
+            <MediaPreviewModal
+                mediaPreview={mediaPreview}
+                previewCaption="Texto para enviar"
+                setPreviewCaption={vi.fn()}
+                isSendingMedia={false}
+                onClose={vi.fn()}
+                onSend={onSend}
+            />
+        );
+
+        // Maximizar
+        const maximizeBtn = screen.getAllByRole('button', { name: /maximizar/i })[0];
+        fireEvent.click(maximizeBtn);
+
+        const textarea = screen.getByDisplayValue('Texto para enviar');
+        fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
         expect(onSend).toHaveBeenCalledTimes(1);
     });
 });

@@ -1026,3 +1026,33 @@ def test_move_deal_same_stage_does_not_update_or_create_private_note(db_session)
 
     db.close()
 
+
+def test_process_webhook_lead_for_crm_accepts_platform_and_kwargs(db_session):
+    from services.crm_service import process_webhook_lead_for_crm
+    from models import SalesDeal
+
+    # Deve executar sem erros mesmo recebendo platform e kwargs extras
+    process_webhook_lead_for_crm(
+        db=db_session,
+        client_id=1,
+        phone="558598259497",
+        name="Aryaraj Teste",
+        email="aryaraj@teste.com",
+        product_name="Produto Teste",
+        event_type="inscricao",
+        value=150.0,
+        platform="outra",
+        extra_param_inexistente="teste"
+    )
+
+    deal = db_session.query(SalesDeal).filter(
+        SalesDeal.client_id == 1,
+        SalesDeal.contact_phone == "558598259497"
+    ).first()
+
+    assert deal is not None
+    assert deal.contact_name == "Aryaraj Teste"
+    assert deal.channel == "outra"
+    assert deal.value == 150.0
+
+

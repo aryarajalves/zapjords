@@ -129,9 +129,10 @@ const InputDataNode = ({ id, data }) => {
                     <textarea
                         placeholder="Ex: Qual é o seu e-mail para contato?"
                         rows={2}
-                        className="nodrag nopan w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-rose-500 outline-none border-gray-300 dark:border-gray-700 resize-none"
+                        className="nodrag nopan nowheel w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-rose-500 outline-none border-gray-300 dark:border-gray-700 resize-none"
                         value={question}
                         onChange={(e) => data.onChange(id, { question: e.target.value })}
+                        onWheel={(e) => e.stopPropagation()}
                     />
                 </div>
 
@@ -167,9 +168,10 @@ const InputDataNode = ({ id, data }) => {
                         <textarea
                             placeholder="Ex: Extraia o faturamento mensal e converta para número..."
                             rows={3}
-                            className="nodrag nopan w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-rose-500 outline-none border-gray-300 dark:border-gray-700 resize-none"
+                            className="nodrag nopan nowheel w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-rose-500 outline-none border-gray-300 dark:border-gray-700 resize-none"
                             value={aiInstructions}
                             onChange={(e) => data.onChange(id, { aiInstructions: e.target.value })}
+                            onWheel={(e) => e.stopPropagation()}
                         />
                     </div>
                 )}
@@ -240,9 +242,10 @@ const InputDataNode = ({ id, data }) => {
                     <textarea
                         placeholder="Ex: Ops, esse e-mail parece inválido. Pode digitar novamente?"
                         rows={2}
-                        className="nodrag nopan w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-rose-500 outline-none border-gray-300 dark:border-gray-700 resize-none"
+                        className="nodrag nopan nowheel w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-rose-500 outline-none border-gray-300 dark:border-gray-700 resize-none"
                         value={errorMessage}
                         onChange={(e) => data.onChange(id, { errorMessage: e.target.value })}
+                        onWheel={(e) => e.stopPropagation()}
                     />
                 </div>
             </div>

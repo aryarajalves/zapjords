@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiShare2, FiUser, FiMessageSquare, FiEdit2, FiCheck, FiX, FiLoader } from 'react-icons/fi';
+import { BsJournalText } from 'react-icons/bs';
 import { toast } from 'react-hot-toast';
 import { API_URL } from '../../../../config';
 import { fetchWithAuth } from '../../../../AuthContext';
@@ -12,6 +13,7 @@ export default function ContactProfileCard({
     handleClose24hWindow,
     getFirstName,
     onShareContact,
+    onOpenSendTemplate,
     userMessagesCount = 0,
     agentMessagesCount = 0,
     totalMessagesCount = 0,
@@ -231,20 +233,37 @@ export default function ContactProfileCard({
                 </div>
             </div>
 
-            {/* Botão de Compartilhar Contato (Estilo WhatsApp) */}
-            {onShareContact && (
-                <div className="pt-1 flex flex-col items-center">
-                    <button
-                        type="button"
-                        onClick={onShareContact}
-                        className="flex flex-col items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 group transition-all cursor-pointer"
-                        title="Compartilhar contato com outra conversa"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-300 group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-500 shadow-sm transition-all">
-                            <FiShare2 size={16} />
-                        </div>
-                        <span className="text-xs font-semibold">Compartilhar</span>
-                    </button>
+            {/* Ações Rápidas do Contato (Template e Compartilhar) */}
+            {(onOpenSendTemplate || onShareContact) && (
+                <div className="pt-2 flex items-center justify-center gap-6">
+                    {onOpenSendTemplate && (
+                        <button
+                            type="button"
+                            data-testid="contact-profile-send-template-btn"
+                            onClick={onOpenSendTemplate}
+                            className="flex flex-col items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 group transition-all cursor-pointer"
+                            title="Disparar Template Oficial do WhatsApp para este contato"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600 shadow-sm transition-all">
+                                <BsJournalText size={16} />
+                            </div>
+                            <span className="text-xs font-semibold">Template</span>
+                        </button>
+                    )}
+
+                    {onShareContact && (
+                        <button
+                            type="button"
+                            onClick={onShareContact}
+                            className="flex flex-col items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 group transition-all cursor-pointer"
+                            title="Compartilhar contato com outra conversa"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-300 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 shadow-sm transition-all">
+                                <FiShare2 size={16} />
+                            </div>
+                            <span className="text-xs font-semibold">Compartilhar</span>
+                        </button>
+                    )}
                 </div>
             )}
 

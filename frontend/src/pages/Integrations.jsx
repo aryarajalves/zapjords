@@ -30,7 +30,7 @@ export default function Integrations({
     integrations, setIntegrations, loading, templates, chatwootLabels, funnels, isModalOpen, setIsModalOpen,
     isSaving, editingIntegration, formData, setFormData, isDeleteModalOpen, setIsDeleteModalOpen,
     integrationToDelete, setIntegrationToDelete, bulkResendProgress, setBulkResendProgress,
-    fetchIntegrations, handleSaveIntegration, handleDeleteIntegration, openNewModal, openEditModal,
+    fetchIntegrations, handleSaveIntegration, handleDeleteIntegration, handleTogglePin, pinningId, openNewModal, openEditModal,
     leadTags,
     emailTemplates, emailFunnels
   } = useIntegrations(activeClient);
@@ -203,6 +203,8 @@ export default function Integrations({
           onOpenTestModal={(item) => { setIntegrationToTest(item); setIsTestModalOpen(true); }}
           onOpenEditModal={openEditModal}
           onOpenDeleteModal={(item) => { setIntegrationToDelete(item); setIsDeleteModalOpen(true); }}
+          onTogglePin={handleTogglePin}
+          pinningId={pinningId}
         />
       </div>
 

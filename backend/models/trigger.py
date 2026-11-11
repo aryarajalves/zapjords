@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON, Float, Text, BigInteger, event, Index
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON, Float, Text, BigInteger, event, Index, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.orm import relationship, backref, Session
 from sqlalchemy.sql import func
@@ -193,6 +193,7 @@ class WebhookIntegration(Base):
     __tablename__ = "webhook_integrations"
     __table_args__ = (
         Index("ix_webhook_integrations_client_status", "client_id", "status"),
+        Index("ix_webhook_integrations_client_pinned", "client_id", "is_pinned", "pinned_at"),
     )
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -207,6 +208,9 @@ class WebhookIntegration(Base):
     product_whitelist = Column(JSON().with_variant(JSONB, "postgresql"), default=list)
     discovered_products = Column(JSON().with_variant(JSONB, "postgresql"), default=list)
     upsell_products = Column(JSON().with_variant(JSONB, "postgresql"), default=list)
+    
+    is_pinned = Column(Boolean, default=False, nullable=False, server_default=text("false"))
+    pinned_at = Column(DateTime(timezone=True), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

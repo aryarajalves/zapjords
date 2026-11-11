@@ -49,8 +49,17 @@ export function useIntegrationsTableFilter(integrations = [], leadTags = []) {
     filteredIntegrations = filteredIntegrations.filter(i => (i.history_count || 0) > 0);
   }
 
-  // Ordenação por quantidade de histórico decrescente
+  // Ordenação: primeiro os fixados no topo (mais recentemente fixados primeiro), depois por quantidade de histórico decrescente
   const sortedIntegrations = [...filteredIntegrations].sort((a, b) => {
+    const isPinnedA = Boolean(a.is_pinned);
+    const isPinnedB = Boolean(b.is_pinned);
+    if (isPinnedA && !isPinnedB) return -1;
+    if (!isPinnedA && isPinnedB) return 1;
+    if (isPinnedA && isPinnedB) {
+      const timeA = a.pinned_at ? new Date(a.pinned_at).getTime() : 0;
+      const timeB = b.pinned_at ? new Date(b.pinned_at).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+    }
     const countA = a.history_count || 0;
     const countB = b.history_count || 0;
     return countB - countA;

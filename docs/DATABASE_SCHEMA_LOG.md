@@ -309,3 +309,28 @@ docker exec zapvoice_app python /app/scripts/database/add_bussola_invite_columns
 
 
 
+
+---
+
+## 📋 Migração: Fixar Integrações de Webhook no Topo (2026-11-11)
+
+**Tabela afetada:** `webhook_integrations`
+
+**Script:** `backend/scripts/add_is_pinned_to_webhook_integrations.py`
+
+**Novas colunas:**
+
+| Coluna | Tipo | Default | Descrição |
+|--------|------|---------|-----------|
+| `is_pinned` | `BOOLEAN` | `FALSE` | Indica se a integração de webhook está fixada no topo da lista (máximo de 5) |
+| `pinned_at` | `TIMESTAMP WITH TIME ZONE` | `NULL` | Data e hora em que a integração foi fixada para ordenação cronológica |
+
+**Novos índices:**
+- `ix_webhook_integrations_client_pinned` em `(client_id, is_pinned, pinned_at)`
+
+**Contexto:** Permite aos usuários fixar até 5 integrações de webhook no topo da tabela de integrações para acesso rápido e organização de fluxos prioritários.
+
+**Como aplicar em produção:**
+```bash
+docker exec zapvoice_app python /app/scripts/add_is_pinned_to_webhook_integrations.py
+```

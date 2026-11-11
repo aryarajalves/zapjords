@@ -302,7 +302,9 @@ def process_webhook_lead_for_crm(
     product_name: Optional[str] = None,
     event_type: Optional[str] = None,
     value: Optional[float] = 0.0,
-    lead_id: Optional[int] = None
+    lead_id: Optional[int] = None,
+    platform: Optional[str] = None,
+    **kwargs
 ):
     """
     Hook chamado após processamento de webhook de venda. Cria ou move o deal no pipeline correspondente.
@@ -368,6 +370,8 @@ def process_webhook_lead_for_crm(
                 existing.contact_email = email
             if lead_id:
                 existing.lead_id = lead_id
+            if platform and not getattr(existing, "channel", None):
+                existing.channel = platform
             existing.updated_at = datetime.now(timezone.utc)
         else:
             deal_val = float(value or 0.0) if (value and float(value) > 0) else float(pipe.default_value or 0.0)
@@ -379,6 +383,7 @@ def process_webhook_lead_for_crm(
                 contact_phone=digits,
                 contact_name=name or "Sem Nome",
                 contact_email=email,
+                channel=platform,
                 title=f"Oportunidade - {name or digits}",
                 value=deal_val,
                 status=deal_status,

@@ -9,7 +9,8 @@ import {
 } from 'react-icons/fi';
 import {
     BsPinAngleFill,
-    BsExclamationCircleFill
+    BsExclamationCircleFill,
+    BsJournalText
 } from 'react-icons/bs';
 import { IoCheckmarkDone, IoMailUnreadOutline } from 'react-icons/io5';
 import { getFirstName } from '../../../utils/nameFormatter';
@@ -35,7 +36,8 @@ export default function ActiveChatHeader({
     setIsSearchMode,
     isChatMaximized,
     setIsChatMaximized,
-    onOpenCrm
+    onOpenCrm,
+    setShowTemplateModal
 }) {
     if (!selectedConvo) return null;
 
@@ -173,6 +175,19 @@ export default function ActiveChatHeader({
                         <FiCheckCircle size={14} />
                         <span>{selectedConvo.status === 'resolved' ? 'Resolvida' : 'Resolver'}</span>
                     </button>
+
+                    {setShowTemplateModal && (
+                        <button
+                            type="button"
+                            data-testid="chat-header-send-template-btn"
+                            onClick={() => setShowTemplateModal(true)}
+                            title="Disparar Template Oficial do WhatsApp para este contato"
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:border-emerald-500/50 shadow-sm active:scale-95"
+                        >
+                            <BsJournalText size={14} />
+                            <span>Disparar Template</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">

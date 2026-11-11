@@ -158,9 +158,10 @@ const MediaNode = ({ id, data }) => {
                         <textarea
                             placeholder="Legenda (opcional)"
                             rows={2}
-                            className="nodrag nopan w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y"
+                            className="nodrag nopan nowheel w-full text-xs p-2 border rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y"
                             value={data.caption || ''}
                             onChange={(e) => data.onChange(id, { caption: e.target.value })}
+                            onWheel={(e) => e.stopPropagation()}
                         />
                         <div className="mt-1 text-[9px] text-gray-400 dark:text-gray-500">
                             💡 Suporta Spintax: <code className="bg-gray-100 dark:bg-gray-900 px-1 py-0.5 rounded text-pink-500 dark:text-pink-400">{`{Oi|Olá}`}</code>

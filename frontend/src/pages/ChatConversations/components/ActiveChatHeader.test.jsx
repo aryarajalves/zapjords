@@ -41,22 +41,25 @@ describe('ActiveChatHeader - Botão Maximizar Conversa', () => {
         setIsChatMaximized: vi.fn()
     };
 
-    it('renderiza o botão de maximizar com título correto quando não maximizado', () => {
+    it('renderiza o botão de maximizar no menu de mais ações quando não maximizado', () => {
         render(<ActiveChatHeader {...baseProps} />);
-        const btn = screen.getByTitle('Maximizar conversa');
+        fireEvent.click(screen.getByTestId('chat-header-more-actions-btn'));
+        const btn = screen.getByText('Maximizar conversa');
         expect(btn).toBeDefined();
     });
 
-    it('renderiza o botão de minimizar com título correto quando maximizado', () => {
+    it('renderiza o botão de minimizar no menu de mais ações quando maximizado', () => {
         render(<ActiveChatHeader {...baseProps} isChatMaximized={true} />);
-        const btn = screen.getByTitle('Restaurar layout');
+        fireEvent.click(screen.getByTestId('chat-header-more-actions-btn'));
+        const btn = screen.getByText('Restaurar layout');
         expect(btn).toBeDefined();
     });
 
     it('chama setIsChatMaximized com true ao clicar no botão de maximizar', () => {
         const setIsChatMaximized = vi.fn();
         render(<ActiveChatHeader {...baseProps} isChatMaximized={false} setIsChatMaximized={setIsChatMaximized} />);
-        const btn = screen.getByTitle('Maximizar conversa');
+        fireEvent.click(screen.getByTestId('chat-header-more-actions-btn'));
+        const btn = screen.getByText('Maximizar conversa');
         fireEvent.click(btn);
         expect(setIsChatMaximized).toHaveBeenCalledWith(true);
     });
@@ -64,22 +67,10 @@ describe('ActiveChatHeader - Botão Maximizar Conversa', () => {
     it('chama setIsChatMaximized com false ao clicar no botão de restaurar', () => {
         const setIsChatMaximized = vi.fn();
         render(<ActiveChatHeader {...baseProps} isChatMaximized={true} setIsChatMaximized={setIsChatMaximized} />);
-        const btn = screen.getByTitle('Restaurar layout');
+        fireEvent.click(screen.getByTestId('chat-header-more-actions-btn'));
+        const btn = screen.getByText('Restaurar layout');
         fireEvent.click(btn);
         expect(setIsChatMaximized).toHaveBeenCalledWith(false);
-    });
-
-    it('aplica estilo visual ativo (amber) quando maximizado', () => {
-        render(<ActiveChatHeader {...baseProps} isChatMaximized={true} />);
-        const btn = screen.getByTitle('Restaurar layout');
-        expect(btn.className).toContain('bg-amber-500/15');
-        expect(btn.className).toContain('border-amber-500/30');
-    });
-
-    it('aplica estilo visual inativo quando não maximizado', () => {
-        render(<ActiveChatHeader {...baseProps} isChatMaximized={false} />);
-        const btn = screen.getByTitle('Maximizar conversa');
-        expect(btn.className).not.toContain('bg-amber-500/15');
     });
 
     it('renderiza o botão Voltar para lista de conversas no mobile', () => {
@@ -95,5 +86,15 @@ describe('ActiveChatHeader - Botão Maximizar Conversa', () => {
         const backBtn = screen.getByTestId('chat-mobile-back-btn');
         fireEvent.click(backBtn);
         expect(setSelectedConvo).toHaveBeenCalledWith(null);
+    });
+
+    it('renderiza o botão Disparar Template quando setShowTemplateModal é fornecido', () => {
+        const setShowTemplateModal = vi.fn();
+        render(<ActiveChatHeader {...baseProps} setShowTemplateModal={setShowTemplateModal} />);
+        const btn = screen.getByTestId('chat-header-send-template-btn');
+        expect(btn).toBeDefined();
+        expect(screen.getByText('Disparar Template')).toBeDefined();
+        fireEvent.click(btn);
+        expect(setShowTemplateModal).toHaveBeenCalledWith(true);
     });
 });

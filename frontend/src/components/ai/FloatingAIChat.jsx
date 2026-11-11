@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-    FiCpu, FiX, FiMinus, FiSend, 
-    FiTrash2, FiMaximize2,
-    FiUserCheck, FiTag
-} from 'react-icons/fi';
+import { FiCpu, FiX, FiMinus, FiSend, FiTrash2, FiMaximize2, FiUserCheck, FiTag } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { fetchWithAuth } from '../../AuthContext';
 import { API_URL } from '../../config';
 import { useClient } from '../../contexts/ClientContext';
 import FloatingAIChatMessages from './FloatingAIChatMessages';
 import { extractCleanMessageToSend } from './aiMessageExtractor';
+import { useDraggableBalloon } from './useDraggableBalloon';
 
 export default function FloatingAIChat({ selectedConvo, onInsertMessage }) {
     if (!selectedConvo) return null;
@@ -23,6 +20,9 @@ export default function FloatingAIChat({ selectedConvo, onInsertMessage }) {
     const [usdToBrl, setUsdToBrl] = useState(5.7);
     const [includeContext, setIncludeContext] = useState(true);
     const [copiedIndex, setCopiedIndex] = useState(null);
+
+    // Posicionamento arrastável do botão flutuante com reset por conversa
+    const { position: balloonPosition, isDragging: isBalloonDragging, buttonRef, handleMouseDown, handleTouchStart, handleClick } = useDraggableBalloon(selectedConvo?.id);
 
     // Presets de Prompts por Produto
     const [presets, setPresets] = useState([]);
@@ -171,16 +171,20 @@ export default function FloatingAIChat({ selectedConvo, onInsertMessage }) {
     if (!isOpen) {
         return (
             <button
+                ref={buttonRef}
                 type="button"
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-5 right-5 z-40 flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full shadow-2xl shadow-indigo-500/40 border border-white/20 transition-all transform hover:scale-105 active:scale-95 group cursor-pointer"
-                title="Abrir Copiloto de Vendas com IA"
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
+                onClick={() => handleClick(() => setIsOpen(true))}
+                style={{ transform: `translate3d(${balloonPosition.x}px, ${balloonPosition.y}px, 0)`, cursor: isBalloonDragging ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none', willChange: 'transform', transition: isBalloonDragging ? 'none' : 'transform 0.15s ease-out' }}
+                className={`fixed bottom-5 right-5 z-40 flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full shadow-2xl shadow-indigo-500/40 border border-white/20 select-none ${isBalloonDragging ? 'scale-105 opacity-90 shadow-indigo-500/70' : 'hover:scale-105 active:scale-95'}`}
+                title="Abrir Copiloto de Vendas com IA (Segure para mover)"
             >
-                <div className="relative">
+                <div className="relative pointer-events-none">
                     <FiCpu className="w-5 h-5 animate-pulse text-cyan-300" />
                     <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
                 </div>
-                <span className="text-xs font-bold tracking-wide">Copiloto IA</span>
+                <span className="text-xs font-bold tracking-wide pointer-events-none">Copiloto IA</span>
             </button>
         );
     }

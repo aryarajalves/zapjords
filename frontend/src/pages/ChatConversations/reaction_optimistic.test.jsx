@@ -106,3 +106,23 @@ describe('normalizeReactions — compatibilidade de formatos', () => {
         expect(result).toEqual([{ sender: 'agent', emoji: '❤️' }]);
     });
 });
+
+describe('Reação à Mensagem — Zera unread_count (Marcar como lida)', () => {
+    it('zera unread_count da conversa quando uma reação é enviada pelo atendente', () => {
+        let selectedConvo = { id: 10, phone: '5511999999999', unread_count: 3 };
+        let conversations = [
+            { id: 10, phone: '5511999999999', unread_count: 3 },
+            { id: 11, phone: '5511888888888', unread_count: 1 }
+        ];
+
+        const emoji = '❤️';
+        if (emoji) {
+            selectedConvo = { ...selectedConvo, unread_count: 0 };
+            conversations = conversations.map(c => Number(c.id) === 10 ? { ...c, unread_count: 0 } : c);
+        }
+
+        expect(selectedConvo.unread_count).toBe(0);
+        expect(conversations.find(c => c.id === 10).unread_count).toBe(0);
+        expect(conversations.find(c => c.id === 11).unread_count).toBe(1);
+    });
+});

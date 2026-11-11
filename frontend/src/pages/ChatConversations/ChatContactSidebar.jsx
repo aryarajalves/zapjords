@@ -52,7 +52,8 @@ export default function ChatContactSidebar({
     formatMessageTimestamp,
     handleDeleteNoteMsg,
     onClose,
-    onOpenCrm
+    onOpenCrm,
+    onOpenSendTemplate
 }) {
     const [isMaximizedOpen, setIsMaximizedOpen] = React.useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = React.useState(false);
@@ -155,6 +156,7 @@ export default function ChatContactSidebar({
                 handleClose24hWindow={handleClose24hWindow}
                 getFirstName={getFirstName}
                 onShareContact={() => setIsShareModalOpen(true)}
+                onOpenSendTemplate={onOpenSendTemplate}
                 userMessagesCount={userMessagesCount}
                 agentMessagesCount={agentMessagesCount}
                 totalMessagesCount={totalMessagesCount}

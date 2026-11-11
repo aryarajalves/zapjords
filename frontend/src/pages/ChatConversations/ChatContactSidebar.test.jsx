@@ -417,6 +417,16 @@ describe('ChatContactSidebar and Subcomponents', () => {
                 })
             );
         });
+
+        it('renderiza o botão de Disparar Template no perfil do contato e aciona o callback', () => {
+            const onOpenSendTemplate = vi.fn();
+            render(<ChatContactSidebar {...defaultProps} onOpenSendTemplate={onOpenSendTemplate} />);
+            const btn = screen.getByTestId('contact-profile-send-template-btn');
+            expect(btn).toBeInTheDocument();
+            expect(screen.getByText('Template')).toBeInTheDocument();
+            fireEvent.click(btn);
+            expect(onOpenSendTemplate).toHaveBeenCalledTimes(1);
+        });
     });
 });
 

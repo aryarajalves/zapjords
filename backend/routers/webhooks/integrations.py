@@ -35,7 +35,11 @@ def list_webhook_integrations(
         joinedload(models.WebhookIntegration.mappings)
     ).filter(
         models.WebhookIntegration.client_id == x_client_id
-    ).order_by(models.WebhookIntegration.created_at.asc()).offset(skip).limit(limit).all()
+    ).order_by(
+        models.WebhookIntegration.is_pinned.desc(),
+        models.WebhookIntegration.pinned_at.desc(),
+        models.WebhookIntegration.created_at.asc()
+    ).offset(skip).limit(limit).all()
     
     logger.info(f"🔍 [WEBHOOKS] Listando integrações para client_id {x_client_id}: {len(integrations)} encontradas.")
 
@@ -535,6 +539,59 @@ def delete_webhook_integration(
             status_code=500,
             detail=f"Erro ao excluir integração do banco de dados: {str(delete_err)}"
         )
+
+@router.patch("/{integration_id}/pin", response_model=schemas.WebhookIntegration, summary="Fixar ou desafixar integração no topo (máximo 5)")
+def toggle_pin_webhook_integration(
+    integration_id: str,
+    x_client_id: int = Depends(get_validated_client_id),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        uuid_obj = uuid.UUID(integration_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+
+    integration = db.query(models.WebhookIntegration).filter(
+        models.WebhookIntegration.id == uuid_obj,
+        models.WebhookIntegration.client_id == x_client_id
+    ).first()
+
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    if integration.is_pinned:
+        integration.is_pinned = False
+        integration.pinned_at = None
+        db.commit()
+        db.refresh(integration)
+        logger.info(f"📌 [WEBHOOKS] Integração {integration.id} desafixada do topo.")
+    else:
+        pinned_count = db.query(models.WebhookIntegration).filter(
+            models.WebhookIntegration.client_id == x_client_id,
+            models.WebhookIntegration.is_pinned == True,
+            models.WebhookIntegration.id != uuid_obj
+        ).count()
+
+        if pinned_count >= 5:
+            raise HTTPException(
+                status_code=400,
+                detail="Você já atingiu o limite de 5 integrações fixadas no topo."
+            )
+
+        from datetime import datetime, timezone
+        integration.is_pinned = True
+        integration.pinned_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(integration)
+        logger.info(f"📌 [WEBHOOKS] Integração {integration.id} fixada no topo com sucesso ({pinned_count + 1}/5).")
+
+    cnt = db.query(func.count(models.WebhookHistory.id)).filter(
+        models.WebhookHistory.integration_id == integration.id
+    ).scalar()
+    integration.history_count = cnt or 0
+
+    return integration
 
 @router.patch("/{integration_id}/custom-fields-mapping", summary="Atualizar apenas o mapeamento de campos customizados")
 def update_custom_fields_mapping(

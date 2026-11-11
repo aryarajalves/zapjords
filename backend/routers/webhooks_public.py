@@ -339,6 +339,14 @@ async def handle_external_webhook(
             if not mapping:
                 mapping = find_mapping_for(alt_ev, None)
 
+        # 4.2.3. Alias para inscricao <-> inscrição
+        if not mapping and event_type in ("inscricao", "inscrição"):
+            alt_ev = "inscrição" if event_type == "inscricao" else "inscricao"
+            if product_name:
+                mapping = find_mapping_for(alt_ev, product_name)
+            if not mapping:
+                mapping = find_mapping_for(alt_ev, None)
+
         # 4.3. 'outros' (catch-all) + Specific product name
         if not mapping and event_type != "outros" and product_name:
             mapping = find_mapping_for("outros", product_name)

@@ -333,6 +333,7 @@ export default function ChatConversations({ onClose, onNavigate }) {
                             handleDeleteNoteMsg={noteAndAi.handleDeleteNoteMsg}
                             onClose={() => setShowRightSidebar(false)}
                             onOpenCrm={() => setIsCrmModalOpen(true)}
+                            onOpenSendTemplate={() => setShowTemplateModal(true)}
                         />
                     )}
                 </div>

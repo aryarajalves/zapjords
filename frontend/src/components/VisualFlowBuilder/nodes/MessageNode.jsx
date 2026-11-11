@@ -68,10 +68,11 @@ const MessageNode = ({ id, data }) => {
                         <VariableSelector onSelect={(v) => data.onChange(id, { content: (data.content || '') + v })} />
                     </div>
                     <textarea
-                        className="nodrag nopan w-full text-base p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[80px]"
+                        className="nodrag nopan nowheel w-full text-base p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[80px]"
                         placeholder="Digite a mensagem..."
                         value={data.content || ''}
                         onChange={(evt) => data.onChange(id, { content: evt.target.value })}
+                        onWheel={(e) => e.stopPropagation()}
                     />
                     <div className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 select-none font-medium">
                         💡 Suporta Spintax: <code className="bg-gray-100 dark:bg-gray-900 px-1 py-0.5 rounded text-indigo-500 dark:text-indigo-400">{`{Oi|Olá|Bom dia}`}</code> para envio aleatório.
@@ -102,10 +103,11 @@ const MessageNode = ({ id, data }) => {
                             </button>
                         </div>
                         <textarea
-                            className="nodrag nopan w-full text-sm p-2 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-400 outline-none resize-none min-h-[60px]"
+                            className="nodrag nopan nowheel w-full text-sm p-2 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-400 outline-none resize-none min-h-[60px]"
                             placeholder={`Digite a variação ${idx + 2}...`}
                             value={v}
                             onChange={(e) => handleVariationChange(idx, e.target.value)}
+                            onWheel={(e) => e.stopPropagation()}
                         />
                     </div>
                 ))}

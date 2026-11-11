@@ -102,4 +102,28 @@ describe('MessageNode', () => {
         // Como variações são salvas através de data.onChange, vamos verificar se ela foi chamada
         expect(mockOnChange).toHaveBeenCalledWith('node-1', { variations: ['Novo texto editado no modal'] });
     });
+
+    test('garante que os textareas possuem a classe nowheel e impedem propagação do evento wheel', () => {
+        render(
+            <ReactFlowProvider>
+                <MessageNode id="node-1" data={mockData} />
+            </ReactFlowProvider>
+        );
+
+        const mainTextarea = screen.getByPlaceholderText('Digite a mensagem...');
+        expect(mainTextarea).toHaveClass('nowheel');
+
+        const wheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true });
+        const stopPropagationSpy = vi.spyOn(wheelEvent, 'stopPropagation');
+        fireEvent(mainTextarea, wheelEvent);
+        expect(stopPropagationSpy).toHaveBeenCalled();
+
+        const variationTextarea = screen.getByPlaceholderText('Digite a variação 2...');
+        expect(variationTextarea).toHaveClass('nowheel');
+
+        const varWheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true });
+        const varStopPropagationSpy = vi.spyOn(varWheelEvent, 'stopPropagation');
+        fireEvent(variationTextarea, varWheelEvent);
+        expect(varStopPropagationSpy).toHaveBeenCalled();
+    });
 });

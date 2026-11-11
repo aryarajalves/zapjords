@@ -48,6 +48,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.worker
     container_name: zapvoice_worker
+    restart: unless-stopped
     command: python worker.py
     networks:
       - zapvoice_net
@@ -74,6 +75,7 @@ services:
   zapvoice_frontend:
     image: node:20-alpine
     container_name: zapvoice_frontend
+    restart: unless-stopped
     working_dir: /app
     volumes:
       - ../frontend:/app
@@ -96,6 +98,7 @@ services:
   zapvoice-postgres:
     image: postgres:15-alpine
     container_name: zapvoice-postgres
+    restart: unless-stopped
     ports:
       - "5434:5432"
     environment:
@@ -110,6 +113,7 @@ services:
   zapvoice-rabbit:
     image: rabbitmq:3-management-alpine
     container_name: zapvoice-rabbit
+    restart: unless-stopped
     ports:
       - "5679:5672"
       - "15679:15672"
@@ -122,6 +126,7 @@ services:
   zapvoice-minio:
     image: minio/minio:RELEASE.2023-05-18T00-05-36Z
     container_name: zapvoice-minio
+    restart: unless-stopped
     ports:
       - "9005:9000"
       - "9006:9001"

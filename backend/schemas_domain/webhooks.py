@@ -211,6 +211,8 @@ class WebhookIntegrationBase(BaseModel):
     product_whitelist: Optional[List[str]] = Field(default_factory=list, description="Lista de produtos permitidos")
     discovered_products: Optional[List[str]] = Field(default_factory=list, description="Lista de produtos descobertos no histórico")
     upsell_products: Optional[List[str]] = Field(default_factory=list, description="Lista de produtos que devem ser tratados como Upsell")
+    is_pinned: Optional[bool] = Field(False, description="Se a integração está fixada no topo")
+    pinned_at: Optional[datetime] = Field(None, description="Data/hora em que a integração foi fixada no topo")
 
 
 class WebhookIntegrationCreate(WebhookIntegrationBase):
