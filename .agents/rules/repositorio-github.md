@@ -49,3 +49,18 @@ O repositório oficial do projeto é:
 4. **PROIBIDO:** Nunca executar `git clean -fd` ou deletar arquivos de código/untracked sem consentimento explícito e sem exibir a listagem prévia.
 5. Deletar os arquivos de lixo apenas após listar/confirmar, antes de fazer o `git add` e o commit.
 6. Só então prosseguir com o commit e o push.
+
+## 🐳 Criação e Envio de Imagens Docker (Backend e Worker)
+
+Após a atualização no repositório GitHub ou ao rodar a esteira de release, o agente/script deve **SEMPRE perguntar ao usuário se ele deseja gerar e enviar as novas imagens Docker** para o Docker Hub:
+
+1. **Ambos os serviços são obrigatórios:**
+   - **Backend (`zapvoice_app`):** `aryalvesfernandes/zapvoice:backend-X.Y.Z` (gerado a partir de `docker/Dockerfile.api` após compilar o frontend com `npm run build`).
+   - **Worker (`zapvoice_worker`):** `aryalvesfernandes/zapvoice:worker-X.Y.Z` (gerado a partir de `docker/Dockerfile.worker`).
+2. **PROIBIDO USAR TAG `:latest`:** Todas as imagens devem utilizar tags de versão imutáveis no formato decimal `X.Y.Z` (ex: `2.2.5` ➔ `2.2.6`).
+3. **Sincronia Automática de Arquivos de Versão:** Ao gerar as imagens, os arquivos `frontend/package.json`, `docker/docker-compose-producao.yml` e `README.md` devem ser atualizados com a nova versão.
+4. **Script Oficial:** Utilize sempre o comando oficial:
+   ```bash
+   python scripts/release.py
+   ```
+   *(ou com `--build-docker` caso o usuário já tenha autorizado o build e envio imediato).*

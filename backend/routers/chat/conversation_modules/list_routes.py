@@ -13,6 +13,11 @@ from .conversation_filter_helpers import (
     get_block_info,
     get_active_funnels_map,
 )
+from services.utils.contact_name_helpers import (
+    is_generic_or_phone_name,
+    find_best_contact_name_for_phone,
+    resolve_and_update_conversation_name
+)
 
 logger = setup_logger("ChatRouter.ConversationList")
 
@@ -24,19 +29,21 @@ def _format_conversation_dict(
     blocked_suffixes,
     resting_map,
     active_funnels_map,
-    current_user_id: Optional[int] = None
+    current_user_id: Optional[int] = None,
+    override_contact_name: Optional[str] = None
 ):
     block_type, resting_until = get_block_info(c.phone, blocked_suffixes, resting_map)
     digits = "".join(filter(str.isdigit, c.phone or ""))
     suffix_key = digits[-8:] if len(digits) >= 8 else None
     active_funnel = active_funnels_map.get(suffix_key) if suffix_key else None
     user_unread = get_user_unread_count(c, current_user_id)
+    resolved_name = override_contact_name or c.contact_name
 
     return {
         "id": c.id,
         "client_id": c.client_id,
         "phone": c.phone,
-        "contact_name": c.contact_name,
+        "contact_name": resolved_name,
         "instagram": getattr(c, "instagram", None),
         "last_message_content": c.last_message_content,
         "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
@@ -70,6 +77,8 @@ async def get_conversation_by_id(
     if not convo:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
 
+    resolve_and_update_conversation_name(db, convo)
+
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
     return _format_conversation_dict(
@@ -86,7 +95,7 @@ async def get_or_create_conversation(
     db: Session = Depends(get_db)
 ):
     phone = payload.get("phone")
-    contact_name = payload.get("contact_name") or payload.get("name") or "Lead"
+    raw_name = payload.get("contact_name") or payload.get("name")
     if not phone:
         raise HTTPException(status_code=400, detail="Telefone é obrigatório")
 
@@ -105,6 +114,9 @@ async def get_or_create_conversation(
             break
 
     if not convo:
+        contact_name = raw_name if not is_generic_or_phone_name(raw_name) else None
+        if not contact_name:
+            contact_name = find_best_contact_name_for_phone(db, client_id, clean_phone) or "Lead"
         convo = models.ChatConversation(
             client_id=client_id,
             phone=clean_phone,
@@ -114,6 +126,8 @@ async def get_or_create_conversation(
         db.add(convo)
         db.commit()
         db.refresh(convo)
+    else:
+        resolve_and_update_conversation_name(db, convo, candidate_name=raw_name)
 
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
@@ -246,6 +260,26 @@ async def list_conversations(
     start_idx = (page - 1) * limit
     end_idx = start_idx + limit
     paginated_result = result[start_idx:end_idx]
+
+    # Enriquecer nomes de contatos genéricos/numéricos para as conversas da página atual
+    needs_commit = False
+    for item in paginated_result:
+        if is_generic_or_phone_name(item.get("contact_name")):
+            best_name = find_best_contact_name_for_phone(db, client_id, item.get("phone"))
+            if best_name and not is_generic_or_phone_name(best_name):
+                item["contact_name"] = best_name
+                try:
+                    db.query(models.ChatConversation).filter(
+                        models.ChatConversation.id == item["id"]
+                    ).update({"contact_name": best_name}, synchronize_session=False)
+                    needs_commit = True
+                except Exception:
+                    pass
+    if needs_commit:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
 
     return {
         "conversations": paginated_result,

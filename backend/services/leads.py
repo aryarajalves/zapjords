@@ -271,6 +271,26 @@ def upsert_webhook_lead(db: Session, client_id: int, platform: str, parsed_data:
         db.commit()
         db.refresh(lead)
 
+        # Sincronizar nome real com a conversa local de atendimento se existir
+        if lead.name:
+            try:
+                from services.utils.contact_name_helpers import is_generic_or_phone_name
+                if not is_generic_or_phone_name(lead.name):
+                    suffix = clean_phone_lookup[-8:] if len(clean_phone_lookup) >= 8 else clean_phone_lookup
+                    convos_to_fix = db.query(models.ChatConversation).filter(
+                        models.ChatConversation.client_id == client_id,
+                        models.ChatConversation.phone.like(f"%{suffix}")
+                    ).all()
+                    updated_cv = False
+                    for cv in convos_to_fix:
+                        if is_generic_or_phone_name(cv.contact_name):
+                            cv.contact_name = lead.name.strip()
+                            updated_cv = True
+                    if updated_cv:
+                        db.commit()
+            except Exception as e_cv:
+                logger.warning(f"⚠️ [LEAD-CHAT-SYNC] Erro ao sincronizar nome do lead com chat: {e_cv}")
+
         # Hook Automático de CRM / Kanban de Vendas
         try:
             from services.crm_service import process_webhook_lead_for_crm

@@ -59,6 +59,12 @@ def apply_webhook_labels(
 
     suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
 
+    from services.utils.contact_name_helpers import (
+        is_generic_or_phone_name,
+        find_best_contact_name_for_phone,
+        resolve_and_update_conversation_name
+    )
+
     # Buscar conversa local existente
     convo = db.query(models.ChatConversation).filter(
         models.ChatConversation.client_id == client_id,
@@ -70,17 +76,24 @@ def apply_webhook_labels(
             logger.info(f"ℹ️ [CHAT-LABEL-SERVICE] Nenhuma conversa local existente para {clean_phone}. Nenhuma conversa criada (aguardando envio/entrega de mensagem).")
             return None
 
+        initial_name = contact_name if not is_generic_or_phone_name(contact_name) else None
+        if not initial_name:
+            initial_name = find_best_contact_name_for_phone(db, client_id, clean_phone)
+
         convo = models.ChatConversation(
             client_id=client_id,
             phone=clean_phone,
-            contact_name=contact_name or clean_phone,
+            contact_name=initial_name or contact_name or clean_phone,
             status="open",
             unread_count=0,
             labels=[]
         )
         db.add(convo)
         db.flush()
-        logger.info(f"🆕 [CHAT-LABEL-SERVICE] Conversa local criada para {clean_phone} (Client: {client_id})")
+        logger.info(f"🆕 [CHAT-LABEL-SERVICE] Conversa local criada para {clean_phone} com nome '{convo.contact_name}' (Client: {client_id})")
+    else:
+        # Se a conversa já existia, garante atualização do nome caso esteja genérico/numérico
+        resolve_and_update_conversation_name(db, convo, candidate_name=contact_name)
 
     current_labels = list(convo.labels) if isinstance(convo.labels, list) else []
     added_labels = []

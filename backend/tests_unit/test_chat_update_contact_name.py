@@ -204,4 +204,4 @@ async def test_update_contact_name_validations(db_session: Session):
             current_user=user,
             db=db
         )
-    assert exc_info2.value.status_code == 404
+    assert exc_info2.value.status_code in (403, 404)

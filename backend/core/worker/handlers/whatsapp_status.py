@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import text, or_
 from services.discovery import discover_or_create_chatwoot_conversation
 from config_loader import get_setting
+from services.utils.contact_name_helpers import is_generic_or_phone_name, find_best_contact_name_for_phone, resolve_and_update_conversation_name
 
 # Access attributes via the main namespace module to support unit test patching
 import core.worker.handlers.whatsapp as wah
@@ -57,26 +58,21 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                     is_new_convo = False
                     if not chat_convo:
                         # Se houver etiquetas no trigger (disparo), associá-las à nova conversa
-                        convo_labels = []
-                        if trigger and trigger.chatwoot_label:
-                            from core.utils import robust_extract_labels
-                            convo_labels = robust_extract_labels(trigger.chatwoot_label)
+                        convo_labels = robust_extract_labels(trigger.chatwoot_label) if (trigger and trigger.chatwoot_label) else []
+                        cand_name = (trigger.contact_name if trigger else None) or message_record.contact_name
+                        init_name = cand_name if not is_generic_or_phone_name(cand_name) else find_best_contact_name_for_phone(db, client_id, clean_phone)
                         chat_convo = models.ChatConversation(
-                            client_id=client_id,
-                            phone=clean_phone,
-                            contact_name=(trigger.contact_name if trigger else None) or message_record.contact_name or clean_phone,
-                            status="open",
-                            unread_count=0,
-                            labels=convo_labels
+                            client_id=client_id, phone=clean_phone,
+                            contact_name=init_name or cand_name or clean_phone,
+                            status="open", unread_count=0, labels=convo_labels
                         )
                         db.add(chat_convo)
                         db.flush()
                         is_new_convo = True
                         logger.info(f"🆕 [CHAT-LOCAL-POST-DELIVERY] Criada nova conversa local para {clean_phone} com etiquetas {convo_labels} (Client: {client_id})")
                     else:
-                        # Se a conversa local já existia, mas o trigger (disparo) tem novas etiquetas, faz o merge delas
+                        resolve_and_update_conversation_name(db, chat_convo, candidate_name=(trigger.contact_name if trigger else None) or message_record.contact_name)
                         if trigger and trigger.chatwoot_label:
-                            from core.utils import robust_extract_labels
                             new_labels = robust_extract_labels(trigger.chatwoot_label)
                             if new_labels:
                                 current_labels = list(chat_convo.labels or [])

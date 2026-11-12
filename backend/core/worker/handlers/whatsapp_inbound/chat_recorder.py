@@ -96,20 +96,33 @@ async def save_inbound_chat_message(
         models.ChatConversation.phone.like(f"%{suffix_inb}")
     ).first()
 
+    from services.utils.contact_name_helpers import (
+        is_generic_or_phone_name,
+        find_best_contact_name_for_phone,
+        resolve_and_update_conversation_name
+    )
+
+    profile_name = contacts_map.get(raw_from)
     is_new_convo = False
     if not chat_convo:
         is_new_convo = True
+        initial_name = profile_name if not is_generic_or_phone_name(profile_name) else None
+        if not initial_name:
+            initial_name = find_best_contact_name_for_phone(db, target_cid, from_phone)
         chat_convo = models.ChatConversation(
             client_id=target_cid,
             phone=from_phone,
-            contact_name=contacts_map.get(raw_from, "Contato"),
+            contact_name=initial_name or profile_name or "Contato",
             status="open",
             unread_count=0
         )
         db.add(chat_convo)
         db.flush()
-    elif chat_convo.status in ["resolved", "closed"]:
-        is_new_convo = True
+    else:
+        # Se a conversa já existia, garante que o nome seja atualizado caso esteja com número ou termo genérico
+        resolve_and_update_conversation_name(db, chat_convo, candidate_name=profile_name)
+        if chat_convo.status in ["resolved", "closed"]:
+            is_new_convo = True
 
     chat_convo._is_new_convo = is_new_convo
 

@@ -14,6 +14,7 @@ Sempre que você realizar uma alteração no código ou interface, você deve se
 3. **Smoke Test do Frontend:** Após reiniciar os containers, confirme que a página carregou (Status 200) e que não há uma "tela branca".
 4. **Execução de Testes e Fluxos:** 
    - Rode os testes nas pastas do backend (`backend/tests_unit/` ou `backend/tests_e2e/`) e anexe o output do terminal.
+   - **Listagem Individual Obrigatória (De 1 em 1):** Sempre execute os testes em modo verboso (`-v` no pytest ou sem silenciamento). É **PROIBIDO** apresentar apenas um sumário genérico (ex: "X passed"). O relatório DEVE listar nominalmente cada teste executado de 1 em 1 com seu respectivo status (`PASSED`/`FAILED`).
    - **Teste de Fluxo Completo (Happy Path):** Realize o fluxo principal e valide a mudança de estado no banco de dados se necessário.
 5. **Verificação de Fluxo de Dados (Data-Flow):** 
    - Se a tela deveria listar itens, prove que a lista não está vazia. Listas vazias indevidas indicam falha no teste.
@@ -22,7 +23,7 @@ Sempre que você realizar uma alteração no código ou interface, você deve se
 **Relatório de Validação Obrigatório (Anexar ao fim de cada resposta):**
 - [ID-GRAVACAO] ou [CAMINHO-IMAGEM] da validação final.
 - [OK] Frontend acessível e funcional.
-- [OK] Testes unitários aprovados (anexar output).
+- [OK] Testes unitários aprovados listados de 1 em 1 (anexar output nominal).
 - [OK] Sem erros críticos nos logs (`docker logs`).
 
 **Dizer que "está funcionando" sem anexar a prova visual ou o log de execução é uma violação desta regra.**
