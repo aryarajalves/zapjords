@@ -42,8 +42,11 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
     };
 
     return (
-        <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative overflow-hidden">
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full" />
+        <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative z-20">
+            {/* Camada isolada para brilhos de fundo sem cortar menus/dropdowns que transbordam */}
+            <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden pointer-events-none -z-0">
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full" />
+            </div>
 
             <h2 className="text-2xl font-black text-white flex items-center gap-4 mb-8 relative z-10">
                 <span className="p-3 bg-violet-500/10 text-violet-400 rounded-2xl border border-violet-500/20 shadow-xl shadow-violet-500/10 font-mono text-xl">
@@ -66,7 +69,8 @@ const ButtonActionsSection = ({ templateButtons, buttonActions, setButtonActions
                     return (
                         <div
                             key={btnText}
-                            className={`p-6 rounded-3xl border transition-all ${showFunnel ? `bg-slate-800/30 ${c.border} border` : 'bg-slate-800/10 border border-white/5'}`}
+                            style={{ zIndex: templateButtons.length - idx }}
+                            className={`p-6 rounded-3xl border transition-all relative ${showFunnel ? `bg-slate-800/30 ${c.border} border` : 'bg-slate-800/10 border border-white/5'}`}
                         >
                             {/* Button label */}
                             <div className="flex items-center gap-3 mb-5">

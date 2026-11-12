@@ -87,4 +87,24 @@ describe('ButtonActionsSection Component Tests', () => {
 
         expect(setButtonActions).toHaveBeenCalled();
     });
+
+    it('não aplica overflow-hidden na section para evitar corte do dropdown de funis e define z-20', () => {
+        const { container } = render(
+            <ButtonActionsSection
+                templateButtons={mockButtons}
+                buttonActions={{}}
+                setButtonActions={vi.fn()}
+                funnels={mockFunnels}
+            />
+        );
+
+        const section = container.querySelector('section');
+        expect(section).toBeInTheDocument();
+        expect(section.className).not.toContain('overflow-hidden');
+        expect(section.className).toContain('z-20');
+
+        // Camada interna para brilhos deve ter overflow-hidden
+        const innerGlowWrapper = container.querySelector('.rounded-\\[2\\.5rem\\].overflow-hidden');
+        expect(innerGlowWrapper).toBeInTheDocument();
+    });
 });

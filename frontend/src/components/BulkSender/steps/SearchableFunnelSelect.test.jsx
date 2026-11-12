@@ -90,4 +90,22 @@ describe('SearchableFunnelSelect Component Tests', () => {
 
         expect(handleChange).toHaveBeenCalledWith(3);
     });
+
+    it('deve aplicar z-50 no container raiz quando aberto para sobrepor cards irmãos', () => {
+        const { container } = render(
+            <SearchableFunnelSelect
+                value={null}
+                onChange={vi.fn()}
+                funnels={mockFunnels}
+            />
+        );
+
+        const rootDiv = container.firstChild;
+        expect(rootDiv.className).toContain('z-auto');
+
+        const trigger = screen.getByTitle('Clique para pesquisar ou trocar de funil');
+        fireEvent.click(trigger);
+
+        expect(rootDiv.className).toContain('z-50');
+    });
 });

@@ -118,7 +118,7 @@ export default function LeadTableRow({
       </td>
 
       {/* Ações */}
-      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+      <td className="w-52 min-w-[210px] pl-3 pr-6 py-2.5 text-right whitespace-nowrap">
         <LeadRowActions
           lead={lead}
           togglingLock={togglingLock}

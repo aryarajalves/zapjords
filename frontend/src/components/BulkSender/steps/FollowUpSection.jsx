@@ -85,9 +85,12 @@ export default function FollowUpSection({
         .filter(name => !tagInput.trim() || name.toLowerCase().includes(tagInput.trim().toLowerCase()));
 
     return (
-        <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative overflow-hidden group/followup">
-            <div className="absolute -top-12 -right-12 w-36 h-36 bg-violet-600/10 blur-3xl rounded-full" />
-            <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-indigo-600/10 blur-3xl rounded-full" />
+        <section className="bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border border-white/5 h-fit relative z-10 group/followup">
+            {/* Camada isolada para brilhos de fundo sem cortar menus/dropdowns que transbordam */}
+            <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden pointer-events-none -z-0">
+                <div className="absolute -top-12 -right-12 w-36 h-36 bg-violet-600/10 blur-3xl rounded-full" />
+                <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-indigo-600/10 blur-3xl rounded-full" />
+            </div>
 
             {/* Header com Badge 03 */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 relative z-10">

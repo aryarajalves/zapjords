@@ -24,13 +24,62 @@ logger = setup_logger("ChatRouter.ConversationList")
 router = APIRouter()
 
 
+def get_contact_labels_map(db: Session, client_id: int, phones: list) -> dict:
+    """
+    Retorna mapeamento {suffix_ou_phone: [tags]} buscando em batch na tabela webhook_leads
+    para enriquecer o payload das conversas com as etiquetas da Aba de Contatos.
+    """
+    if not phones or not client_id:
+        return {}
+
+    clean_phones = set()
+    suffix_set = set()
+    for p in phones:
+        if not p:
+            continue
+        digits = "".join(filter(str.isdigit, str(p)))
+        if digits:
+            clean_phones.add(digits)
+            if len(digits) >= 8:
+                suffix_set.add(digits[-8:])
+
+    if not clean_phones and not suffix_set:
+        return {}
+
+    from sqlalchemy import or_
+    filters = []
+    if clean_phones:
+        filters.append(models.WebhookLead.phone.in_(list(clean_phones)))
+    for s in suffix_set:
+        filters.append(models.WebhookLead.phone.like(f"%{s}"))
+
+    leads = db.query(models.WebhookLead).filter(
+        models.WebhookLead.client_id == client_id,
+        or_(*filters)
+    ).all()
+
+    labels_map = {}
+    for lead in leads:
+        tags = [t.strip() for t in (lead.tags or "").split(",") if t.strip()]
+        if not tags:
+            continue
+        lead_digits = "".join(filter(str.isdigit, str(lead.phone or "")))
+        if lead_digits:
+            labels_map[lead_digits] = tags
+            if len(lead_digits) >= 8:
+                labels_map[lead_digits[-8:]] = tags
+
+    return labels_map
+
+
 def _format_conversation_dict(
     c: models.ChatConversation,
     blocked_suffixes,
     resting_map,
     active_funnels_map,
     current_user_id: Optional[int] = None,
-    override_contact_name: Optional[str] = None
+    override_contact_name: Optional[str] = None,
+    contact_labels: Optional[list] = None
 ):
     block_type, resting_until = get_block_info(c.phone, blocked_suffixes, resting_map)
     digits = "".join(filter(str.isdigit, c.phone or ""))
@@ -52,6 +101,7 @@ def _format_conversation_dict(
         "assigned_user_id": c.assigned_user_id,
         "assigned_user_name": c.assigned_user.full_name if c.assigned_user else None,
         "labels": c.labels or [],
+        "contact_labels": contact_labels or [],
         "last_contact_message_at": c.last_contact_message_at.isoformat() if c.last_contact_message_at else None,
         "pinned": c.pinned,
         "urgent": c.urgent,
@@ -81,9 +131,13 @@ async def get_conversation_by_id(
 
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
+    labels_map = get_contact_labels_map(db, client_id, [convo.phone])
+    digits = "".join(filter(str.isdigit, convo.phone or ""))
+    c_labels = labels_map.get(digits) or labels_map.get(digits[-8:] if len(digits) >= 8 else "") or []
     return _format_conversation_dict(
         convo, blocked_suffixes, resting_map, active_funnels_map,
-        current_user_id=getattr(current_user, "id", None)
+        current_user_id=getattr(current_user, "id", None),
+        contact_labels=c_labels
     )
 
 
@@ -131,9 +185,13 @@ async def get_or_create_conversation(
 
     blocked_suffixes, resting_map = get_blocked_and_resting_data(db, client_id)
     active_funnels_map = get_active_funnels_map(db, client_id)
+    labels_map = get_contact_labels_map(db, client_id, [convo.phone])
+    digits = "".join(filter(str.isdigit, convo.phone or ""))
+    c_labels = labels_map.get(digits) or labels_map.get(digits[-8:] if len(digits) >= 8 else "") or []
     return _format_conversation_dict(
         convo, blocked_suffixes, resting_map, active_funnels_map,
-        current_user_id=getattr(current_user, "id", None)
+        current_user_id=getattr(current_user, "id", None),
+        contact_labels=c_labels
     )
 
 
@@ -260,6 +318,14 @@ async def list_conversations(
     start_idx = (page - 1) * limit
     end_idx = start_idx + limit
     paginated_result = result[start_idx:end_idx]
+
+    # Enriquecer com contact_labels da Aba de Contatos (webhook_leads) para as conversas da página atual
+    phones_on_page = [item.get("phone") for item in paginated_result if item.get("phone")]
+    if phones_on_page:
+        contact_labels_map = get_contact_labels_map(db, client_id, phones_on_page)
+        for item in paginated_result:
+            p_dig = "".join(filter(str.isdigit, item.get("phone") or ""))
+            item["contact_labels"] = contact_labels_map.get(p_dig) or contact_labels_map.get(p_dig[-8:] if len(p_dig) >= 8 else "") or []
 
     # Enriquecer nomes de contatos genéricos/numéricos para as conversas da página atual
     needs_commit = False

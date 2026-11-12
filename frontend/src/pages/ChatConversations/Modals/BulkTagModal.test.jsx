@@ -145,6 +145,35 @@ describe('BulkTagModal Unit Tests', () => {
         expect(onApply).toHaveBeenCalledWith(['lead-vip'], 'contacts', { initialTags: [] });
     });
 
+    it('exibe etiquetas pré-selecionadas da Aba de Contatos a partir de initialContactLabels ao alternar para Contatos', () => {
+        const contactLabels = ['blackfriday-astrowake', 'alunos_astrowake', 'outra-tag'];
+        const initialContactLabels = ['blackfriday-astrowake', 'alunos_astrowake'];
+
+        render(
+            <BulkTagModal
+                isOpen={true}
+                onClose={vi.fn()}
+                contactLabels={contactLabels}
+                initialContactLabels={initialContactLabels}
+                selectedBulkTag=""
+                setSelectedBulkTag={vi.fn()}
+                customBulkTag=""
+                setCustomBulkTag={vi.fn()}
+                onApply={vi.fn()}
+                isApplying={false}
+                selectedCount={1}
+            />
+        );
+
+        // Muda para Aba de Contatos
+        fireEvent.click(screen.getByText('Aba de Contatos'));
+
+        // Verifica que as etiquetas do contato aparecem selecionadas no topo
+        expect(screen.getByText('Etiquetas selecionadas (2):')).toBeInTheDocument();
+        expect(screen.getAllByText('blackfriday-astrowake').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('alunos_astrowake').length).toBeGreaterThan(0);
+    });
+
     it('permite selecionar múltiplas etiquetas de uma vez e exibe quantidade no botão de aplicar', () => {
         const chatLabels = ['compra-aprovada', 'suporte-vip', 'interessado'];
         const onApply = vi.fn();

@@ -14,8 +14,8 @@ logger = setup_logger("Worker.WhatsAppStatus")
 _DEFERRED_POST_DELIVERY_SEMAPHORE = asyncio.Semaphore(4)
 
 async def handle_deferred_post_delivery(trigger_id, message_id, status, msg_id, phone):
-    """Processa ações pós-entrega com semáforo de pool e delay para sincronização."""
-    await asyncio.sleep(7)
+    """Processa ações pós-entrega com semáforo de pool e delay reduzido para sincronização imediata."""
+    await asyncio.sleep(0.5)
     async with _DEFERRED_POST_DELIVERY_SEMAPHORE:
         await _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, phone)
 
@@ -36,28 +36,86 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
         phone = normalize_phone(canonical_phone) or canonical_phone
         
         # --- CRIAR CONVERSA E SALVAR TEMPLATE NO CHAT LOCAL APÓS ENTREGA ---
-        if message_record.message_type == 'TEMPLATE' or (message_record.template_name and str(message_record.template_name).strip()):
+        template_name = message_record.template_name or (trigger.template_name if trigger else None)
+        if not template_name and message_record.content and message_record.content.startswith("[Template: "):
+            template_name = message_record.content.replace("[Template: ", "").replace("]", "")
+
+        is_template_msg = (
+            message_record.message_type == 'TEMPLATE' or
+            bool(template_name and str(template_name).strip())
+        )
+
+        if is_template_msg:
             try:
                 # Tentar extrair o client_id
                 client_id = trigger.client_id if trigger else (int(message_record.var1) if message_record.var1 else None)
                 if not client_id:
                     logger.warning(f"⚠️ [DEFERRED_POST_DELIVERY] client_id não encontrado para salvar chat local ({phone}).")
                     return
-                # 1. Verificar se a mensagem de chat local já existe por wa_message_id
-                existing_chat_msg = db.query(models.ChatMessage).filter(
-                    models.ChatMessage.wa_message_id == msg_id
-                ).first()
-                if not existing_chat_msg:
-                    clean_phone = "".join(filter(str.isdigit, str(phone)))
-                    suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
-                    # Buscar conversa local
-                    chat_convo = db.query(models.ChatConversation).filter(
-                        models.ChatConversation.client_id == client_id,
-                        models.ChatConversation.phone.like(f"%{suffix}")
+
+                # Reconstruir metadados do template (independente se nova ou existente)
+                record_status = message_record.status or status or "sent"
+                sent_time = message_record.timestamp.isoformat() if message_record.timestamp else datetime.now(timezone.utc).isoformat()
+                updated_time = message_record.updated_at.isoformat() if message_record.updated_at else sent_time
+                meta_data = {
+                    "is_template": True,
+                    "template_name": template_name or "Desconhecido",
+                    "language": "pt_BR",
+                    "header": None,
+                    "buttons": [],
+                    "status": record_status,
+                    "sent_at": sent_time
+                }
+                if record_status in ('delivered', 'read'):
+                    meta_data["delivered_at"] = updated_time
+                if record_status == 'read':
+                    meta_data["read_at"] = updated_time
+                if template_name:
+                    tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
+                        models.WhatsAppTemplateCache.client_id == client_id,
+                        models.WhatsAppTemplateCache.name == template_name
                     ).first()
+                    if tpl_cache:
+                        meta_data["language"] = tpl_cache.language
+                        if tpl_cache.components:
+                            header_comp = next((c for c in tpl_cache.components if c.get("type") == "HEADER"), None)
+                            if header_comp:
+                                meta_data["header"] = {
+                                    "format": header_comp.get("format"),
+                                    "text": header_comp.get("text")
+                                }
+                            btn_comp = next((c for c in tpl_cache.components if c.get("type") == "BUTTONS"), None)
+                            if btn_comp and btn_comp.get("buttons"):
+                                meta_data["buttons"] = [b.get("text") for b in btn_comp["buttons"]]
+
+                # 1. Verificar se a mensagem de chat local já existe (busca tolerante com ou sem prefixo wamid.)
+                clean_id = msg_id.replace("wamid.", "") if msg_id else ""
+                wamid_full = f"wamid.{clean_id}" if clean_id and not msg_id.startswith("wamid.") else msg_id
+                existing_chat_msg = db.query(models.ChatMessage).filter(
+                    or_(
+                        models.ChatMessage.wa_message_id == msg_id,
+                        models.ChatMessage.wa_message_id == clean_id,
+                        models.ChatMessage.wa_message_id == wamid_full
+                    )
+                ).first()
+
+                clean_phone = "".join(filter(str.isdigit, str(phone)))
+                suffix8 = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
+                suffix9 = clean_phone[-9:] if len(clean_phone) >= 9 else clean_phone
+                chat_convo = db.query(models.ChatConversation).filter(
+                    models.ChatConversation.client_id == client_id,
+                    or_(
+                        models.ChatConversation.phone == clean_phone,
+                        models.ChatConversation.phone.like(f"%{suffix8}"),
+                        models.ChatConversation.phone.like(f"%{suffix9}")
+                    )
+                ).order_by(models.ChatConversation.id.desc()).first()
+
+                from rabbitmq_client import rabbitmq
+
+                if not existing_chat_msg:
                     is_new_convo = False
                     if not chat_convo:
-                        # Se houver etiquetas no trigger (disparo), associá-las à nova conversa
                         convo_labels = robust_extract_labels(trigger.chatwoot_label) if (trigger and trigger.chatwoot_label) else []
                         cand_name = (trigger.contact_name if trigger else None) or message_record.contact_name
                         init_name = cand_name if not is_generic_or_phone_name(cand_name) else find_best_contact_name_for_phone(db, client_id, clean_phone)
@@ -83,63 +141,26 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                                         current_lower.append(nl.lower())
                                 chat_convo.labels = current_labels
                                 logger.info(f"🏷️ [CHAT-LOCAL-POST-DELIVERY] Mescladas etiquetas {new_labels} na conversa local existente {chat_convo.id}")
-                    # Reconstruir metadados do template
-                    template_name = message_record.template_name or (trigger.template_name if trigger else None)
-                    if not template_name and message_record.content and message_record.content.startswith("[Template: "):
-                        template_name = message_record.content.replace("[Template: ", "").replace("]", "")
-                    record_status = message_record.status or status or "sent"
-                    sent_time = message_record.timestamp.isoformat() if message_record.timestamp else datetime.now(timezone.utc).isoformat()
-                    updated_time = message_record.updated_at.isoformat() if message_record.updated_at else sent_time
-                    meta_data = {
-                        "is_template": True,
-                        "template_name": template_name or "Desconhecido",
-                        "language": "pt_BR",
-                        "header": None,
-                        "buttons": [],
-                        "status": record_status,
-                        "sent_at": sent_time
-                    }
-                    if record_status in ('delivered', 'read'):
-                        meta_data["delivered_at"] = updated_time
-                    if record_status == 'read':
-                        meta_data["read_at"] = updated_time
-                    if template_name:
-                        tpl_cache = db.query(models.WhatsAppTemplateCache).filter(
-                            models.WhatsAppTemplateCache.client_id == client_id,
-                            models.WhatsAppTemplateCache.name == template_name
-                        ).first()
-                        if tpl_cache:
-                            meta_data["language"] = tpl_cache.language
-                            if tpl_cache.components:
-                                header_comp = next((c for c in tpl_cache.components if c.get("type") == "HEADER"), None)
-                                if header_comp:
-                                    meta_data["header"] = {
-                                        "format": header_comp.get("format"),
-                                        "text": header_comp.get("text")
-                                    }
-                                btn_comp = next((c for c in tpl_cache.components if c.get("type") == "BUTTONS"), None)
-                                if btn_comp and btn_comp.get("buttons"):
-                                    meta_data["buttons"] = [b.get("text") for b in btn_comp["buttons"]]
-                    # Registrar a mensagem do template
+
+                    # Registrar a nova mensagem de template
                     chat_message = models.ChatMessage(
                         conversation_id=chat_convo.id,
                         sender_type="user",
+                        user_id=None,  # Sempre None para automações exibirem badge 'Automação'
                         message_type="template",
                         content=message_record.content,
                         wa_message_id=msg_id,
                         status=record_status,
-                        media_url=message_record.var5, # tpl_media_url que salvamos no var5
+                        media_url=message_record.var5,
                         meta_data=meta_data
                     )
                     db.add(chat_message)
-                    # Atualiza a conversa
                     chat_convo.last_message_content = message_record.content
                     chat_convo.unread_count = 0
                     chat_convo.last_message_at = datetime.now(timezone.utc)
                     db.commit()
                     logger.info(f"💾 [CHAT-LOCAL-POST-DELIVERY] Mensagem de template #{msg_id} salva localmente (Convo ID: {chat_convo.id})")
-                    # Emitir eventos WebSocket para tempo real
-                    from rabbitmq_client import rabbitmq
+
                     if is_new_convo:
                         payload_ws_convo = {
                             "id": chat_convo.id,
@@ -152,6 +173,7 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                             "last_message_at": chat_convo.last_message_at.isoformat() if chat_convo.last_message_at else None
                         }
                         await rabbitmq.publish_event("conversation_created", payload_ws_convo)
+
                     payload_ws = {
                         "id": chat_message.id,
                         "conversation_id": chat_message.conversation_id,
@@ -166,17 +188,21 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                         "meta_data": chat_message.meta_data,
                         "timestamp": chat_message.timestamp.isoformat() if chat_message.timestamp else datetime.now(timezone.utc).isoformat(),
                         "wa_message_id": chat_message.wa_message_id,
-                        "client_id": trigger.client_id
+                        "client_id": trigger.client_id if trigger else client_id
                     }
                     await rabbitmq.publish_event("new_message", payload_ws)
                 else:
-                    # Se a mensagem local já existia, apenas aplicamos/mesclamos as etiquetas na conversa local
-                    clean_phone = "".join(filter(str.isdigit, str(phone)))
-                    suffix = clean_phone[-8:] if len(clean_phone) >= 8 else clean_phone
-                    chat_convo = db.query(models.ChatConversation).filter(
-                        models.ChatConversation.client_id == client_id,
-                        models.ChatConversation.phone.like(f"%{suffix}")
-                    ).first()
+                    # Mensagem já existia localmente: garantir que os metadados do template e status sejam atualizados
+                    cur_meta = dict(existing_chat_msg.meta_data or {})
+                    cur_meta.update(meta_data)
+                    existing_chat_msg.meta_data = cur_meta
+                    existing_chat_msg.status = record_status
+                    existing_chat_msg.message_type = "template"
+                    if not existing_chat_msg.user_id:
+                        existing_chat_msg.sender_type = "user"
+                    db.commit()
+                    logger.info(f"🔄 [CHAT-LOCAL-POST-DELIVERY] Template #{existing_chat_msg.id} ({msg_id}) atualizado com metadados de template no chat.")
+
                     if trigger and trigger.chatwoot_label:
                         from services.chat_label_service import apply_webhook_labels
                         apply_webhook_labels(
@@ -187,6 +213,24 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                             source="Webhook / Disparo",
                             contact_name=trigger.contact_name
                         )
+
+                    payload_ws_update = {
+                        "id": existing_chat_msg.id,
+                        "conversation_id": existing_chat_msg.conversation_id,
+                        "sender_type": existing_chat_msg.sender_type,
+                        "message_type": existing_chat_msg.message_type,
+                        "content": existing_chat_msg.content,
+                        "media_url": existing_chat_msg.media_url,
+                        "status": existing_chat_msg.status,
+                        "read_at": cur_meta.get("read_at"),
+                        "delivered_at": cur_meta.get("delivered_at"),
+                        "sent_at": cur_meta.get("sent_at"),
+                        "meta_data": existing_chat_msg.meta_data,
+                        "timestamp": existing_chat_msg.timestamp.isoformat() if existing_chat_msg.timestamp else datetime.now(timezone.utc).isoformat(),
+                        "wa_message_id": existing_chat_msg.wa_message_id,
+                        "client_id": trigger.client_id if trigger else client_id
+                    }
+                    await rabbitmq.publish_event("message_updated", payload_ws_update)
 
             except Exception as e_chat_sync:
                 logger.error(f"❌ [CHAT-LOCAL-POST-DELIVERY] Erro ao sincronizar template localmente pós-entrega: {e_chat_sync}")

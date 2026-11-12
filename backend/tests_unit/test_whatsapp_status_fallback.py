@@ -26,8 +26,8 @@ class MockSessionWithFallback:
         self.status_query.order_by.return_value = self.status_query
         self.status_query.first.side_effect = [None, self.mock_message_record]
 
-    def query(self, model):
-        if model == models.MessageStatus:
+    def query(self, model, *args):
+        if model is models.MessageStatus:
             return self.status_query
             
         q = MagicMock()
@@ -36,10 +36,10 @@ class MockSessionWithFallback:
         q.filter_by.return_value = q
         q.order_by.return_value = q
 
-        if model == models.ScheduledTrigger:
+        if model is models.ScheduledTrigger:
             q.get.return_value = self.mock_trigger
             q.first.return_value = self.mock_trigger
-        elif model == models.AppConfig:
+        elif model is models.AppConfig:
             mock_conf = MagicMock()
             mock_conf.client_id = 1
             mock_conf.value = "test_value"

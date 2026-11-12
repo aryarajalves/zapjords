@@ -149,7 +149,7 @@ export default function Table({
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-[1100px]">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
               <th className="w-8 px-3 py-3">
@@ -168,7 +168,7 @@ export default function Table({
               ))}
               <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Atualizado</th>
               <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Chegada</th>
-              <th className="px-3 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Ações</th>
+              <th className="w-52 min-w-[210px] pl-3 pr-6 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

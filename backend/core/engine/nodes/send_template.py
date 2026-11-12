@@ -104,6 +104,7 @@ async def handle_send_template_node(db, trigger, node, chatwoot, contact_phone, 
                     phone_number=contact_phone,
                     status='sent',
                     message_type='TEMPLATE',
+                    template_name=template_name,
                     content=content_val,
                     publish_external_event=False,
                     var5=tpl_media_url

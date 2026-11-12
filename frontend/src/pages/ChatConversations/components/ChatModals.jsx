@@ -76,11 +76,19 @@ export default function ChatModals({
     }, [engine?.selectedConvoIds, targetConvo, engine?.conversations]);
 
     const initialContactLabels = React.useMemo(() => {
-        if (engine?.selectedConvoIds?.length === 1) {
+        if (engine?.selectedConvoIds?.length === 1 || !engine?.selectedConvoIds?.length) {
             return targetConvo?.contact_labels || [];
         }
+        if (engine?.selectedConvoIds?.length > 1) {
+            const list = (engine.conversations || []).filter(c => engine.selectedConvoIds.includes(c.id));
+            if (!list.length) return [];
+            return list.reduce((acc, c, idx) => {
+                const cLabels = c.contact_labels || [];
+                return idx === 0 ? cLabels : acc.filter(l => cLabels.includes(l));
+            }, []);
+        }
         return [];
-    }, [engine?.selectedConvoIds, targetConvo]);
+    }, [engine?.selectedConvoIds, targetConvo, engine?.conversations]);
 
     return (
         <>

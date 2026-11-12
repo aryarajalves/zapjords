@@ -76,7 +76,10 @@ const PhoneMockup = ({ formData = {}, mediaCache = {}, testValues = {}, theme = 
                     </div>
 
                     {/* Área de Mensagens (Chat Wallpaper) */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar relative flex flex-col justify-end">
+                    <div 
+                        data-testid="phone-mockup-messages"
+                        className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar relative min-h-0 select-text"
+                    >
                         {/* Pílula de Data */}
                         <div className="flex justify-center my-1">
                             <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-sm ${

@@ -209,6 +209,7 @@ async def handle_funnel_execution(data: dict):
                         phone_number=contact_phone,
                         status='sent',
                         message_type='TEMPLATE',
+                        template_name=trigger.template_name,
                         content=real_content,
                         var5=tpl_media_url,
                         pending_private_note=final_note

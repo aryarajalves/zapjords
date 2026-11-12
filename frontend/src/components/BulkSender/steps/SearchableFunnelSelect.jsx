@@ -86,7 +86,7 @@ export default function SearchableFunnelSelect({
     };
 
     return (
-        <div ref={containerRef} className="relative w-full text-xs">
+        <div ref={containerRef} className={`relative w-full text-xs ${isOpen ? 'z-50' : 'z-auto'}`}>
             {/* Gatilho / Seleção Fechada */}
             {!isOpen ? (
                 <div

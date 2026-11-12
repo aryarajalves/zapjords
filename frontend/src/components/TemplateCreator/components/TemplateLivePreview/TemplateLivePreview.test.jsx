@@ -207,5 +207,22 @@ describe('TemplateLivePreview Unit Tests Suite', () => {
             render(<TemplateLivePreview logic={logic} />);
             expect(screen.getByText(/O corpo excedeu o limite máximo da Meta/i)).toBeInTheDocument();
         });
+
+        it('garante que a área de mensagens do celular tem overflow-y-auto, min-h-0 e não usa justify-end para permitir scroll completo de mensagens longas', () => {
+            const logic = createMockLogic({
+                formData: {
+                    body_text: 'Mensagem com texto extenso para testar a rolagem sem clipping vertical.'
+                }
+            });
+
+            render(<TemplateLivePreview logic={logic} />);
+            const messagesArea = screen.getByTestId('phone-mockup-messages');
+
+            expect(messagesArea).toBeInTheDocument();
+            expect(messagesArea.className).toContain('overflow-y-auto');
+            expect(messagesArea.className).toContain('min-h-0');
+            expect(messagesArea.className).toContain('select-text');
+            expect(messagesArea.className).not.toContain('justify-end');
+        });
     });
 });
