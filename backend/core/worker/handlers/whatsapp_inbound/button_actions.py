@@ -10,6 +10,46 @@ import core.worker.handlers.whatsapp as wah
 logger = setup_logger("Worker.WhatsAppInbound.ButtonActions")
 
 
+def match_button_action(button_actions: Optional[dict], user_input: Optional[str]) -> Tuple[Optional[str], Optional[dict]]:
+    """
+    Localiza a ação correspondente a um clique de botão no dicionário button_actions
+    de forma resiliente e tolerante a truncamento da Meta:
+    1. Correspondência exata: button_actions[btn_key]
+    2. Correspondência insensível a maiúsculas/minúsculas: lower() == lower()
+    3. Correspondência por prefixo / truncamento da Meta:
+       (ex: 'Quero Link Do Grupo' enviado pela Meta quando o trigger foi gravado como 'Quero Link Do Grupo Vip')
+    Retorna (matched_key, action_dict) ou (None, None).
+    """
+    if not button_actions or not isinstance(button_actions, dict) or not user_input:
+        return None, None
+
+    btn_key = user_input.strip()
+    if not btn_key:
+        return None, None
+
+    # 1. Correspondência exata
+    if btn_key in button_actions:
+        return btn_key, button_actions[btn_key]
+
+    btn_key_lower = btn_key.lower()
+
+    # 2. Correspondência insensível a maiúsculas/minúsculas
+    for k, act in button_actions.items():
+        if k and k.strip().lower() == btn_key_lower:
+            return k, act
+
+    # 3. Correspondência por prefixo / truncamento da Meta (mínimo de 4 caracteres para evitar falsos positivos)
+    for k, act in button_actions.items():
+        if not k:
+            continue
+        k_clean = k.strip().lower()
+        if len(btn_key_lower) >= 4 and len(k_clean) >= 4:
+            if k_clean.startswith(btn_key_lower) or btn_key_lower.startswith(k_clean):
+                return k, act
+
+    return None, None
+
+
 def lookup_message_and_trigger(
     db,
     from_phone: str,
@@ -27,17 +67,24 @@ def lookup_message_and_trigger(
     if replied_msg_id:
         clean_replied_id = replied_msg_id.replace("wamid.", "")
         message_record = db.query(models.MessageStatus).filter(
-            models.MessageStatus.message_id == clean_replied_id
+            or_(
+                models.MessageStatus.message_id == clean_replied_id,
+                models.MessageStatus.message_id == replied_msg_id,
+                models.MessageStatus.message_id.like(f"%{clean_replied_id}")
+            )
         ).first()
 
     if not message_record:
-        # Fallback por sufixo de telefone nas últimas 24h
+        # Fallback por sufixo de telefone nas últimas 48h
         phone_suffix_fb = from_phone[-8:] if len(from_phone) >= 8 else from_phone
-        yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
         message_record = db.query(models.MessageStatus).filter(
             models.MessageStatus.phone_number.like(f"%{phone_suffix_fb}"),
-            models.MessageStatus.timestamp >= yesterday
-        ).order_by(models.MessageStatus.timestamp.desc()).first()
+            or_(
+                models.MessageStatus.timestamp >= cutoff,
+                models.MessageStatus.timestamp.is_(None)
+            )
+        ).order_by(models.MessageStatus.id.desc()).first()
 
     trigger_ref = None
     if message_record:
@@ -53,7 +100,7 @@ def lookup_message_and_trigger(
                 logger.info(f"🎯 [TARGET_CID] Identificado Client {target_cid} via histórico/contexto para {from_phone}")
 
     # Fallback ChatMessage: templates enviados diretamente do chat
-    if not message_record and msg_type in ("button", "interactive"):
+    if not trigger_ref and msg_type in ("button", "interactive"):
         try:
             chat_trigger_ref = None
             if replied_msg_id:
@@ -73,12 +120,15 @@ def lookup_message_and_trigger(
 
             if not chat_trigger_ref:
                 phone_suffix_chat = from_phone[-8:] if len(from_phone) >= 8 else from_phone
-                yesterday_chat = datetime.now(timezone.utc) - timedelta(hours=24)
+                cutoff_chat = datetime.now(timezone.utc) - timedelta(hours=48)
                 chat_trigger_ref = db.query(models.ScheduledTrigger).filter(
                     models.ScheduledTrigger.contact_phone.like(f"%{phone_suffix_chat}"),
                     models.ScheduledTrigger.button_actions.isnot(None),
                     models.ScheduledTrigger.status == 'sent',
-                    models.ScheduledTrigger.scheduled_time >= yesterday_chat
+                    or_(
+                        models.ScheduledTrigger.scheduled_time >= cutoff_chat,
+                        models.ScheduledTrigger.scheduled_time.is_(None)
+                    )
                 ).order_by(models.ScheduledTrigger.id.desc()).first()
 
             if chat_trigger_ref:
@@ -86,6 +136,25 @@ def lookup_message_and_trigger(
                 logger.info(f"🎯 [CHAT_BUTTON_TRIGGER] Usando ScheduledTrigger do chat (id={trigger_ref.id}) para button_actions de {from_phone}")
         except Exception as e_chat_fallback:
             logger.error(f"❌ [CHAT_BUTTON_TRIGGER] Erro ao buscar trigger de chat para botão: {e_chat_fallback}")
+
+    # Fallback Disparo em Massa Recente: se trigger_ref ainda não foi achado para o botão
+    if not trigger_ref and msg_type in ("button", "interactive") and target_cid:
+        try:
+            cutoff_bulk = datetime.now(timezone.utc) - timedelta(hours=48)
+            recent_bulk_trig = db.query(models.ScheduledTrigger).filter(
+                models.ScheduledTrigger.client_id == target_cid,
+                models.ScheduledTrigger.button_actions.isnot(None),
+                or_(
+                    models.ScheduledTrigger.scheduled_time >= cutoff_bulk,
+                    models.ScheduledTrigger.scheduled_time.is_(None)
+                )
+            ).order_by(models.ScheduledTrigger.id.desc()).first()
+
+            if recent_bulk_trig:
+                trigger_ref = recent_bulk_trig
+                logger.info(f"🎯 [BULK_BUTTON_TRIGGER_RECOVERY] ScheduledTrigger recuperado via histórico recente do client {target_cid} (id={trigger_ref.id}, tpl={trigger_ref.template_name}) para {from_phone}")
+        except Exception as e_bulk_fallback:
+            logger.error(f"❌ [BULK_BUTTON_TRIGGER_RECOVERY] Erro ao recuperar trigger de disparo em massa: {e_bulk_fallback}")
 
     return message_record, trigger_ref, target_cid
 
@@ -127,7 +196,9 @@ async def handle_button_actions(
             if fallback_trigger:
                 button_actions = fallback_trigger.button_actions or {}
                 logger.info(f"🔁 [BUTTON_ACTION_FALLBACK] button_actions nulo no Trigger {trigger_ref.id}, usando fallback do Trigger {fallback_trigger.id}")
-        action = button_actions.get(btn_key)
+        matched_key, action = match_button_action(button_actions, btn_key)
+        if action and matched_key != btn_key:
+            logger.info(f"✨ [BUTTON_ACTION_MATCH] Botão '{btn_key}' associado à ação configurada '{matched_key}' via match resiliente.")
 
     # Fallback para Lembretes de Agendamento
     if not action and target_cid:
@@ -138,9 +209,9 @@ async def handle_button_actions(
             if is_enabled:
                 buttons_str = cl_settings.get("APPOINTMENTS_REMINDER_BUTTONS", "{}")
                 reminder_buttons = json.loads(buttons_str) if buttons_str else {}
-                action = reminder_buttons.get(btn_key)
+                matched_apt_key, action = match_button_action(reminder_buttons, btn_key)
                 if action:
-                    logger.info(f"⏰ [BUTTON_ACTION_APPOINTMENT] Botão '{btn_key}' mapeado nas configs de Agendamento do Client {target_cid}")
+                    logger.info(f"⏰ [BUTTON_ACTION_APPOINTMENT] Botão '{btn_key}' mapeado nas configs de Agendamento do Client {target_cid} (chave: '{matched_apt_key}')")
         except Exception as e_apt_btn:
             logger.error(f"❌ [BUTTON_ACTION_APPOINTMENT] Erro ao buscar botão de agendamento: {e_apt_btn}")
 

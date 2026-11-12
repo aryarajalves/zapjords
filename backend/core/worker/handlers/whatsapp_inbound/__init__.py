@@ -19,6 +19,7 @@ from .chat_recorder import (
 from .button_actions import (
     lookup_message_and_trigger,
     handle_button_actions,
+    match_button_action,
 )
 from .trigger_evaluator import (
     evaluate_suspended_funnel_resume,
@@ -135,8 +136,8 @@ async def handle_whatsapp_inbound_messages(db, messages: list, value: dict, meta
                             ).order_by(models.ScheduledTrigger.id.desc()).first()
                             if fb_pre:
                                 pre_btn_actions = fb_pre.button_actions or {}
-                        pre_action = pre_btn_actions.get(user_input.strip(), {})
-                        btn_activate_agent = bool(pre_action.get("activate_agent", False))
+                        _, pre_action = match_button_action(pre_btn_actions, user_input)
+                        btn_activate_agent = bool((pre_action or {}).get("activate_agent", False))
                         log.info(f"🤖 [ACTIVATE_AGENT] Botão '{user_input}' → activate_agent={btn_activate_agent} (trigger={pre_trig.id})")
                     else:
                         btn_activate_agent = False
