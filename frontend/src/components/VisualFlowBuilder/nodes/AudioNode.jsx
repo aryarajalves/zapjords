@@ -79,7 +79,8 @@ const AudioNode = ({ id, data }) => {
 
             if (res.ok) {
                 const result = await res.json();
-                data.onChange(id, { mediaUrl: result.url, fileName: result.filename, mediaType: 'audio' });
+                const displayFileName = result.original_filename || file.name || result.filename;
+                data.onChange(id, { mediaUrl: result.url, fileName: displayFileName, mediaType: 'audio' });
                 toast.success("Upload de áudio concluído com sucesso!", { id: toastId });
             } else {
                 toast.error(`Erro ${res.status}: ${res.statusText}`, { id: toastId });

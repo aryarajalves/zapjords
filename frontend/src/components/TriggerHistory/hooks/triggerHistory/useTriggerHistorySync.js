@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { API_URL, WS_URL } from '../../../../config';
 import { fetchWithAuth } from '../../../../AuthContext';
 import { handleWebSocketMessage } from '../../utils/triggerHistoryUtils';
+import { isTokenExpired, handleSessionExpired } from '../../../../utils/tokenUtils';
 
 export function useTriggerHistorySync({
     activeClient,
@@ -42,8 +43,13 @@ export function useTriggerHistorySync({
 
         const connectWS = () => {
             if (!isMounted) return;
-            const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
             const wsToken = localStorage.getItem('token');
+            if (isTokenExpired(wsToken)) {
+                handleSessionExpired();
+                return;
+            }
+
+            const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
             const wsFinalUrl = wsToken ? `${wsBase}?token=${wsToken}` : wsBase;
 
             try {
@@ -66,6 +72,10 @@ export function useTriggerHistorySync({
                 };
 
                 ws.onclose = () => {
+                    if (isTokenExpired(localStorage.getItem('token'))) {
+                        handleSessionExpired();
+                        return;
+                    }
                     if (isMounted) {
                         reconnectTimeout = setTimeout(connectWS, 3000);
                     }

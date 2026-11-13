@@ -58,8 +58,9 @@ async def test_whatsapp_delivery_chat_sync_on_delivered():
     # Garante que db.query(Model).get(id) retorne o objeto correto
     db_mock.query.return_value.get.side_effect = mock_get
 
-    # Simulando a ausência de mensagem de chat local pré-existente
+    # Simulando a ausência de mensagem e conversa de chat local pré-existente
     db_mock.query.return_value.filter.return_value.first.return_value = None
+    db_mock.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
 
     # Mocks para o publish_event e cliente de websocket
     mock_rabbitmq = AsyncMock()

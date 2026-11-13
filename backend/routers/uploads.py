@@ -285,6 +285,7 @@ async def upload_file(
         
         return {
             "filename": unique_name,
+            "original_filename": file.filename,
             "url": file_url,
             "type": final_content_type,
             "size": file_size

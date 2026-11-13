@@ -152,9 +152,9 @@ async def test_send_chat_media_message_broadcasts_websocket(mock_publish, mock_g
     assert res["media_url"] == "/static/uploads/nova_imagem.png"
     assert res["message_type"] == "image"
     assert mock_publish.called is True
-    assert mock_publish.call_args[0][0] == "new_message"
-    assert mock_publish.call_args[0][1]["media_url"] == "/static/uploads/nova_imagem.png"
-    assert mock_publish.call_args[0][1]["conversation_id"] == convo.id
+    assert mock_publish.call_args_list[0][0][0] == "new_message"
+    assert mock_publish.call_args_list[0][0][1]["media_url"] == "/static/uploads/nova_imagem.png"
+    assert mock_publish.call_args_list[0][0][1]["conversation_id"] == convo.id
 
 
 @pytest.mark.asyncio
@@ -265,4 +265,114 @@ async def test_list_conversation_media_template_messages_resolution(db_session):
     # Validar documento resolvido
     assert res["docs"][0]["type"] == "document"
     assert res["docs"][0]["url"] == "https://api.zapvoice.com/proxy/ebook_astrologia.pdf"
+
+
+@pytest.mark.asyncio
+@patch("routers.chat.message_routes.upload_media_to_meta_from_url", new_callable=AsyncMock)
+@patch("routers.chat.message_routes._get_whatsapp_client")
+@patch("rabbitmq_client.rabbitmq.publish_event", new_callable=AsyncMock)
+async def test_send_chat_document_preserves_original_filename_and_caption(mock_publish, mock_get_wa, mock_upload_meta, db_session):
+    convo = models.ChatConversation(
+        client_id=1,
+        phone="5585998259497",
+        contact_name="Aryaraj",
+        status="open",
+        last_contact_message_at=datetime.now(timezone.utc)
+    )
+    db_session.add(convo)
+    db_session.commit()
+    db_session.refresh(convo)
+
+    mock_upload_meta.return_value = "meta_doc_456"
+    mock_wa = AsyncMock()
+    mock_wa._meta_request.return_value = {"messages": [{"id": "wamid_doc_456"}]}
+    mock_get_wa.return_value = mock_wa
+
+    caption_text = "No documento acima explico um pouco melhor oq irá receber na black friday"
+    payload = {
+        "media_url": "https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf",
+        "message_type": "document",
+        "caption": caption_text,
+        "filename": "comunidade.pdf"
+    }
+
+    res = await send_chat_media_message(
+        conversation_id=convo.id,
+        payload=payload,
+        client_id=1,
+        current_user=mock_user,
+        db=db_session
+    )
+
+    # Validar que a chamada à Meta API recebeu o filename original e a legenda
+    meta_call_kwargs = mock_wa._meta_request.call_args[1]
+    assert meta_call_kwargs["json"]["document"]["filename"] == "comunidade.pdf"
+    assert meta_call_kwargs["json"]["document"]["caption"] == caption_text
+
+    # Validar retorno HTTP e persistência no banco
+    assert res["message_type"] == "document"
+    assert res["content"] == caption_text
+    assert res["meta_data"] == {"filename": "comunidade.pdf"}
+
+    # Validar payload publicado no WebSocket
+    ws_new_msg_calls = [c for c in mock_publish.call_args_list if c[0][0] == "new_message"]
+    assert len(ws_new_msg_calls) == 1
+    ws_payload = ws_new_msg_calls[0][0][1]
+    assert ws_payload["content"] == caption_text
+    assert ws_payload["meta_data"] == {"filename": "comunidade.pdf"}
+
+
+@pytest.mark.asyncio
+@patch("routers.chat.message_routes.upload_media_to_meta_from_url", new_callable=AsyncMock)
+@patch("routers.chat.message_routes._get_whatsapp_client")
+@patch("rabbitmq_client.rabbitmq.publish_event", new_callable=AsyncMock)
+async def test_send_and_list_chat_document_resolves_filename_from_uploaded_media(mock_publish, mock_get_wa, mock_upload_meta, db_session):
+    from routers.chat.message_routes import list_messages
+
+    convo = models.ChatConversation(
+        client_id=1,
+        phone="5585998259497",
+        contact_name="Aryaraj",
+        status="open",
+        last_contact_message_at=datetime.now(timezone.utc)
+    )
+    db_session.add(convo)
+
+    uploaded = models.UploadedMedia(
+        client_id=1,
+        filename="comunidade.pdf",
+        unique_name="a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf",
+        url="https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf",
+        media_type="DOCUMENT",
+        size=4900000
+    )
+    db_session.add(uploaded)
+    db_session.commit()
+    db_session.refresh(convo)
+
+    # Caso 1: Mensagem antiga no histórico sem meta_data.filename é enriquecida em list_messages
+    old_doc_msg = models.ChatMessage(
+        conversation_id=convo.id,
+        sender_type="user",
+        user_id=1,
+        message_type="document",
+        content="📄 Documento enviado",
+        media_url="https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf",
+        meta_data=None,
+        timestamp=datetime.now(timezone.utc)
+    )
+    db_session.add(old_doc_msg)
+    db_session.commit()
+
+    msgs = await list_messages(
+        conversation_id=convo.id,
+        limit=25,
+        before_id=None,
+        client_id=1,
+        current_user=mock_user,
+        db=db_session
+    )
+    assert len(msgs) == 1
+    assert msgs[0]["meta_data"]["filename"] == "comunidade.pdf"
+
 

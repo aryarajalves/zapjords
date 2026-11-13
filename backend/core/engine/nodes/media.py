@@ -52,7 +52,22 @@ async def handle_media_node(db, trigger, node, chatwoot, conversation_id, contac
     
     media_type = data.get("mediaType", "image")
     caption = data.get("caption", "")
-    raw_filename = data.get("fileName") or p_data.get("bussola_pdf_filename") or "documento"
+    raw_filename = data.get("fileName") or p_data.get("bussola_pdf_filename") or ""
+    if file_url:
+        import re
+        uuid_file_re = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]+$', re.IGNORECASE)
+        if not raw_filename or raw_filename == "documento" or uuid_file_re.match(str(raw_filename).strip()):
+            try:
+                url_base = file_url.split("/")[-1].split("?")[0]
+                up_rec = db.query(models.UploadedMedia).filter(
+                    models.UploadedMedia.client_id == trigger.client_id,
+                    (models.UploadedMedia.url == file_url) | (models.UploadedMedia.unique_name == url_base)
+                ).first()
+                if up_rec and up_rec.filename:
+                    raw_filename = up_rec.filename
+            except Exception as e_up_fn:
+                logger.warning(f"⚠️ Erro ao resolver nome original em UploadedMedia para nó de mídia: {e_up_fn}")
+    raw_filename = raw_filename or "documento"
     resolved_filename = apply_vars_func(raw_filename)
     
     if not file_url: return "continue"
@@ -109,7 +124,8 @@ async def handle_media_node(db, trigger, node, chatwoot, conversation_id, contac
                     content=caption_processed,
                     message_type=media_type,
                     media_url=file_url,
-                    wa_message_id=msg_id_clean
+                    wa_message_id=msg_id_clean,
+                    meta_data={"filename": resolved_filename} if media_type in ["document", "file"] else None
                 )
             except Exception as e_local:
                 logger.error(f"❌ [CHAT-LOCAL] Erro ao sincronizar mídia localmente (via Atendimento): {e_local}")
@@ -168,7 +184,8 @@ async def handle_media_node(db, trigger, node, chatwoot, conversation_id, contac
                     content=caption_processed,
                     message_type=media_type,
                     media_url=file_url,
-                    wa_message_id=msg_id_clean
+                    wa_message_id=msg_id_clean,
+                    meta_data={"filename": resolved_filename} if media_type in ["document", "file"] else None
                 )
             except Exception as e_local:
                 logger.error(f"❌ [CHAT-LOCAL] Erro ao sincronizar mídia localmente (Meta path): {e_local}")

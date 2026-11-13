@@ -98,7 +98,8 @@ const MediaNode = ({ id, data }) => {
                     resolvedMediaType = 'audio';
                 }
                 
-                data.onChange(id, { mediaUrl: result.url, fileName: result.filename, mediaType: resolvedMediaType });
+                const displayFileName = result.original_filename || file.name || result.filename;
+                data.onChange(id, { mediaUrl: result.url, fileName: displayFileName, mediaType: resolvedMediaType });
                 toast.success("Upload concluído com sucesso!", { id: toastId });
             } else {
                 toast.error(`Erro ${res.status}: ${res.statusText}`, { id: toastId });

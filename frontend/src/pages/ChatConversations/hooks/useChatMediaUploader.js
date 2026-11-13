@@ -146,11 +146,13 @@ export function useChatMediaUploader({ engine, selectedConvo, activeClient, repl
 
             const uploadResult = await uploadRes.json();
             const fileUrl = uploadResult.url;
+            const originalFilename = file?.name || uploadResult.original_filename || uploadResult.filename || '';
 
             const mediaPayload = {
                 media_url: fileUrl,
                 message_type: messageType,
-                caption: caption || ''
+                caption: caption || '',
+                filename: originalFilename
             };
             if (replyingTo?.wa_message_id) {
                 mediaPayload.quoted_wa_message_id = replyingTo.wa_message_id;

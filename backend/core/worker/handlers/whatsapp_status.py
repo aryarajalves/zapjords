@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import text, or_
 from services.discovery import discover_or_create_chatwoot_conversation
 from config_loader import get_setting
+from core.utils import robust_extract_labels
 from services.utils.contact_name_helpers import is_generic_or_phone_name, find_best_contact_name_for_phone, resolve_and_update_conversation_name
 
 # Access attributes via the main namespace module to support unit test patching
@@ -164,7 +165,7 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                     if is_new_convo:
                         payload_ws_convo = {
                             "id": chat_convo.id,
-                            "client_id": trigger.client_id,
+                            "client_id": trigger.client_id if trigger else client_id,
                             "phone": chat_convo.phone,
                             "contact_name": chat_convo.contact_name,
                             "status": chat_convo.status,
@@ -236,9 +237,9 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                 logger.error(f"❌ [CHAT-LOCAL-POST-DELIVERY] Erro ao sincronizar template localmente pós-entrega: {e_chat_sync}")
 
         is_bulk = False
-        if trigger.is_bulk:
+        if trigger and trigger.is_bulk:
             is_bulk = True
-        elif trigger.parent_id:
+        elif trigger and trigger.parent_id:
             parent_trigger = db.query(models.ScheduledTrigger).get(trigger.parent_id)
             if parent_trigger and parent_trigger.is_bulk:
                 is_bulk = True
@@ -266,14 +267,14 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
             logger.info(f"📝 [DEFERRED_POST_DELIVERY] Sincronizando Chatwoot para {phone} pós-entrega (Trigger {trigger_id})")
             
             disc = await discover_or_create_chatwoot_conversation(
-                client_id=trigger.client_id,
+                client_id=trigger.client_id if trigger else (int(message_record.var1) if message_record.var1 else None),
                 phone=phone,
-                name=trigger.contact_name or phone
+                name=(trigger.contact_name if trigger else None) or message_record.contact_name or phone
             )
             
             if disc and disc.get("conversation_id"):
                 conversation_id = disc["conversation_id"]
-                cw = wah.ChatwootClient(client_id=trigger.client_id)
+                cw = wah.ChatwootClient(client_id=trigger.client_id if trigger else (int(message_record.var1) if message_record.var1 else None))
                 # 1. Enviar nota privada se pendente
                 if has_pending_note:
                     try:
@@ -290,7 +291,6 @@ async def _run_deferred_post_delivery(trigger_id, message_id, status, msg_id, ph
                 # 2. Aplicar etiquetas no Chatwoot se existirem
                 if has_chatwoot_labels:
                     try:
-                        from core.utils import robust_extract_labels
                         clean_labels = robust_extract_labels(trigger.chatwoot_label)
                         if clean_labels:
                             await cw.add_label_to_conversation(conversation_id, clean_labels)

@@ -74,7 +74,7 @@ async def safe_chatwoot_sync(db, trigger, contact_phone, client_id, effective_in
         logger.error(f"❌ [SYNC_RECOVERY] Falha na tentativa de recuperação automática de conversa/sincronização: {re_err}")
 
 
-async def sync_message_to_local_chat(db, client_id: int, phone: str, contact_name: str, content: str, message_type: str = "text", media_url: str = None, wa_message_id: str = None):
+async def sync_message_to_local_chat(db, client_id: int, phone: str, contact_name: str, content: str, message_type: str = "text", media_url: str = None, wa_message_id: str = None, meta_data: dict = None):
     """
     Sincroniza uma mensagem enviada pela automação/funil com o chat de atendimento local do cliente.
     """
@@ -116,7 +116,8 @@ async def sync_message_to_local_chat(db, client_id: int, phone: str, contact_nam
             message_type=message_type,
             content=content,
             media_url=media_url,
-            wa_message_id=formatted_wamid
+            wa_message_id=formatted_wamid,
+            meta_data=meta_data
         )
         db.add(chat_message)
         
@@ -134,6 +135,7 @@ async def sync_message_to_local_chat(db, client_id: int, phone: str, contact_nam
             "message_type": chat_message.message_type,
             "content": chat_message.content,
             "media_url": chat_message.media_url,
+            "meta_data": chat_message.meta_data,
             "timestamp": chat_message.timestamp.isoformat() if chat_message.timestamp else datetime.now(timezone.utc).isoformat(),
             "wa_message_id": chat_message.wa_message_id,
             "client_id": client_id

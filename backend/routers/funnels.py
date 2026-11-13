@@ -34,6 +34,39 @@ def list_funnels(
         query = query.filter(models.Funnel.is_archived == is_archived)
         
     funnels = query.order_by(models.Funnel.is_pinned.desc(), models.Funnel.id.desc()).offset(skip).limit(limit).all()
+
+    # Resolver automaticamente fileName com UUID (unique_name) nos nós de mídia/áudio para o nome original salvo em UploadedMedia
+    import re
+    from sqlalchemy.orm.attributes import flag_modified
+    uuid_file_re = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]+$', re.IGNORECASE)
+    any_funnel_updated = False
+    for f in funnels:
+        if isinstance(f.steps, dict) and isinstance(f.steps.get("nodes"), list):
+            node_updated = False
+            for node in f.steps["nodes"]:
+                if isinstance(node, dict) and node.get("type") in ("mediaNode", "media", "audioNode"):
+                    ndata = node.get("data")
+                    if isinstance(ndata, dict):
+                        cur_fn = (ndata.get("fileName") or "").strip()
+                        media_url = (ndata.get("mediaUrl") or ndata.get("url") or "").strip()
+                        if media_url and (not cur_fn or uuid_file_re.match(cur_fn)):
+                            url_base = media_url.split("/")[-1].split("?")[0]
+                            up_rec = db.query(models.UploadedMedia).filter(
+                                models.UploadedMedia.client_id == x_client_id,
+                                (models.UploadedMedia.url == media_url) | (models.UploadedMedia.unique_name == (cur_fn or url_base))
+                            ).first()
+                            if up_rec and up_rec.filename and up_rec.filename != cur_fn:
+                                ndata["fileName"] = up_rec.filename
+                                node_updated = True
+            if node_updated:
+                flag_modified(f, "steps")
+                any_funnel_updated = True
+    if any_funnel_updated:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
     return funnels
 
 @router.get("/funnels/new-conversation-trigger", summary="Obter funil atualmente ativo para nova conversa")

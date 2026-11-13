@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { API_URL, WS_URL } from './config';
+import { isTokenExpired, handleSessionExpired } from './utils/tokenUtils';
 
 const AuthContext = createContext(null);
 
@@ -11,12 +12,43 @@ export const AuthProvider = ({ children }) => {
         // Verificar se há token salvo ao carregar
         const token = localStorage.getItem('token');
         if (token) {
+            if (isTokenExpired(token)) {
+                handleSessionExpired();
+                setLoading(false);
+                return;
+            }
             // Validar token buscando dados do usuário
             fetchCurrentUser(token);
         } else {
             setLoading(false);
         }
     }, []);
+
+    // Monitor contínuo de validade da sessão em background (mesmo com aba parada aberta)
+    useEffect(() => {
+        if (!user) return;
+
+        const checkSessionStatus = () => {
+            const token = localStorage.getItem('token');
+            if (isTokenExpired(token)) {
+                console.warn("🔒 [AuthContext] Sessão expirada detectada pelo monitor em background. Efetuando logout...");
+                logout();
+                handleSessionExpired();
+            }
+        };
+
+        const sessionInterval = setInterval(checkSessionStatus, 15000);
+
+        const onSessionExpired = () => {
+            logout();
+        };
+        window.addEventListener('zapvoice:session_expired', onSessionExpired);
+
+        return () => {
+            clearInterval(sessionInterval);
+            window.removeEventListener('zapvoice:session_expired', onSessionExpired);
+        };
+    }, [user]);
 
     // WebSocket Realtime Sync para Perfil
     useEffect(() => {
@@ -25,6 +57,10 @@ export const AuthProvider = ({ children }) => {
         let ws;
         const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
         const wsToken = localStorage.getItem('token');
+        if (isTokenExpired(wsToken)) {
+            handleSessionExpired();
+            return;
+        }
         const wsFinalUrl = wsToken ? `${wsBase}?token=${wsToken}` : wsBase;
         try {
             ws = new WebSocket(wsFinalUrl);
@@ -57,7 +93,9 @@ export const AuthProvider = ({ children }) => {
             ws.onerror = (e) => console.error("🔴 [AuthContext] Auth WS Error", e);
             ws.onclose = (e) => {
                 console.log("🔌 [AuthContext] Auth WebSocket fechado. Code:", e.code, "Reason:", e.reason);
-                // Opcional: Re-conectar em alguns segundos se não foi fechado propositalmente
+                if (isTokenExpired(localStorage.getItem('token'))) {
+                    handleSessionExpired();
+                }
             };
 
         } catch (e) {
@@ -189,6 +227,12 @@ export const useAuth = () => {
 // Função helper para fazer requisições autenticadas
 export const fetchWithAuth = async (url, options = {}, clientId = null) => {
     const token = localStorage.getItem('token');
+
+    // Validação preventiva do token antes de disparar a requisição
+    if (token && !url.includes('/auth/token') && isTokenExpired(token)) {
+        handleSessionExpired();
+        throw new Error('Sessão expirada. Faça login novamente.');
+    }
 
     // Check if body is FormData to decide on Content-Type
     const isFormData = options.body instanceof FormData;

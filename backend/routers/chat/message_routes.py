@@ -133,6 +133,17 @@ async def list_messages(
             if not meta.get("delivered_at"):
                 meta["delivered_at"] = meta.get("sent_at") or (m.timestamp.isoformat() if m.timestamp else None)
 
+        # 4. Enriquecer filename original de documentos enviados anteriormente sem meta_data.filename
+        if m.message_type == "document" and not meta.get("filename") and m.media_url:
+            url_base = m.media_url.split("/")[-1].split("?")[0]
+            if url_base:
+                up_doc = db.query(models.UploadedMedia).filter(
+                    models.UploadedMedia.client_id == client_id,
+                    (models.UploadedMedia.url == m.media_url) | (models.UploadedMedia.unique_name == url_base)
+                ).first()
+                if up_doc and up_doc.filename:
+                    meta["filename"] = up_doc.filename
+
         if m.sender_type == 'user' and (meta != (m.meta_data or {}) or (cur_status != m.status and cur_status != 'sent')):
             m.meta_data = meta
             m.status = cur_status

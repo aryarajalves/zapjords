@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { WS_URL } from '../../../config';
+import { isTokenExpired, handleSessionExpired } from '../../../utils/tokenUtils';
 
 /**
  * Hook para gerenciar conexão WebSocket e atualizações em tempo real
@@ -57,8 +58,13 @@ export function useIntegrationsSocket({
       const currentClient = propsRef.current.activeClient;
       if (!currentClient || !isMounted) return;
 
-      const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
       const wsToken = localStorage.getItem('token');
+      if (isTokenExpired(wsToken)) {
+        handleSessionExpired();
+        return;
+      }
+
+      const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
       const wsFinalUrl = wsToken ? `${wsBase}?token=${wsToken}` : wsBase;
 
       try {
@@ -262,6 +268,10 @@ export function useIntegrationsSocket({
         };
 
         ws.onclose = () => {
+          if (isTokenExpired(localStorage.getItem('token'))) {
+            handleSessionExpired();
+            return;
+          }
           if (isMounted) reconnectTimeout = setTimeout(connect, 3000);
         };
 

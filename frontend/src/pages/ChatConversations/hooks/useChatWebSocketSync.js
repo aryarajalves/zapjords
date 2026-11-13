@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { WS_URL } from '../../../config';
+import { isTokenExpired, handleSessionExpired } from '../../../utils/tokenUtils';
 import { appendOrUpdateMessage } from '../utils/messageDeduplicator';
 
 export function useChatWebSocketSync({
@@ -19,8 +20,13 @@ export function useChatWebSocketSync({
 
     const connectWs = () => {
       try {
-        const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
         const token = localStorage.getItem('token') || '';
+        if (isTokenExpired(token)) {
+          handleSessionExpired();
+          return;
+        }
+
+        const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
         const wsUrl = token ? `${wsBase}?token=${token}` : wsBase;
 
         ws = new WebSocket(wsUrl);
@@ -237,6 +243,11 @@ export function useChatWebSocketSync({
         };
 
         ws.onclose = () => {
+          const currentToken = localStorage.getItem('token') || '';
+          if (isTokenExpired(currentToken)) {
+            handleSessionExpired();
+            return;
+          }
           reconnectTimeout = setTimeout(connectWs, 3000);
         };
 

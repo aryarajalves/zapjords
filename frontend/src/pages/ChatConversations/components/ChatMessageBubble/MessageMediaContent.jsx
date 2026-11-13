@@ -6,6 +6,8 @@ const SYSTEM_MEDIA_FALLBACK_TEXTS = new Set([
     "📷 Imagem enviada",
     "🎥 Vídeo recebido",
     "🎥 Vídeo enviado",
+    "🎬 Vídeo recebido",
+    "🎬 Vídeo enviado",
     "📄 Documento recebido",
     "📄 Documento enviado",
     "🎵 Áudio recebido",

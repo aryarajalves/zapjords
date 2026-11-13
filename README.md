@@ -52,7 +52,7 @@ Criação e edição de modelos HSM com aprovação na Meta:
 ### 3. Construtor Visual de Funis (Visual Flow Builder)
 Criação gráfica em estilo *drag-and-drop* de fluxos de conversação inteligentes:
 *   **Nós de Delays**: Intervalos de tempo fixos ou aleatórios para simular a digitação humana.
-*   **Nós de Mídias**: Envio de imagens, vídeos, PDFs e mensagens de áudio gravadas (enviadas como áudio gravado na hora).
+*   **Nós de Mídias**: Envio de imagens, vídeos, PDFs e mensagens de áudio gravadas (enviadas como áudio gravado na hora), preservando o nome original dos documentos anexados tanto no nó do construtor quanto no disparo pela Meta API e no histórico do Chat Local.
 *   **Condições Inteligentes (IA)**: Análise de resposta usando inteligência artificial da OpenAI (`gpt-4o-mini`) para ramificar o fluxo baseado na resposta livre do cliente.
 *   **Botões Interativos**: Mensagens com botões de clique rápido que ramificam o fluxo dependendo da escolha do cliente.
 

@@ -1,5 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
+import { render, screen, renderHook, act, cleanup } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
+import MessageMediaContent from './components/ChatMessageBubble/MessageMediaContent';
+import { useChatMediaUploader } from './hooks/useChatMediaUploader';
+import * as AuthContextModule from '../../AuthContext';
+
+afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+});
 
 describe('ChatConversations Media Drag Drop & Paste Utils', () => {
     const MEDIA_SIZE_LIMITS = {
@@ -71,5 +82,85 @@ describe('ChatConversations Media Drag Drop & Paste Utils', () => {
         onDragLeave();
         expect(dragCounter).toBe(0);
         expect(isDraggingFile).toBe(false);
+    });
+
+    it('envia o filename original (comunidade.pdf) e a legenda no payload de sendMedia', async () => {
+        const mockFile = new File(['%PDF-1.4'], 'comunidade.pdf', { type: 'application/pdf' });
+        const caption = 'No documento acima explico um pouco melhor oq irá receber na black friday';
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                filename: 'a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf',
+                original_filename: 'comunidade.pdf',
+                url: 'https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf'
+            })
+        });
+
+        const fetchWithAuthSpy = vi.spyOn(AuthContextModule, 'fetchWithAuth').mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                id: 999,
+                conversation_id: 17880,
+                message_type: 'document',
+                content: caption,
+                media_url: 'https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf',
+                meta_data: { filename: 'comunidade.pdf' }
+            })
+        });
+
+        const engine = {
+            setIsSendingMedia: vi.fn(),
+            setMessages: vi.fn(),
+            setShouldScrollToBottom: vi.fn(),
+            setConversations: vi.fn(),
+            setSelectedConvo: vi.fn(),
+            loadConversationMedia: vi.fn(),
+            loadConversations: vi.fn(),
+            setMediaPreview: vi.fn(),
+            setPreviewCaption: vi.fn(),
+            setNewMessage: vi.fn()
+        };
+
+        const { result } = renderHook(() =>
+            useChatMediaUploader({
+                engine,
+                selectedConvo: { id: 17880 },
+                activeClient: { id: 1 },
+                replyingTo: null,
+                setReplyingTo: vi.fn()
+            })
+        );
+
+        await act(async () => {
+            await result.current.sendMedia(mockFile, 'document', caption);
+        });
+
+        expect(fetchWithAuthSpy).toHaveBeenCalledTimes(1);
+        const [, requestInit] = fetchWithAuthSpy.mock.calls[0];
+        const parsedBody = JSON.parse(requestInit.body);
+        expect(parsedBody).toEqual({
+            media_url: 'https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf',
+            message_type: 'document',
+            caption,
+            filename: 'comunidade.pdf'
+        });
+    });
+
+    it('renderiza o nome original do documento e a legenda em MessageMediaContent', () => {
+        const msg = {
+            id: 999,
+            message_type: 'document',
+            media_url: 'https://cdn.example.com/a2a4c8a1-ab5b-4b76-9be7-c8b1e572583c.pdf',
+            content: 'No documento acima explico um pouco melhor oq irá receber na black friday',
+            meta_data: { filename: 'comunidade.pdf' }
+        };
+
+        render(<MessageMediaContent msg={msg} />);
+
+        expect(screen.getByText('comunidade.pdf')).toBeInTheDocument();
+        expect(
+            screen.getByText('No documento acima explico um pouco melhor oq irá receber na black friday')
+        ).toBeInTheDocument();
     });
 });

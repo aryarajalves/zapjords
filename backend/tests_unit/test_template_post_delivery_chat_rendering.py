@@ -188,3 +188,185 @@ async def test_deferred_post_delivery_updates_existing_message_to_template():
         assert existing_msg.meta_data.get("template_name") == "astrowake_dia15"
         assert existing_msg.meta_data.get("buttons") == ["Quero Entrar No Grupo"]
         assert mock_pub.called
+
+
+@pytest.mark.asyncio
+async def test_deferred_post_delivery_creates_new_conversation_with_labels_and_template():
+    """
+    Testa o cenário de disparo via Webhook para contato inédito (sem ChatConversation prévia)
+    com etiquetas configuradas no gatilho (trigger.chatwoot_label), garantindo que não ocorra
+    UnboundLocalError em robust_extract_labels e que tanto a conversa quanto o template sejam criados.
+    """
+    trigger = models.ScheduledTrigger(
+        id=1421,
+        client_id=1,
+        contact_phone="5562981272733",
+        contact_name="Bárbara",
+        template_name="disparo_black_astrowake",
+        chatwoot_label="inscricao, blackfriday",
+        is_bulk=False
+    )
+    message_record = models.MessageStatus(
+        id=801,
+        trigger_id=1421,
+        message_id="B904CAE7DE2AF202E2",
+        phone_number="5562981272733",
+        contact_name="Bárbara",
+        status="delivered",
+        message_type="TEMPLATE",
+        template_name="disparo_black_astrowake",
+        content="Olá Bárbara, sua inscrição na Black Friday Astrowake foi confirmada!"
+    )
+
+    tpl_cache = models.WhatsAppTemplateCache(
+        client_id=1,
+        name="disparo_black_astrowake",
+        language="pt_BR",
+        body="Olá {{1}}, sua inscrição na Black Friday Astrowake foi confirmada!",
+        components=[
+            {"type": "BUTTONS", "buttons": [{"type": "QUICK_REPLY", "text": "Quero Link Do Grupo Vip"}]}
+        ]
+    )
+
+    added_objects = []
+    mock_db = MagicMock()
+
+    def mock_flush():
+        for obj in added_objects:
+            if isinstance(obj, models.ChatConversation) and not obj.id:
+                obj.id = 2050
+
+    mock_db.flush.side_effect = mock_flush
+
+    def mock_query(model):
+        q = MagicMock()
+        if model == models.MessageStatus:
+            q.get.return_value = message_record
+            return q
+        elif model == models.ScheduledTrigger:
+            q.get.return_value = trigger
+            return q
+        elif model == models.ChatMessage:
+            q.filter.return_value.first.return_value = None
+            return q
+        elif model == models.ChatConversation:
+            q.filter.return_value.order_by.return_value.first.return_value = None  # Conversa ainda não existe
+            return q
+        elif model == models.WhatsAppTemplateCache:
+            q.filter.return_value.first.return_value = tpl_cache
+            return q
+        return q
+
+    mock_db.query.side_effect = mock_query
+    mock_db.add.side_effect = lambda obj: added_objects.append(obj)
+
+    with patch("core.worker.handlers.whatsapp_status.wah.SessionLocal", return_value=mock_db), \
+         patch("core.worker.handlers.whatsapp_status.discover_or_create_chatwoot_conversation", new_callable=AsyncMock, return_value=None), \
+         patch("rabbitmq_client.rabbitmq.publish_event", new_callable=AsyncMock) as mock_pub:
+
+        await _run_deferred_post_delivery(
+            trigger_id=1421,
+            message_id=801,
+            status="delivered",
+            msg_id="wamid.HBgMNTU2MjgxMjcyNzMzFQIAERgSQjkwNENBRTdERTJBRjIwMkUyAA==",
+            phone="556281272733"
+        )
+
+        # Verifica criação da conversa com telefone normalizado (com 9º dígito) e etiquetas extraídas
+        chat_convos = [o for o in added_objects if isinstance(o, models.ChatConversation)]
+        assert len(chat_convos) == 1
+        new_convo = chat_convos[0]
+        assert new_convo.phone == "5562981272733"
+        assert new_convo.contact_name == "Bárbara"
+        assert new_convo.labels == ["inscricao", "blackfriday"]
+
+        # Verifica criação da mensagem de template vinculada à nova conversa
+        chat_messages = [o for o in added_objects if isinstance(o, models.ChatMessage)]
+        assert len(chat_messages) == 1
+        new_msg = chat_messages[0]
+        assert new_msg.conversation_id == 2050
+        assert new_msg.message_type == "template"
+        assert new_msg.meta_data["template_name"] == "disparo_black_astrowake"
+        assert new_msg.meta_data["buttons"] == ["Quero Link Do Grupo Vip"]
+
+        # Verifica eventos WebSocket disparados (conversation_created e new_message)
+        published_events = [call.args[0] for call in mock_pub.call_args_list]
+        assert "conversation_created" in published_events
+        assert "new_message" in published_events
+
+
+@pytest.mark.asyncio
+async def test_deferred_post_delivery_merges_labels_on_existing_conversation():
+    """
+    Testa se etiquetas de um trigger são mescladas corretamente quando a conversa já existe
+    no momento da confirmação de entrega (delivered), sem lançar UnboundLocalError.
+    """
+    trigger = models.ScheduledTrigger(
+        id=1422,
+        client_id=1,
+        contact_phone="5562981272733",
+        contact_name="Bárbara",
+        template_name="disparo_black_astrowake",
+        chatwoot_label="inscricao",
+        is_bulk=True
+    )
+    message_record = models.MessageStatus(
+        id=802,
+        trigger_id=1422,
+        message_id="B904CAE7DE2AF202E3",
+        phone_number="5562981272733",
+        contact_name="Bárbara",
+        status="delivered",
+        message_type="TEMPLATE",
+        template_name="disparo_black_astrowake",
+        content="Conteúdo do template"
+    )
+    existing_convo = models.ChatConversation(
+        id=2051,
+        client_id=1,
+        phone="5562981272733",
+        contact_name="Bárbara",
+        status="open",
+        labels=["vip"]
+    )
+
+    added_objects = []
+    mock_db = MagicMock()
+
+    def mock_query(model):
+        q = MagicMock()
+        if model == models.MessageStatus:
+            q.get.return_value = message_record
+            return q
+        elif model == models.ScheduledTrigger:
+            q.get.return_value = trigger
+            return q
+        elif model == models.ChatMessage:
+            q.filter.return_value.first.return_value = None
+            return q
+        elif model == models.ChatConversation:
+            q.filter.return_value.order_by.return_value.first.return_value = existing_convo
+            return q
+        elif model == models.WhatsAppTemplateCache:
+            q.filter.return_value.first.return_value = None
+            return q
+        return q
+
+    mock_db.query.side_effect = mock_query
+    mock_db.add.side_effect = lambda obj: added_objects.append(obj)
+
+    with patch("core.worker.handlers.whatsapp_status.wah.SessionLocal", return_value=mock_db), \
+         patch("rabbitmq_client.rabbitmq.publish_event", new_callable=AsyncMock):
+
+        await _run_deferred_post_delivery(
+            trigger_id=1422,
+            message_id=802,
+            status="delivered",
+            msg_id="wamid.B904CAE7DE2AF202E3",
+            phone="5562981272733"
+        )
+
+        assert existing_convo.labels == ["vip", "inscricao"]
+        chat_messages = [o for o in added_objects if isinstance(o, models.ChatMessage)]
+        assert len(chat_messages) == 1
+

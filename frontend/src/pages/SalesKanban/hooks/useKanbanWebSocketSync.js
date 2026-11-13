@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { WS_URL } from '../../../config';
+import { isTokenExpired, handleSessionExpired } from '../../../utils/tokenUtils';
 
 /**
  * useKanbanWebSocketSync
@@ -39,8 +40,13 @@ export function useKanbanWebSocketSync({
         const connect = () => {
             if (isDisposed) return;
             try {
-                const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
                 const token = localStorage.getItem('token') || '';
+                if (isTokenExpired(token)) {
+                    handleSessionExpired();
+                    return;
+                }
+
+                const wsBase = WS_URL.endsWith('/ws') ? WS_URL : `${WS_URL}/ws`;
                 const wsUrl = token ? `${wsBase}?token=${token}` : wsBase;
 
                 ws = new WebSocket(wsUrl);
@@ -91,6 +97,10 @@ export function useKanbanWebSocketSync({
 
                 ws.onclose = () => {
                     setIsWsConnected(false);
+                    if (isTokenExpired(localStorage.getItem('token'))) {
+                        handleSessionExpired();
+                        return;
+                    }
                     if (!isDisposed) {
                         reconnectTimeout = setTimeout(connect, 3000);
                     }

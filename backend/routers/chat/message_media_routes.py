@@ -135,6 +135,15 @@ async def list_conversation_media(
                 detected_type = "audio"
 
         if media_url:
+            resolved_doc_filename = m.meta_data.get("filename") if isinstance(m.meta_data, dict) else None
+            if detected_type == "document" and not resolved_doc_filename:
+                url_base = media_url.split("/")[-1].split("?")[0]
+                up_doc = db.query(models.UploadedMedia).filter(
+                    models.UploadedMedia.client_id == client_id,
+                    (models.UploadedMedia.url == media_url) | (models.UploadedMedia.unique_name == url_base)
+                ).first()
+                resolved_doc_filename = (up_doc.filename if up_doc and up_doc.filename else None) or url_base
+
             item_data = {
                 "id": m.id,
                 "message_id": m.id,
@@ -142,7 +151,7 @@ async def list_conversation_media(
                 "url": media_url,
                 "timestamp": msg_time,
                 "caption": m.content,
-                "filename": (m.meta_data.get("filename") if isinstance(m.meta_data, dict) else None) or (media_url.split("/")[-1].split("?")[0] if detected_type == "document" else None),
+                "filename": resolved_doc_filename,
                 "sender_type": m.sender_type
             }
             if detected_type == "document":
@@ -284,9 +293,24 @@ async def send_chat_media_message(
     media_url = payload.get("media_url")
     m_type = payload.get("message_type")
     caption = payload.get("caption", "")
+    raw_filename = (payload.get("filename") or "").strip()
     quoted_wa_message_id = payload.get("quoted_wa_message_id")
     if not media_url or not m_type:
         raise HTTPException(status_code=400, detail="Mídia URL e Tipo de Mensagem são obrigatórios.")
+
+    url_basename = media_url.split("/")[-1].split("?")[0] if "/" in media_url else ""
+    if not raw_filename and url_basename:
+        try:
+            up_rec = db.query(models.UploadedMedia).filter(
+                models.UploadedMedia.client_id == client_id,
+                (models.UploadedMedia.url == media_url) | (models.UploadedMedia.unique_name == url_basename)
+            ).first()
+            if up_rec and up_rec.filename:
+                raw_filename = up_rec.filename
+        except Exception as e_up_lookup:
+            logger.warning(f"⚠️ Erro ao buscar filename original em UploadedMedia: {e_up_lookup}")
+
+    doc_filename = raw_filename or url_basename or "documento"
 
     wa_client = _get_wa_client(client_id=client_id)
 
@@ -340,13 +364,13 @@ async def send_chat_media_message(
                     "recipient_type": "individual",
                     "to": ''.join(filter(str.isdigit, convo.phone)),
                     "type": "document",
-                    "document": {"id": meta_media_id, "caption": caption, "filename": "documento"}
+                    "document": {"id": meta_media_id, "caption": caption, "filename": doc_filename}
                 }
                 if quoted_wa_message_id:
                     json_payload["context"] = {"message_id": quoted_wa_message_id}
                 response = await wa_client._meta_request("POST", "messages", json=json_payload)
             else:
-                response = await wa_client.send_document_official(convo.phone, media_url, caption=caption)
+                response = await wa_client.send_document_official(convo.phone, media_url, caption=caption, filename=doc_filename)
         else:
             raise HTTPException(status_code=400, detail=f"Tipo de mídia não suportado: {m_type}")
 
@@ -368,9 +392,11 @@ async def send_chat_media_message(
     elif m_type == "video":
         content_text = f"🎬 {caption}" if caption else "🎬 Vídeo enviado"
     elif m_type in ["audio", "voice"]:
-        content_text = "🎵 Áudio enviado"
+        content_text = f"🎵 {caption}" if caption else "🎵 Áudio enviado"
     else:
-        content_text = "📄 Documento enviado"
+        content_text = caption if caption else "📄 Documento enviado"
+
+    msg_meta_data = {"filename": doc_filename} if m_type == "document" else ({"filename": raw_filename} if raw_filename else None)
 
     new_message = models.ChatMessage(
         conversation_id=convo.id,
@@ -380,11 +406,12 @@ async def send_chat_media_message(
         content=content_text,
         media_url=media_url,
         wa_message_id=wa_msg_id,
-        quoted_message_id=quoted_wa_message_id
+        quoted_message_id=quoted_wa_message_id,
+        meta_data=msg_meta_data
     )
     db.add(new_message)
 
-    convo.last_message_content = content_text
+    convo.last_message_content = f"📄 {caption}" if (m_type == "document" and caption) else content_text
     mark_conversation_read_for_all(convo)
     convo.last_message_at = datetime.now(timezone.utc)
     db.commit()
@@ -402,6 +429,7 @@ async def send_chat_media_message(
             "message_type": new_message.message_type,
             "content": new_message.content,
             "media_url": new_message.media_url,
+            "meta_data": new_message.meta_data,
             "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else datetime.now().isoformat(),
             "wa_message_id": new_message.wa_message_id,
             "status": "sent",
@@ -432,6 +460,7 @@ async def send_chat_media_message(
         "message_type": new_message.message_type,
         "content": new_message.content,
         "media_url": new_message.media_url,
+        "meta_data": new_message.meta_data,
         "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else datetime.now().isoformat(),
         "wa_message_id": new_message.wa_message_id,
         "status": "sent",
