@@ -1,4 +1,4 @@
-# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.2.7 — Versão Estável)
+# ⚡ ZapVoice - Automação WhatsApp API Oficial (v2.2.8 — Versão Estável)
 
 Versão estável com **Copiloto IA de Atendimento e Vendas Comerciais com Botão Arrastável em Tempo Real**, **Marcação Automática de Mensagem Lida ao Reagir com Emoji**, **Disparo Individual de Templates Diretamente no Perfil Lateral do Contato no Chat**, **Fixação de até 5 Integrações de Webhook no Topo da Tabela**, **Scroll Dedicado no Editor de Mensagens de Funil sem Afetar o Zoom**, **Esteira Completa de Automações Pré-Push (Release Pipeline)**, **Auditoria de Segurança Integrada (pip-audit + npm audit 100% livres de vulnerabilidades)** e **Arquitetura Modular Clean Code**.
 
