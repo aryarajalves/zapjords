@@ -161,3 +161,34 @@ def test_bussola_settings_endpoint_route_registered():
     ]
     assert "/api/settings/test-bussola-connection" in post_paths
     assert "/api/test-bussola-connection" in post_paths
+
+
+@pytest.mark.asyncio
+async def test_bussola_test_connection_uses_saved_key_when_payload_is_masked():
+    """
+    Garante que se o frontend enviar a chave mascarada (ex: '97b9****784a'),
+    o endpoint ignora a máscara e busca a chave real descriptografada no banco.
+    """
+    from routers.bussola import handle_test_bussola_connection, TestBussolaRequest
+    from models import AppConfig
+
+    mock_db = MagicMock()
+    mock_cfg = MagicMock(spec=AppConfig)
+    mock_cfg.value = "encrypted_real_key"
+    mock_db.query.return_value.filter.return_value.first.return_value = mock_cfg
+
+    payload = TestBussolaRequest(
+        api_url="https://bussolaappback.aryaraj.shop",
+        api_key="97b9****************************784a"
+    )
+
+    with patch("routers.bussola.decrypt_token", return_value="real_unmasked_key_123"), \
+         patch("routers.bussola.test_bussola_connection", new_callable=AsyncMock, return_value={"success": True}) as mock_test:
+        res = await handle_test_bussola_connection(
+            payload=payload,
+            x_client_id=1,
+            current_user=MagicMock(),
+            db=mock_db,
+        )
+        assert res["success"] is True
+        mock_test.assert_awaited_once_with("https://bussolaappback.aryaraj.shop", "real_unmasked_key_123")

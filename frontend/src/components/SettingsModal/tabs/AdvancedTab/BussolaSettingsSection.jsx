@@ -28,6 +28,7 @@ export default function BussolaSettingsSection({ formData, handleChange, visible
     setTestResult(null);
 
     try {
+      const isMaskedKey = apiKey.includes('****');
       const res = await fetchWithAuth(
         `${API_URL}/settings/test-bussola-connection`,
         {
@@ -35,7 +36,7 @@ export default function BussolaSettingsSection({ formData, handleChange, visible
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             api_url: apiUrl,
-            api_key: apiKey,
+            api_key: isMaskedKey ? null : apiKey,
           }),
         },
         activeClient?.id

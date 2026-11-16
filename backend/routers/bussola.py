@@ -34,8 +34,9 @@ async def handle_test_bussola_connection(
     """
     api_url = (payload.api_url or "").strip()
     api_key = (payload.api_key or "").strip()
+    is_masked_key = "****" in api_key
 
-    if not api_url and db:
+    if (not api_url or "****" in api_url) and db:
         url_cfg = db.query(AppConfig).filter(
             AppConfig.client_id == x_client_id,
             AppConfig.key == "BUSSOLA_API_URL"
@@ -43,13 +44,15 @@ async def handle_test_bussola_connection(
         if url_cfg and url_cfg.value:
             api_url = url_cfg.value.strip()
 
-    if not api_key and db:
+    if (not api_key or is_masked_key) and db:
         key_cfg = db.query(AppConfig).filter(
             AppConfig.client_id == x_client_id,
             AppConfig.key == "BUSSOLA_API_KEY"
         ).first()
         if key_cfg and key_cfg.value:
             api_key = decrypt_token(key_cfg.value).strip()
+        elif is_masked_key:
+            api_key = ""
 
     result = await test_bussola_connection(api_url, api_key)
     return result
