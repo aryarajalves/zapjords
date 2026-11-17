@@ -1,7 +1,9 @@
 import React from 'react';
 import { FiPlus, FiZap, FiShare2, FiChevronLeft, FiChevronRight, FiFilter } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 import MappingItem from './MappingItem';
 import { EVENT_TYPES } from '../../constants';
+import { applyInviteAutoEnable } from './inviteAutoEnable';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
 
@@ -78,13 +80,23 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
     setFormData({ ...formData, mappings: newMappings });
   };
 
+  const applyAutoInvites = (prevMapping, nextMapping, changedField) => {
+    const { mapping, enabledPlatform, enabledBussola } = applyInviteAutoEnable(prevMapping, nextMapping, changedField);
+    if (enabledPlatform) toast.success('Criação automática da Área de Membros ativada para este gatilho!');
+    if (enabledBussola) toast.success('Criação automática do App Bússola ativada para este gatilho!');
+    return mapping;
+  };
+
   const updateMapping = (index, field, value) => {
     const newMappings = [...formData.mappings];
-    if (typeof field === 'object' && field !== null) {
-      newMappings[index] = { ...newMappings[index], ...field };
-    } else {
-      newMappings[index] = { ...newMappings[index], [field]: value };
-    }
+    const prevMapping = newMappings[index];
+    const nextMapping = (typeof field === 'object' && field !== null)
+      ? { ...prevMapping, ...field }
+      : { ...prevMapping, [field]: value };
+
+    newMappings[index] = typeof field === 'string'
+      ? applyAutoInvites(prevMapping, nextMapping, field)
+      : nextMapping;
     
     if (field === 'template_id') {
       const selectedTpl = templates.find(t => t.id === value || String(t.id) === String(value));
@@ -119,11 +131,12 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
 
   const updateVariable = (mIndex, vIndex, field, value) => {
     const newMappings = [...formData.mappings];
-    const mapping = { ...newMappings[mIndex] };
+    const prevMapping = newMappings[mIndex];
+    const mapping = { ...prevMapping };
     const newVars = [...(mapping.variables_mapping || [])];
     newVars[vIndex] = { ...newVars[vIndex], [field]: value };
     mapping.variables_mapping = newVars;
-    newMappings[mIndex] = mapping;
+    newMappings[mIndex] = applyAutoInvites(prevMapping, mapping, 'variables_mapping');
     setFormData({ ...formData, mappings: newMappings });
   };
 
@@ -147,11 +160,12 @@ const MappingsConfig = ({ formData, setFormData, templates, funnels, chatwootLab
 
   const updateFollowupVariable = (mIndex, vIndex, field, value) => {
     const newMappings = [...formData.mappings];
-    const mapping = { ...newMappings[mIndex] };
+    const prevMapping = newMappings[mIndex];
+    const mapping = { ...prevMapping };
     const newVars = [...(mapping.followup_variables_mapping || [])];
     newVars[vIndex] = { ...newVars[vIndex], [field]: value };
     mapping.followup_variables_mapping = newVars;
-    newMappings[mIndex] = mapping;
+    newMappings[mIndex] = applyAutoInvites(prevMapping, mapping, 'followup_variables_mapping');
     setFormData({ ...formData, mappings: newMappings });
   };
 

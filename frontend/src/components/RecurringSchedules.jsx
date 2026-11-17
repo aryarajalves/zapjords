@@ -25,6 +25,8 @@ export default function RecurringSchedules() {
         setEditDayOfMonth,
         editTime,
         setEditTime,
+        editInviteConfig,
+        setEditInviteConfig,
         fetchSchedules,
         handleToggleStatus,
         handleDelete,
@@ -129,6 +131,8 @@ export default function RecurringSchedules() {
                 setEditDayOfMonth={setEditDayOfMonth}
                 editTime={editTime}
                 setEditTime={setEditTime}
+                editInviteConfig={editInviteConfig}
+                setEditInviteConfig={setEditInviteConfig}
                 onCancel={() => setSelectedSchedule(null)}
                 onSave={handleUpdate}
                 isEditing={isEditing}

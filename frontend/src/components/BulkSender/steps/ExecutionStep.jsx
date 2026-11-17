@@ -5,6 +5,7 @@ import SchedulingSection from './SchedulingSection';
 import ButtonActionsSection from './ButtonActionsSection';
 import ContactLabelsSection from './ContactLabelsSection';
 import FollowUpSection from './FollowUpSection';
+import BulkInviteConfigSection from './BulkInviteConfigSection';
 import { getTemplateCategoryInfo } from '../utils/templateUtils';
 
 const ExecutionStep = ({
@@ -73,6 +74,9 @@ const ExecutionStep = ({
     chatwootLabels = [],
     selectedContactLabels = [],
     setSelectedContactLabels,
+    inviteConfig,
+    setInviteConfig,
+    templateParams = {},
     setStep,
 
     templateButtons = [],
@@ -308,6 +312,13 @@ const ExecutionStep = ({
                             setIsDynamicLabel={setIsDynamicLabel}
                             selectionMetadata={selectionMetadata}
                             selectedChatwootLabels={selectedChatwootLabels}
+                        />
+
+                        <BulkInviteConfigSection
+                            contacts={finalContacts}
+                            templateParams={templateParams}
+                            inviteConfig={inviteConfig}
+                            setInviteConfig={setInviteConfig}
                         />
 
                         <ContactLabelsSection

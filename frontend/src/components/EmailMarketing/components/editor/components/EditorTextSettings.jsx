@@ -19,16 +19,19 @@ export default function EditorTextSettings({
       return;
     }
 
+    const savedScrollTop = el.scrollTop;
     const start = el.selectionStart ?? currentVal.length;
     const end = el.selectionEnd ?? currentVal.length;
     const newVal = currentVal.substring(0, start) + code + currentVal.substring(end);
     onUpdateActiveBlock('content', newVal);
 
-    // Reposiciona o cursor após a inserção
-    setTimeout(() => {
-      el.focus();
-      el.selectionStart = el.selectionEnd = start + code.length;
-    }, 0);
+    // Reposiciona o cursor após a inserção preservando o scroll
+    const nextPos = start + code.length;
+    requestAnimationFrame(() => {
+      el.focus({ preventScroll: true });
+      el.setSelectionRange(nextPos, nextPos);
+      el.scrollTop = savedScrollTop;
+    });
   };
 
   return (
@@ -68,6 +71,7 @@ export default function EditorTextSettings({
               <button
                 key={v.code}
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleInsertVariable(v.code)}
                 title={v.label}
                 className="px-2 py-0.5 bg-slate-800 hover:bg-blue-600 hover:border-blue-500 text-gray-300 hover:text-white rounded text-[10px] font-mono transition-all border border-white/10"

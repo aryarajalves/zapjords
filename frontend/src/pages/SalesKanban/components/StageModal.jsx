@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiTrash2, FiLayers, FiCheck } from 'react-icons/fi';
 import { StageForwardSection } from './StageForwardSection';
 import { StageFollowupSection } from './StageFollowupSection';
+import { API_URL } from '../../../config';
+import { fetchWithAuth } from '../../../AuthContext';
+import { useClient } from '../../../contexts/ClientContext';
 
 const COLOR_OPTIONS = [
     { id: 'blue', label: 'Azul', bg: 'bg-blue-500', border: 'border-blue-400' },
@@ -29,10 +32,13 @@ const TRIGGER_OPTIONS = [
 ];
 
 export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pipelineId, pipelines = [] }) {
+    const { activeClient } = useClient();
     const [name, setName] = useState('');
     const [color, setColor] = useState('blue');
     const [stageType, setStageType] = useState('in_progress');
     const [webhookEventTrigger, setWebhookEventTrigger] = useState('');
+    const [contactTagTrigger, setContactTagTrigger] = useState('');
+    const [availableTags, setAvailableTags] = useState([]);
     const [forwardEnabled, setForwardEnabled] = useState(false);
     const [forwardToPipelineId, setForwardToPipelineId] = useState('');
     const [forwardToStageId, setForwardToStageId] = useState('');
@@ -47,6 +53,7 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
             setColor(stageToEdit.color || 'blue');
             setStageType(stageToEdit.stage_type || 'in_progress');
             setWebhookEventTrigger(stageToEdit.webhook_event_trigger || '');
+            setContactTagTrigger(stageToEdit.contact_tag_trigger || '');
             const hasForward = Boolean(stageToEdit.forward_to_pipeline_id && stageToEdit.forward_to_pipeline_id > 0);
             setForwardEnabled(hasForward);
             setForwardToPipelineId(stageToEdit.forward_to_pipeline_id || '');
@@ -59,6 +66,7 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
             setColor('blue');
             setStageType('in_progress');
             setWebhookEventTrigger('');
+            setContactTagTrigger('');
             setForwardEnabled(false);
             setForwardToPipelineId('');
             setForwardToStageId('');
@@ -67,6 +75,23 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
             setFollowupDelayUnit('hours');
         }
     }, [stageToEdit, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !activeClient?.id) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth(`${API_URL}/leads/filters`, {}, activeClient.id);
+                if (res.ok && !cancelled) {
+                    const data = await res.json();
+                    setAvailableTags(Array.isArray(data?.tags) ? data.tags : []);
+                }
+            } catch {
+                // Silencioso para não bloquear edição da coluna
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [isOpen, activeClient?.id]);
 
     const currentPipeId = pipelineId || stageToEdit?.pipeline_id;
     const otherPipelines = (pipelines || []).filter(p => Number(p.id) !== Number(currentPipeId));
@@ -104,6 +129,7 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
                 color,
                 stage_type: stageType,
                 webhook_event_trigger: webhookEventTrigger.trim() || null,
+                contact_tag_trigger: contactTagTrigger.trim() || null,
                 forward_to_pipeline_id: forwardEnabled && forwardToPipelineId ? Number(forwardToPipelineId) : null,
                 forward_to_stage_id: forwardEnabled && forwardToStageId ? Number(forwardToStageId) : null,
                 is_followup: isFollowup,
@@ -224,6 +250,39 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
                         </select>
                         <p className="text-[10px] text-slate-500 mt-1">
                             Se selecionado, novos leads recebidos com este status entram automaticamente nesta coluna.
+                        </p>
+                    </div>
+
+                    {/* Etiqueta da Aba de Contatos (Opcional) */}
+                    <div>
+                        <label
+                            htmlFor="stage-contact-tag-trigger"
+                            className="block text-xs font-bold text-slate-300 mb-1.5"
+                        >
+                            Etiqueta da Aba de Contatos (Opcional)
+                        </label>
+                        <select
+                            id="stage-contact-tag-trigger"
+                            value={contactTagTrigger}
+                            onChange={(e) => setContactTagTrigger(e.target.value)}
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-medium cursor-pointer"
+                        >
+                            <option value="" className="bg-slate-900 text-white">
+                                Nenhuma (Não vincular por etiqueta)
+                            </option>
+                            {contactTagTrigger && !availableTags.includes(contactTagTrigger) && (
+                                <option value={contactTagTrigger} className="bg-slate-900 text-white">
+                                    {contactTagTrigger}
+                                </option>
+                            )}
+                            {availableTags.map((tag) => (
+                                <option key={tag} value={tag} className="bg-slate-900 text-white">
+                                    {tag}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                            Contatos que possuírem ou receberem esta etiqueta na aba Contatos vão direto para esta coluna.
                         </p>
                     </div>
 

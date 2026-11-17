@@ -319,6 +319,7 @@ def build_pipeline_board_data(
             "color": s.color,
             "stage_type": s.stage_type,
             "webhook_event_trigger": s.webhook_event_trigger,
+            "contact_tag_trigger": getattr(s, "contact_tag_trigger", None),
             "forward_to_pipeline_id": getattr(s, "forward_to_pipeline_id", None),
             "forward_to_stage_id": getattr(s, "forward_to_stage_id", None),
             "is_followup": is_fo,

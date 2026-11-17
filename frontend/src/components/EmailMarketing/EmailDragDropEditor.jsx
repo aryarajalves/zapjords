@@ -84,7 +84,12 @@ export default function EmailDragDropEditor({ initialHtml, onChangeHtml }) {
   }, [initialHtml]);
 
   // Sempre que os blocos ou estilos mudarem, notifica o componente pai com o HTML gerado
+  const skipFirstExportRef = useRef(Boolean(initialHtml));
   useEffect(() => {
+    if (skipFirstExportRef.current) {
+      skipFirstExportRef.current = false;
+      return;
+    }
     const generatedHtml = exportBlocksToHtml(blocks, globalStyles);
     lastExportedHtmlRef.current = generatedHtml;
     if (onChangeHtml) onChangeHtml(generatedHtml);

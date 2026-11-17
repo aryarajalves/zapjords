@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from models.base import Base
@@ -45,6 +46,14 @@ class EmailTemplate(Base):
     subject = Column(String(500), nullable=False)
     body_html = Column(Text, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    # Configurações de convite automático para variáveis {{link_cadastro}} e {{link_bussola}}
+    invite_role = Column(String, default="aluno")
+    invite_duration_hours = Column(Integer, default=0)
+    invite_course_access = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    bussola_invite_role = Column(String, default="client")
+    bussola_validity_type = Column(String, default="never")
+    bussola_custom_api_key = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

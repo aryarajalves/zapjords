@@ -23,6 +23,7 @@ export const executeBulkSend = async ({
     maxDispatchTime,
     selectedChatwootLabels,
     selectedContactLabels,
+    inviteConfig,
     sendPrivateMessage,
     privateMessageText,
     privateMessageDelayUnit,
@@ -172,7 +173,12 @@ export const executeBulkSend = async ({
             button_actions: Object.keys(buttonActions).length > 0 ? buttonActions : null,
             followups: formattedFollowups.length > 0 ? formattedFollowups : null,
             is_dynamic_label: !!(scheduledTime && isDynamicLabel && (selectionMetadata?.mode === 'tag' || (selectedChatwootLabels && selectedChatwootLabels.length > 0))),
-            dynamic_label_name: selectionMetadata?.tag || (selectedChatwootLabels && selectedChatwootLabels[0]) || null
+            dynamic_label_name: selectionMetadata?.tag || (selectedChatwootLabels && selectedChatwootLabels[0]) || null,
+            invite_role: inviteConfig?.invite_role || 'aluno',
+            invite_duration_hours: Number(inviteConfig?.invite_duration_hours || 0),
+            invite_course_access: Array.isArray(inviteConfig?.invite_course_access) ? inviteConfig.invite_course_access : null,
+            bussola_invite_role: inviteConfig?.bussola_invite_role || 'client',
+            bussola_validity_type: inviteConfig?.bussola_validity_type || 'never'
         };
 
         let res;

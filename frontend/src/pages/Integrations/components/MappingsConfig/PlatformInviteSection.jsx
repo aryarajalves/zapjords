@@ -14,7 +14,7 @@ const ACCESS_DURATION_OPTIONS = [
   { value: '3_years', label: '3 Anos (1095 dias)' },
 ];
 
-export default function PlatformInviteSection({ mapping, mIndex, updateMapping }) {
+export default function PlatformInviteSection({ mapping, mIndex, updateMapping, compact = false }) {
   const { activeClient } = useClient();
   const isAutoInvite = Boolean(mapping.auto_create_invite);
   const courseAccess = Array.isArray(mapping.invite_course_access) ? mapping.invite_course_access : [];
@@ -112,17 +112,17 @@ export default function PlatformInviteSection({ mapping, mIndex, updateMapping }
         {isAutoInvite && (
           <div className="space-y-4 pt-2 animate-in slide-in-from-top-2 duration-300">
             {/* Linha de Configurações Básicas: Role e Duração */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 ${compact ? '' : 'md:grid-cols-2'} gap-4`}>
               {/* Função / Papel com Seletor Visual Pill para eliminar bug de fundo branco */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0">
                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">
                   Função / Papel do Usuário
                 </label>
-                <div className="grid grid-cols-2 gap-1.5 p-1 bg-white dark:bg-[#0b1120] border border-gray-100 dark:border-white/5 rounded-xl">
+                <div className="flex flex-wrap gap-1.5 p-1 bg-white dark:bg-[#0b1120] border border-gray-100 dark:border-white/5 rounded-xl">
                   <button
                     type="button"
                     onClick={() => updateMapping(mIndex, 'invite_role', 'aluno')}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-center ${
+                    className={`flex-1 min-w-[100px] py-1.5 px-2.5 rounded-lg text-[11px] leading-tight font-bold transition-all text-center whitespace-nowrap cursor-pointer ${
                       currentRole === 'aluno'
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -133,7 +133,7 @@ export default function PlatformInviteSection({ mapping, mIndex, updateMapping }
                   <button
                     type="button"
                     onClick={() => updateMapping(mIndex, 'invite_role', 'admin')}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-center ${
+                    className={`flex-1 min-w-[100px] py-1.5 px-2.5 rounded-lg text-[11px] leading-tight font-bold transition-all text-center whitespace-nowrap cursor-pointer ${
                       currentRole === 'admin'
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'

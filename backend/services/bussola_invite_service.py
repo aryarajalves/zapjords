@@ -108,7 +108,12 @@ async def generate_bussola_invite(
         return None
 
 
-async def test_bussola_connection(api_url: str, api_key: str) -> Dict[str, Any]:
+async def test_bussola_connection(
+    api_url: str,
+    api_key: str,
+    role: str = "client",
+    validity_type: str = "never"
+) -> Dict[str, Any]:
     """
     Testa a conectividade com a API do App Bússola Astrológica gerando um convite de teste.
     """
@@ -126,9 +131,11 @@ async def test_bussola_connection(api_url: str, api_key: str) -> Dict[str, Any]:
         "Content-Type": "application/json",
         "X-API-Key": clean_key
     }
+    safe_role = role if role in ("client", "admin") else "client"
+    safe_validity = validity_type if validity_type in ("never", "24h", "48h", "72h") else "never"
     payload = {
-        "role": "client",
-        "validity_type": "never"
+        "role": safe_role,
+        "validity_type": safe_validity
     }
 
     try:

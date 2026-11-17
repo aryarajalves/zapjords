@@ -191,4 +191,41 @@ async def test_bussola_test_connection_uses_saved_key_when_payload_is_masked():
             db=mock_db,
         )
         assert res["success"] is True
-        mock_test.assert_awaited_once_with("https://bussolaappback.aryaraj.shop", "real_unmasked_key_123")
+        mock_test.assert_awaited_once_with(
+            "https://bussolaappback.aryaraj.shop",
+            "real_unmasked_key_123",
+            role="client",
+            validity_type="never",
+        )
+
+
+@pytest.mark.asyncio
+async def test_bussola_test_connection_forwards_role_and_validity():
+    """
+    Garante que o endpoint repassa role e validity_type customizados (ex: do gatilho de webhook)
+    para a função test_bussola_connection.
+    """
+    from routers.bussola import handle_test_bussola_connection, TestBussolaRequest
+
+    mock_db = MagicMock()
+    payload = TestBussolaRequest(
+        api_url="https://bussolaappback.aryaraj.shop",
+        api_key="custom_trigger_key",
+        role="admin",
+        validity_type="24h",
+    )
+
+    with patch("routers.bussola.test_bussola_connection", new_callable=AsyncMock, return_value={"success": True}) as mock_test:
+        res = await handle_test_bussola_connection(
+            payload=payload,
+            x_client_id=1,
+            current_user=MagicMock(),
+            db=mock_db,
+        )
+        assert res["success"] is True
+        mock_test.assert_awaited_once_with(
+            "https://bussolaappback.aryaraj.shop",
+            "custom_trigger_key",
+            role="admin",
+            validity_type="24h",
+        )

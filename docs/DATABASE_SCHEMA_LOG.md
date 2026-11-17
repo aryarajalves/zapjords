@@ -35,6 +35,9 @@ Este arquivo registra a estrutura atual do banco de dados e todas as alteraçõe
 ## 🕒 Histórico de Migrações (Últimas Alterações)
 
 | Data | Alteração | Tabela | Colunas Adicionadas | Script de Migração |
+| 17/11/2026 | Vínculo de Etiqueta da Aba de Contatos por Coluna do Kanban | `sales_pipeline_stages` | `contact_tag_trigger` (VARCHAR(100)) | `backend/scripts/database/add_stage_contact_tag_trigger.py` |
+| 17/11/2026 | Configuração de Acessos e Convites (Área de Membros e Bússola) em Disparos em Massa e Recorrentes | `scheduled_triggers`, `recurring_triggers` | `invite_role` (VARCHAR), `invite_duration_hours` (INTEGER), `invite_course_access` (JSONB), `bussola_invite_role` (VARCHAR), `bussola_validity_type` (VARCHAR) | `backend/scripts/database/add_trigger_invite_columns.py` |
+| 17/11/2026 | Configuração de Acessos e Convites (Área de Membros e Bússola) por Template de E-mail | `email_templates` | `invite_role` (VARCHAR), `invite_duration_hours` (INTEGER), `invite_course_access` (JSONB), `bussola_invite_role` (VARCHAR), `bussola_validity_type` (VARCHAR), `bussola_custom_api_key` (VARCHAR) | `backend/scripts/database/add_email_template_invite_columns.py` |
 | 07/11/2026 | Prompts de IA Personalizáveis por Produto / Contexto | i_prompt_presets | Tabela nova completa (id, client_id, 
 ame, product_identifier, prompt_text, is_default, created_at, updated_at) | ackend/add_ai_prompt_presets_table.py |
 | 07/11/2026 | Copiloto de Atendimento com IA & Financeiro de Tokens | i_usage_logs | Tabela nova completa (id, client_id, user_id, conversation_id, contact_phone, contact_name, model, prompt_tokens, completion_tokens, 	otal_tokens, cost_usd, cost_brl, question_preview, 

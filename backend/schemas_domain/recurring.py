@@ -35,6 +35,11 @@ class RecurringTriggerBase(BaseModel):
     contact_labels: Optional[List[str]] = None
     interaction_filter_days: Optional[int] = None
     created_filter_days: Optional[int] = None
+    invite_role: Optional[str] = "aluno"
+    invite_duration_hours: Optional[int] = 0
+    invite_course_access: Optional[List[Dict[str, Any]]] = None
+    bussola_invite_role: Optional[str] = "client"
+    bussola_validity_type: Optional[str] = "never"
 
     @field_validator('button_actions', mode='before')
     @classmethod
@@ -82,6 +87,11 @@ class RecurringTriggerUpdate(BaseModel):
     contact_labels: Optional[List[str]] = None
     interaction_filter_days: Optional[int] = None
     created_filter_days: Optional[int] = None
+    invite_role: Optional[str] = "aluno"
+    invite_duration_hours: Optional[int] = 0
+    invite_course_access: Optional[List[Dict[str, Any]]] = None
+    bussola_invite_role: Optional[str] = "client"
+    bussola_validity_type: Optional[str] = "never"
 
 
 class RecurringTriggerCreate(RecurringTriggerBase):

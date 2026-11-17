@@ -48,6 +48,13 @@ export const useBulkSender = (onViewChange, onSuccess) => {
     const [privateMessageConcurrency, setPrivateMessageConcurrency] = useState(1);
     const [selectedChatwootLabels, setSelectedChatwootLabels] = useState([]);
     const [selectedContactLabels, setSelectedContactLabels] = useState([]);
+    const [inviteConfig, setInviteConfig] = useState({
+        invite_role: 'aluno',
+        invite_duration_hours: 0,
+        invite_course_access: [],
+        bussola_invite_role: 'client',
+        bussola_validity_type: 'never'
+    });
 
     // Button Actions (card 04)
     const [buttonActions, setButtonActions] = useState({});
@@ -196,6 +203,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
             maxDispatchTime,
             selectedChatwootLabels,
             selectedContactLabels,
+            inviteConfig,
             sendPrivateMessage,
             privateMessageText,
             privateMessageDelayUnit,
@@ -231,6 +239,7 @@ export const useBulkSender = (onViewChange, onSuccess) => {
         privateMessageDelay, setPrivateMessageDelay, privateMessageDelayUnit, setPrivateMessageDelayUnit,
         privateMessageConcurrency, setPrivateMessageConcurrency, selectedChatwootLabels, setSelectedChatwootLabels,
         selectedContactLabels, setSelectedContactLabels,
+        inviteConfig, setInviteConfig,
         finalContacts, selectionMetadata, isSending, delaySeconds, setDelaySeconds,
         delayUnit, setDelayUnit, concurrency, setConcurrency, scheduledTime, setScheduledTime,
         maxDispatchTime, setMaxDispatchTime, clearMaxDispatchTime,

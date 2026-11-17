@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import models, schemas
 from core.deps import get_current_user, get_db, get_validated_client_id
 from core.encryption import encrypt_token, decrypt_token
-from services.email_service import send_single_email
+from services.email_service import send_single_email, extract_template_invite_config
 from services.blocked_contacts_service import get_blocked_emails_set, verify_unsubscribe_token
 from core.logger import setup_logger
 from rabbitmq_client import rabbitmq
@@ -40,6 +40,12 @@ class EmailTemplateSchema(BaseModel):
     name: str
     subject: str
     body_html: str
+    invite_role: Optional[str] = "aluno"
+    invite_duration_hours: Optional[int] = 0
+    invite_course_access: Optional[List[dict]] = None
+    bussola_invite_role: Optional[str] = "client"
+    bussola_validity_type: Optional[str] = "never"
+    bussola_custom_api_key: Optional[str] = None
 
 class EmailBulkSendPayload(BaseModel):
     template_id: int
@@ -180,6 +186,12 @@ def create_email_template(
         name=payload.name,
         subject=payload.subject,
         body_html=payload.body_html,
+        invite_role=payload.invite_role or "aluno",
+        invite_duration_hours=int(payload.invite_duration_hours or 0),
+        invite_course_access=payload.invite_course_access,
+        bussola_invite_role=payload.bussola_invite_role or "client",
+        bussola_validity_type=payload.bussola_validity_type or "never",
+        bussola_custom_api_key=payload.bussola_custom_api_key,
         is_active=True
     )
     db.add(tmpl)
@@ -203,6 +215,12 @@ def update_email_template(
     tmpl.name = payload.name
     tmpl.subject = payload.subject
     tmpl.body_html = payload.body_html
+    tmpl.invite_role = payload.invite_role or "aluno"
+    tmpl.invite_duration_hours = int(payload.invite_duration_hours or 0)
+    tmpl.invite_course_access = payload.invite_course_access
+    tmpl.bussola_invite_role = payload.bussola_invite_role or "client"
+    tmpl.bussola_validity_type = payload.bussola_validity_type or "never"
+    tmpl.bussola_custom_api_key = payload.bussola_custom_api_key
     db.commit()
     db.refresh(tmpl)
     return tmpl
@@ -395,13 +413,15 @@ async def create_bulk_email_dispatch(
     sent_count = 0
     fail_count = 0
 
+    tmpl_invite_cfg = extract_template_invite_config(template)
     for c in target_contacts:
         res = await send_single_email(
             config=config,
             to_email=c["email"],
             subject=template.subject,
             body_html=template.body_html,
-            recipient_name=c, dispatch_id=dispatch.id
+            recipient_name=c, dispatch_id=dispatch.id,
+            invite_config=tmpl_invite_cfg
         )
         if res.get("success"):
             sent_count += 1

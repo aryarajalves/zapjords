@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { FiEdit2 } from 'react-icons/fi';
+import BulkInviteConfigSection from '../../BulkSender/steps/BulkInviteConfigSection';
 
 export function EditScheduleModal({
     selectedSchedule,
@@ -11,6 +12,8 @@ export function EditScheduleModal({
     setEditDayOfMonth,
     editTime,
     setEditTime,
+    editInviteConfig,
+    setEditInviteConfig,
     onCancel,
     onSave,
     isEditing
@@ -124,6 +127,15 @@ export function EditScheduleModal({
                                 ))}
                             </div>
                         </div>
+                    )}
+
+                    {setEditInviteConfig && (
+                        <BulkInviteConfigSection
+                            contacts={selectedSchedule.contacts_list || []}
+                            templateComponents={selectedSchedule.template_components || []}
+                            inviteConfig={editInviteConfig}
+                            setInviteConfig={setEditInviteConfig}
+                        />
                     )}
 
                 </div>

@@ -364,6 +364,11 @@ async def process_recurring_triggers(db, now_utc):
                 recurring_trigger_id=rt.id,
                 contact_labels=getattr(rt, "contact_labels", None),
                 button_actions=rt.button_actions,
+                invite_role=getattr(rt, "invite_role", "aluno"),
+                invite_duration_hours=getattr(rt, "invite_duration_hours", 0),
+                invite_course_access=getattr(rt, "invite_course_access", None),
+                bussola_invite_role=getattr(rt, "bussola_invite_role", "client"),
+                bussola_validity_type=getattr(rt, "bussola_validity_type", "never"),
                 scheduled_time=scheduled_time_utc,
                 failure_reason=failure_reason
             )
@@ -391,6 +396,11 @@ async def process_recurring_triggers(db, now_utc):
                 recurring_trigger_id=rt.id,
                 contact_labels=getattr(rt, "contact_labels", None),
                 button_actions=rt.button_actions,
+                invite_role=getattr(rt, "invite_role", "aluno"),
+                invite_duration_hours=getattr(rt, "invite_duration_hours", 0),
+                invite_course_access=getattr(rt, "invite_course_access", None),
+                bussola_invite_role=getattr(rt, "bussola_invite_role", "client"),
+                bussola_validity_type=getattr(rt, "bussola_validity_type", "never"),
                 scheduled_time=now_utc
             )
             db.add(new_st)

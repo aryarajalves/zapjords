@@ -22,15 +22,18 @@ export default function TextBlockMaximizeModal({
       return;
     }
 
+    const savedScrollTop = el.scrollTop;
     const start = el.selectionStart ?? currentVal.length;
     const end = el.selectionEnd ?? currentVal.length;
     const newVal = currentVal.substring(0, start) + code + currentVal.substring(end);
     onUpdateActiveBlock('content', newVal);
 
-    setTimeout(() => {
-      el.focus();
-      el.selectionStart = el.selectionEnd = start + code.length;
-    }, 0);
+    const nextPos = start + code.length;
+    requestAnimationFrame(() => {
+      el.focus({ preventScroll: true });
+      el.setSelectionRange(nextPos, nextPos);
+      el.scrollTop = savedScrollTop;
+    });
   };
 
   const modalContent = (
@@ -66,6 +69,7 @@ export default function TextBlockMaximizeModal({
             <button
               key={v.code}
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleInsertVariable(v.code)}
               className="px-2.5 py-1 bg-slate-800 hover:bg-blue-600 text-gray-200 hover:text-white rounded-lg text-xs font-mono font-medium transition-all border border-white/10 hover:border-blue-500 shadow-sm"
               title={v.label}

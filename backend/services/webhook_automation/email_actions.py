@@ -42,13 +42,14 @@ async def process_webhook_email_actions(
 
                     if email_cfg:
                         subject = getattr(mapping, "email_subject", None) or email_tpl.subject
-                        from services.email_service import send_single_email
+                        from services.email_service import send_single_email, extract_template_invite_config
                         email_res = await send_single_email(
                             config=email_cfg,
                             to_email=contact_email,
                             subject=subject,
                             body_html=email_tpl.body_html,
-                            recipient_name=variables
+                            recipient_name=variables,
+                            invite_config=extract_template_invite_config(email_tpl)
                         )
                         is_success = bool(email_res.get("success"))
                         st_email = models.ScheduledTrigger(

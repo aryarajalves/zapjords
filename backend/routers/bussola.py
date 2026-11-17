@@ -19,6 +19,8 @@ router = APIRouter(tags=["bussola"])
 class TestBussolaRequest(BaseModel):
     api_url: Optional[str] = Field(None, description="URL base da API da Bússola (opcional se já salva)")
     api_key: Optional[str] = Field(None, description="Chave de API externa da Bússola (opcional se já salva)")
+    role: Optional[str] = Field("client", description="Papel do usuário no convite de teste (client ou admin)")
+    validity_type: Optional[str] = Field("never", description="Validade do convite de teste (never, 24h, 48h, 72h)")
 
 @router.post("/settings/test-bussola-connection")
 @router.post("/test-bussola-connection")
@@ -54,5 +56,10 @@ async def handle_test_bussola_connection(
         elif is_masked_key:
             api_key = ""
 
-    result = await test_bussola_connection(api_url, api_key)
+    result = await test_bussola_connection(
+        api_url,
+        api_key,
+        role=payload.role or "client",
+        validity_type=payload.validity_type or "never"
+    )
     return result

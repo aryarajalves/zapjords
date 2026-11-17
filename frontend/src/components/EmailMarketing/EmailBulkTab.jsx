@@ -10,6 +10,7 @@ import SearchableTagSelect from './components/bulk/SearchableTagSelect';
 import EmailRecipientsPreview from './components/bulk/EmailRecipientsPreview';
 import EmailSchedulingSection from './components/bulk/EmailSchedulingSection';
 import EmailAudienceSelector from './components/bulk/EmailAudienceSelector';
+import EmailSendingModal from './components/bulk/EmailSendingModal';
 
 export default function EmailBulkTab({ onNavigateHistory }) {
   const { activeClient } = useClient();
@@ -308,6 +309,13 @@ export default function EmailBulkTab({ onNavigateHistory }) {
           </div>
         </form>
       </div>
+
+      <EmailSendingModal
+        isOpen={sendLoading}
+        sendMode={sendMode}
+        recipientCount={recipients.length}
+        campaignTitle={formData.title}
+      />
     </div>
   );
 }

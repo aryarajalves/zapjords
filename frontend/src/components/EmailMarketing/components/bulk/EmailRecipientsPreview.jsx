@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { FiUsers, FiChevronDown, FiAlertTriangle, FiSearch, FiMail, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
+export function parseRecipientTags(tags) {
+  if (!tags) return [];
+  if (Array.isArray(tags)) {
+    return tags.map(t => String(t).trim()).filter(Boolean);
+  }
+  return String(tags)
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean);
+}
+
+const MAX_VISIBLE_TAGS = 3;
+
 export default function EmailRecipientsPreview({
   recipients,
   previewLoading
@@ -8,11 +21,20 @@ export default function EmailRecipientsPreview({
   const [showRecipientsList, setShowRecipientsList] = useState(true);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedRowKeys, setExpandedRowKeys] = useState({});
   const PAGE_SIZE = 20;
 
   useEffect(() => {
     setCurrentPage(1);
+    setExpandedRowKeys({});
   }, [recipientSearch, recipients]);
+
+  const toggleRowTags = (rowKey) => {
+    setExpandedRowKeys(prev => ({
+      ...prev,
+      [rowKey]: !prev[rowKey]
+    }));
+  };
 
   const filteredRecipients = recipients.filter(r => {
     const q = recipientSearch.toLowerCase().trim();
@@ -81,23 +103,57 @@ export default function EmailRecipientsPreview({
             )}
 
             {/* Lista de e-mails paginada (20 por página) */}
-            <div className="divide-y divide-gray-100 dark:divide-gray-700/40 pr-1">
-              {paginatedRecipients.map(r => (
-                <div key={r.id || r.email} className="py-1.5 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 truncate">
-                    <FiMail className="text-blue-400 shrink-0" size={12} />
-                    <span className="font-bold text-gray-800 dark:text-white truncate">{r.email}</span>
-                    {r.name && r.name !== 'Sem nome' && (
-                      <span className="text-gray-400 text-[11px] truncate">({r.name})</span>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700/40 pr-1 max-w-full overflow-hidden">
+              {paginatedRecipients.map((r, idx) => {
+                const rowKey = r.id || `${r.email}-${idx}`;
+                const tagList = parseRecipientTags(r.tags);
+                const isExpanded = Boolean(expandedRowKeys[rowKey]);
+                const visibleTags = isExpanded ? tagList : tagList.slice(0, MAX_VISIBLE_TAGS);
+                const hiddenCount = tagList.length - visibleTags.length;
+
+                return (
+                  <div key={rowKey} className="py-2 flex flex-col gap-1.5 text-xs min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                      <FiMail className="text-blue-400 shrink-0" size={12} />
+                      <span className="font-bold text-gray-800 dark:text-white break-all">{r.email}</span>
+                      {r.name && r.name !== 'Sem nome' && (
+                        <span className="text-gray-400 text-[11px] truncate max-w-full">({r.name})</span>
+                      )}
+                    </div>
+                    {tagList.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 pl-5 min-w-0">
+                        {visibleTags.map((tag, tagIdx) => (
+                          <span
+                            key={`${rowKey}-tag-${tagIdx}`}
+                            className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-mono max-w-full break-all"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleRowTags(rowKey)}
+                            className="text-[10px] bg-slate-700/60 hover:bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded font-semibold transition-colors cursor-pointer"
+                            title={tagList.slice(MAX_VISIBLE_TAGS).join(', ')}
+                          >
+                            +{hiddenCount}
+                          </button>
+                        )}
+                        {isExpanded && tagList.length > MAX_VISIBLE_TAGS && (
+                          <button
+                            type="button"
+                            onClick={() => toggleRowTags(rowKey)}
+                            className="text-[10px] text-gray-400 hover:text-gray-200 px-1 py-0.5 underline cursor-pointer"
+                          >
+                            recolher
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {r.tags && (
-                    <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-mono shrink-0 ml-2">
-                      {r.tags}
-                    </span>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Barra de Paginação dos Contatos (20 por vez) */}

@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_
 from database import SessionLocal
 from rabbitmq_client import rabbitmq
 from core.logger import setup_logger
-from services.email_service import send_single_email
+from services.email_service import send_single_email, extract_template_invite_config
 
 logger = setup_logger(__name__)
 
@@ -105,7 +105,8 @@ async def process_scheduled_email_dispatches(db_session=None):
                             to_email=c.get("email", ""),
                             subject=template.subject,
                             body_html=template.body_html,
-                            recipient_name=c
+                            recipient_name=c,
+                            invite_config=extract_template_invite_config(template)
                         )
                         if res.get("success"):
                             sent_count += 1

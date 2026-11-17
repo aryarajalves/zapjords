@@ -297,7 +297,12 @@ async def trigger_bulk_template_for_conversations(
             day_of_month=day_of_month if day_of_month else None,
             scheduled_time=recurrence_time,
             is_active=True,
-            next_run_at=next_run
+            next_run_at=next_run,
+            invite_role=payload.get("invite_role", "aluno"),
+            invite_duration_hours=int(payload.get("invite_duration_hours") or 0),
+            invite_course_access=payload.get("invite_course_access"),
+            bussola_invite_role=payload.get("bussola_invite_role", "client"),
+            bussola_validity_type=payload.get("bussola_validity_type", "never")
         )
         db.add(recurring)
         db.commit()
@@ -358,7 +363,12 @@ async def trigger_bulk_template_for_conversations(
         scheduled_time=trigger_time,
         template_components=template_components,
         button_actions=button_actions if button_actions else None,
-        contact_labels=contact_labels if contact_labels else None
+        contact_labels=contact_labels if contact_labels else None,
+        invite_role=payload.get("invite_role", "aluno"),
+        invite_duration_hours=int(payload.get("invite_duration_hours") or 0),
+        invite_course_access=payload.get("invite_course_access"),
+        bussola_invite_role=payload.get("bussola_invite_role", "client"),
+        bussola_validity_type=payload.get("bussola_validity_type", "never")
     )
     db.add(trigger)
     db.flush()

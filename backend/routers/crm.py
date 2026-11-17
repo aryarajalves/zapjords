@@ -331,6 +331,7 @@ def create_stage(
         color=payload.color or "blue",
         stage_type=payload.stage_type or "in_progress",
         webhook_event_trigger=payload.webhook_event_trigger,
+        contact_tag_trigger=payload.contact_tag_trigger.strip() if payload.contact_tag_trigger and payload.contact_tag_trigger.strip() else None,
         forward_to_pipeline_id=payload.forward_to_pipeline_id if payload.forward_to_pipeline_id and payload.forward_to_pipeline_id > 0 else None,
         forward_to_stage_id=payload.forward_to_stage_id if payload.forward_to_stage_id and payload.forward_to_stage_id > 0 else None,
         is_followup=bool(payload.is_followup),
@@ -340,6 +341,8 @@ def create_stage(
     db.add(new_stage)
     db.commit()
     db.refresh(new_stage)
+    if new_stage.contact_tag_trigger:
+        crm_service.sync_stage_contacts_by_tag(db, client_id, new_stage)
     return new_stage
 
 
@@ -366,6 +369,8 @@ def update_stage(
         stg.stage_type = payload.stage_type
     if payload.webhook_event_trigger is not None:
         stg.webhook_event_trigger = payload.webhook_event_trigger
+    if hasattr(payload, "contact_tag_trigger"):
+        stg.contact_tag_trigger = payload.contact_tag_trigger.strip() if payload.contact_tag_trigger and payload.contact_tag_trigger.strip() else None
     if payload.order_index is not None:
         stg.order_index = payload.order_index
     if hasattr(payload, "forward_to_pipeline_id"):
@@ -380,6 +385,8 @@ def update_stage(
         stg.followup_delay_unit = payload.followup_delay_unit
     db.commit()
     db.refresh(stg)
+    if stg.contact_tag_trigger:
+        crm_service.sync_stage_contacts_by_tag(db, client_id, stg)
     return stg
 
 

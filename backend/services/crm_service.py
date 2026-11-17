@@ -133,11 +133,28 @@ def sync_pipeline_history(db: Session, client_id: int, pipeline_id: int) -> Dict
         if len(digits) < 8:
             continue
 
+        lead_tags_set = {
+            t.strip().lower()
+            for t in (getattr(lead, "tags", None) or "").split(",")
+            if t.strip()
+        }
+        tag_matched_stage = next(
+            (
+                s for s in stages
+                if getattr(s, "contact_tag_trigger", None)
+                and s.contact_tag_trigger.strip().lower() in lead_tags_set
+            ),
+            None
+        )
+
         status_norm = (getattr(lead, "last_event_type", None) or getattr(lead, "status", None) or "").lower()
         target_stage = initial_stage
         deal_status = "open"
 
-        if status_norm in ["compra_aprovada", "approved", "pago", "aprovado"]:
+        if tag_matched_stage:
+            target_stage = tag_matched_stage
+            deal_status = "won" if tag_matched_stage.stage_type == "won" else ("lost" if tag_matched_stage.stage_type == "lost" else "open")
+        elif status_norm in ["compra_aprovada", "approved", "pago", "aprovado"]:
             target_stage = won_stage
             deal_status = "won"
         elif "carrinho" in status_norm or "abandoned" in status_norm:
@@ -447,7 +464,125 @@ def process_tag_applied_for_crm(
             )
             db.add(new_deal)
 
+    # 2. Verifica colunas (estágios) que possuem gatilho direto por etiqueta da aba de Contatos
+    matched_stages = db.query(SalesPipelineStage).filter(
+        SalesPipelineStage.client_id == client_id,
+        SalesPipelineStage.contact_tag_trigger.isnot(None),
+        func.lower(func.trim(SalesPipelineStage.contact_tag_trigger)) == tag_norm
+    ).all()
+
+    now_dt = datetime.now(timezone.utc)
+    for target_stg in matched_stages:
+        pipe = db.query(SalesPipeline).filter(SalesPipeline.id == target_stg.pipeline_id).first()
+        deal_status = "won" if target_stg.stage_type == "won" else ("lost" if target_stg.stage_type == "lost" else "open")
+
+        existing = db.query(SalesDeal).filter(
+            SalesDeal.pipeline_id == target_stg.pipeline_id,
+            SalesDeal.contact_phone == digits
+        ).first()
+
+        if existing:
+            if existing.stage_id != target_stg.id:
+                existing.stage_id = target_stg.id
+                existing.stage_entered_at = now_dt
+            existing.status = deal_status
+            if deal_status == "won" and not existing.won_at:
+                existing.won_at = now_dt
+            existing.last_interaction_at = now_dt
+        else:
+            new_deal = SalesDeal(
+                client_id=client_id,
+                pipeline_id=target_stg.pipeline_id,
+                stage_id=target_stg.id,
+                contact_phone=digits,
+                contact_name=name or "Sem Nome",
+                title=f"Oportunidade - {name or digits}",
+                product_name=pipe.product_name if pipe else None,
+                value=float(pipe.default_value or 0.0) if pipe else 0.0,
+                status=deal_status,
+                won_at=now_dt if deal_status == "won" else None,
+                stage_entered_at=now_dt,
+                last_interaction_at=now_dt
+            )
+            db.add(new_deal)
+
     db.commit()
+
+
+def sync_stage_contacts_by_tag(db: Session, client_id: int, stage: SalesPipelineStage) -> dict:
+    """
+    Sincroniza contatos da aba Contatos (WebhookLead) que possuem a etiqueta configurada
+    em `stage.contact_tag_trigger` diretamente para esta coluna do Kanban.
+    """
+    tag_val = (getattr(stage, "contact_tag_trigger", None) or "").strip()
+    if not tag_val:
+        return {"created": 0, "moved": 0}
+
+    tag_norm = tag_val.lower()
+    pipe = db.query(SalesPipeline).filter(
+        SalesPipeline.id == stage.pipeline_id,
+        SalesPipeline.client_id == client_id
+    ).first()
+    if not pipe:
+        return {"created": 0, "moved": 0}
+
+    leads = db.query(WebhookLead).filter(
+        WebhookLead.client_id == client_id,
+        WebhookLead.tags.isnot(None),
+        func.lower(WebhookLead.tags).ilike(f"%{tag_norm}%")
+    ).all()
+
+    deal_status = "won" if stage.stage_type == "won" else ("lost" if stage.stage_type == "lost" else "open")
+    now_dt = datetime.now(timezone.utc)
+    created_cnt = 0
+    moved_cnt = 0
+
+    for lead in leads:
+        lead_tags = {t.strip().lower() for t in (lead.tags or "").split(",") if t.strip()}
+        if tag_norm not in lead_tags:
+            continue
+
+        digits = "".join(filter(str.isdigit, str(lead.phone or "")))
+        if len(digits) < 8:
+            continue
+
+        existing = db.query(SalesDeal).filter(
+            SalesDeal.pipeline_id == stage.pipeline_id,
+            SalesDeal.contact_phone == digits
+        ).first()
+
+        if existing:
+            if existing.stage_id != stage.id or existing.status != deal_status:
+                existing.stage_id = stage.id
+                existing.status = deal_status
+                existing.stage_entered_at = now_dt
+                if deal_status == "won" and not existing.won_at:
+                    existing.won_at = now_dt
+                moved_cnt += 1
+        else:
+            new_deal = SalesDeal(
+                client_id=client_id,
+                pipeline_id=stage.pipeline_id,
+                stage_id=stage.id,
+                lead_id=lead.id,
+                contact_phone=digits,
+                contact_name=lead.name or "Sem Nome",
+                contact_email=lead.email,
+                title=f"Oportunidade - {lead.name or digits}",
+                product_name=lead.product_name or pipe.product_name,
+                channel=lead.platform,
+                value=float(pipe.default_value or 0.0),
+                original_value=float(pipe.default_value or 0.0),
+                status=deal_status,
+                won_at=now_dt if deal_status == "won" else None,
+                stage_entered_at=now_dt,
+                last_interaction_at=now_dt
+            )
+            db.add(new_deal)
+            created_cnt += 1
+
+    db.commit()
+    return {"created": created_cnt, "moved": moved_cnt}
 
 
 def process_webhook_kanban_trigger(

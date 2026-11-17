@@ -9,7 +9,9 @@ export const CONTACT_VARIABLES = [
   { code: '{{produto}}', label: 'Produto' },
   { code: '{{plataforma}}', label: 'Plataforma' },
   { code: '{{valor}}', label: 'Valor' },
-  { code: '{{forma_pagamento}}', label: 'Pagamento' }
+  { code: '{{forma_pagamento}}', label: 'Pagamento' },
+  { code: '{{link_cadastro}}', label: 'Link Área de Membros' },
+  { code: '{{link_bussola}}', label: 'Link Bússola' }
 ];
 
 // Helper para converter a estrutura de blocos e estilos globais no HTML final responsivo de e-mail

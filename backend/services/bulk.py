@@ -15,7 +15,14 @@ from chatwoot_client import ChatwootClient
 from rabbitmq_client import rabbitmq
 from config_loader import get_setting
 from core.logger import setup_logger
-from services.utils.bulk_helpers import render_template_body, extract_body_from_components, resolve_template_body_with_sync, sanitize_template_components
+from services.utils.bulk_helpers import (
+    render_template_body,
+    extract_body_from_components,
+    resolve_template_body_with_sync,
+    sanitize_template_components,
+    extract_trigger_invite_config,
+    ensure_bulk_invite_vars,
+)
 from services.utils.phone_utils import normalize_phone
 from services.bulk_persistence import get_sent_phones_set, update_trigger_stats, record_blocked_status, record_skipped_status
 from services.bulk_core import send_smart_message, _extract_header_media
@@ -76,6 +83,7 @@ async def process_bulk_send(
             contacts = updated_dynamic_contacts
 
         # Higienização e deduplicação preventiva
+        trigger_invite_cfg = extract_trigger_invite_config(init_trig)
         contacts, duplicates_removed, invalid_removed = sanitize_and_deduplicate_contacts(contacts, trigger_id)
 
         if not contacts:
@@ -278,6 +286,12 @@ async def process_bulk_send(
                     contact_vars = c.get('vars') if isinstance(c, dict) else None
                     raw_contact_comps = c.get('components') if isinstance(c, dict) else None
                     per_contact_components = raw_contact_comps if raw_contact_comps else components
+                    contact_vars = await ensure_bulk_invite_vars(
+                        client_id=client_id,
+                        components=per_contact_components or [],
+                        contact_vars=contact_vars,
+                        invite_config=trigger_invite_cfg
+                    )
                     resolved_components = sanitize_template_components(
                         per_contact_components or [],
                         contact_name=name,

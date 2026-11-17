@@ -25,6 +25,13 @@ export function useRecurringSchedules(activeClient) {
     const [editDays, setEditDays] = useState([]); // [{day, time}]
     const [editDayOfMonth, setEditDayOfMonth] = useState("");
     const [editTime, setEditTime] = useState('09:00');
+    const [editInviteConfig, setEditInviteConfig] = useState({
+        invite_role: 'aluno',
+        invite_duration_hours: 0,
+        invite_course_access: [],
+        bussola_invite_role: 'client',
+        bussola_validity_type: 'never'
+    });
 
     const fetchSchedules = useCallback(async () => {
         if (!activeClient?.id) return;
@@ -133,7 +140,12 @@ export function useRecurringSchedules(activeClient) {
                     frequency: editFreq,
                     days_of_week: editFreq === 'weekly' ? editDays : null,
                     day_of_month: editFreq === 'monthly' ? editDays : null,
-                    scheduled_time: (editDays && editDays.length > 0) ? editDays[0].time : editTime
+                    scheduled_time: (editDays && editDays.length > 0) ? editDays[0].time : editTime,
+                    invite_role: editInviteConfig.invite_role || 'aluno',
+                    invite_duration_hours: Number(editInviteConfig.invite_duration_hours || 0),
+                    invite_course_access: Array.isArray(editInviteConfig.invite_course_access) ? editInviteConfig.invite_course_access : null,
+                    bussola_invite_role: editInviteConfig.bussola_invite_role || 'client',
+                    bussola_validity_type: editInviteConfig.bussola_validity_type || 'never'
                 })
             }, activeClient.id);
 
@@ -242,6 +254,13 @@ export function useRecurringSchedules(activeClient) {
         }
         
         setEditTime(schedule.scheduled_time || '09:00');
+        setEditInviteConfig({
+            invite_role: schedule.invite_role || 'aluno',
+            invite_duration_hours: Number(schedule.invite_duration_hours || 0),
+            invite_course_access: Array.isArray(schedule.invite_course_access) ? schedule.invite_course_access : [],
+            bussola_invite_role: schedule.bussola_invite_role || 'client',
+            bussola_validity_type: schedule.bussola_validity_type || 'never'
+        });
     };
 
     const handleManualTrigger = async (id) => {
@@ -283,6 +302,8 @@ export function useRecurringSchedules(activeClient) {
         setEditDayOfMonth,
         editTime,
         setEditTime,
+        editInviteConfig,
+        setEditInviteConfig,
         fetchSchedules,
         handleToggleStatus,
         handleDelete,

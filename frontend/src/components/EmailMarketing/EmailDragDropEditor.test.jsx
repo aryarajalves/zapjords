@@ -303,4 +303,20 @@ describe('EmailDragDropEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: /Código HTML/i }));
     expect(screen.getByText(/Código HTML Puro:/i)).toBeInTheDocument();
   });
+
+  it('não sobrescreve initialHtml com DEFAULT_BLOCKS ao abrir template salvo para edição', () => {
+    const savedHtml = `
+      <!DOCTYPE html><html><head><title>E-mail Marketing</title></head><body>
+      <table role="presentation"><tr><td style="padding: 24px;">
+        <div style="font-size: 16px;">Parabéns ASTROWAKE! Seu link: {{link_cadastro}}</div>
+      </td></tr></table></body></html>
+    `;
+    const onChangeHtml = vi.fn();
+    render(<EmailDragDropEditor initialHtml={savedHtml} onChangeHtml={onChangeHtml} />);
+
+    // O conteúdo restaurado deve aparecer no textarea e NÃO o texto padrão "Digite seu texto aqui."
+    const textboxes = screen.getAllByRole('textbox');
+    expect(textboxes.some(t => t.value.includes('Parabéns ASTROWAKE!'))).toBe(true);
+    expect(onChangeHtml).not.toHaveBeenCalledWith(expect.stringContaining('Digite seu texto aqui.'));
+  });
 });

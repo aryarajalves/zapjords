@@ -36,6 +36,7 @@ class SalesPipelineStageBase(BaseModel):
     color: Optional[str] = "blue"
     stage_type: Optional[str] = "in_progress"  # initial, in_progress, won, lost
     webhook_event_trigger: Optional[str] = None
+    contact_tag_trigger: Optional[str] = None
     forward_to_pipeline_id: Optional[int] = None
     forward_to_stage_id: Optional[int] = None
     is_followup: Optional[bool] = False
@@ -51,6 +52,7 @@ class SalesPipelineStageUpdate(BaseModel):
     color: Optional[str] = None
     stage_type: Optional[str] = None
     webhook_event_trigger: Optional[str] = None
+    contact_tag_trigger: Optional[str] = None
     forward_to_pipeline_id: Optional[int] = None
     forward_to_stage_id: Optional[int] = None
     is_followup: Optional[bool] = None

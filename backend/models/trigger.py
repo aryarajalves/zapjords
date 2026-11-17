@@ -102,6 +102,12 @@ class ScheduledTrigger(Base):
     exclusion_tag_mode = Column(String, default="OR", nullable=True)
     exclusion_list = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
 
+    # Configurações de convite automático ({{link_cadastro}} e {{link_bussola}})
+    invite_role = Column(String, default="aluno")
+    invite_duration_hours = Column(Integer, default=0)
+    invite_course_access = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    bussola_invite_role = Column(String, default="client")
+    bussola_validity_type = Column(String, default="never")
 
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -457,7 +463,14 @@ class RecurringTrigger(Base):
     interaction_filter_days = Column(Integer, nullable=True)
     contact_labels = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     created_filter_days = Column(Integer, nullable=True)
-    
+
+    # Configurações de convite automático ({{link_cadastro}} e {{link_bussola}})
+    invite_role = Column(String, default="aluno")
+    invite_duration_hours = Column(Integer, default=0)
+    invite_course_access = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    bussola_invite_role = Column(String, default="client")
+    bussola_validity_type = Column(String, default="never")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 

@@ -287,7 +287,12 @@ async def reserve_bulk_send(
         scheduled_time=datetime.now(timezone.utc),
         contact_labels=payload.get("contact_labels"),
         max_dispatch_time=max_dispatch_time,
-        button_actions=payload.get("button_actions")
+        button_actions=payload.get("button_actions"),
+        invite_role=payload.get("invite_role", "aluno"),
+        invite_duration_hours=int(payload.get("invite_duration_hours") or 0),
+        invite_course_access=payload.get("invite_course_access"),
+        bussola_invite_role=payload.get("bussola_invite_role", "client"),
+        bussola_validity_type=payload.get("bussola_validity_type", "never")
     )
     db.add(trigger)
     db.commit()
@@ -359,7 +364,12 @@ async def schedule_bulk_send(
         dynamic_label_name=payload.get("dynamic_label_name"),
         exclusion_tags=payload.get("exclusion_tags"),
         exclusion_tag_mode=payload.get("exclusion_tag_mode", "OR"),
-        exclusion_list=payload.get("exclusion_list")
+        exclusion_list=payload.get("exclusion_list"),
+        invite_role=payload.get("invite_role", "aluno"),
+        invite_duration_hours=int(payload.get("invite_duration_hours") or 0),
+        invite_course_access=payload.get("invite_course_access"),
+        bussola_invite_role=payload.get("bussola_invite_role", "client"),
+        bussola_validity_type=payload.get("bussola_validity_type", "never")
     )
     db.add(trigger)
     db.commit()

@@ -31,4 +31,6 @@ export const VAR_OPTIONS = [
     { label: 'E-mail', value: '{{email}}', icon: '📧' },
     { label: 'Telefone', value: '{{telefone}}', icon: '📞' },
     { label: 'Nome do Produto', value: '{{produto}}', icon: '📦' },
+    { label: 'Link Área de Membros', value: '{{link_cadastro}}', icon: '🎓' },
+    { label: 'Link App Bússola', value: '{{link_bussola}}', icon: '🧭' },
 ];

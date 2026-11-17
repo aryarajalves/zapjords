@@ -121,6 +121,8 @@ def _resolve_dynamic_text_var(
     clean_email = str(c_vars.get("email") or "").strip()
     clean_produto = str(c_vars.get("produto") or "").strip()
     clean_valor = str(c_vars.get("valor") or "").strip()
+    clean_link_cadastro = str(c_vars.get("link_cadastro") or c_vars.get("invite_url") or "").strip()
+    clean_link_bussola = str(c_vars.get("link_bussola") or "").strip()
 
     val = str(val or "").strip()
     if val == "1":
@@ -136,6 +138,9 @@ def _resolve_dynamic_text_var(
             "{{email}}": clean_email,
             "{{produto}}": clean_produto,
             "{{valor}}": clean_valor,
+            "{{link_cadastro}}": clean_link_cadastro,
+            "{{invite_url}}": clean_link_cadastro,
+            "{{link_bussola}}": clean_link_bussola,
         }
         for token, replacement in replacements.items():
             if token in val:
@@ -286,3 +291,95 @@ async def resolve_template_body_with_sync(db, client_id: int, template_name: str
             btn_info = extract_template_buttons(tpl.components)
 
     return body, btn_info
+
+
+def extract_trigger_invite_config(trigger) -> dict:
+    """Extrai as configurações de convite (Área de Membros e Bússola) de um ScheduledTrigger ou RecurringTrigger."""
+    if not trigger:
+        return {}
+    return {
+        "invite_role": getattr(trigger, "invite_role", None) or "aluno",
+        "invite_duration_hours": int(getattr(trigger, "invite_duration_hours", 0) or 0),
+        "invite_course_access": getattr(trigger, "invite_course_access", None),
+        "bussola_invite_role": getattr(trigger, "bussola_invite_role", None) or "client",
+        "bussola_validity_type": getattr(trigger, "bussola_validity_type", None) or "never",
+    }
+
+
+def _components_contain_token(components: list, contact_vars: dict, tokens: tuple) -> bool:
+    """Verifica se algum parâmetro dos componentes ou valores em contact_vars contém uma das variáveis."""
+    for comp in (components or []):
+        if not isinstance(comp, dict):
+            continue
+        for param in comp.get("parameters", []):
+            raw_val = param.get("text", "") if isinstance(param, dict) else str(param or "")
+            lowered = str(raw_val).lower()
+            if any(t in lowered for t in tokens):
+                return True
+    if isinstance(contact_vars, dict):
+        for val in contact_vars.values():
+            lowered = str(val or "").lower()
+            if any(t in lowered for t in tokens):
+                return True
+    return False
+
+
+async def ensure_bulk_invite_vars(
+    client_id: int,
+    components: list,
+    contact_vars: dict = None,
+    invite_config: dict = None
+) -> dict:
+    """
+    Gera sob demanda os links únicos de convite ({{link_cadastro}} e {{link_bussola}}) para um contato
+    em disparos em massa ou recorrentes quando os componentes do template utilizam essas variáveis.
+    """
+    from core.logger import setup_logger
+    logger = setup_logger("BulkInviteHelper")
+
+    c_vars = dict(contact_vars) if isinstance(contact_vars, dict) else {}
+    inv_cfg = invite_config if isinstance(invite_config, dict) else {}
+
+    needs_platform = (
+        not (c_vars.get("link_cadastro") or c_vars.get("invite_url"))
+        and _components_contain_token(components, c_vars, ("{{link_cadastro}}", "{{invite_url}}"))
+    )
+    if needs_platform and client_id:
+        try:
+            from services.platform_invite_service import generate_platform_invite
+            res = await generate_platform_invite(
+                client_id=client_id,
+                role=inv_cfg.get("invite_role") or "aluno",
+                duration_hours=int(inv_cfg.get("invite_duration_hours") or 0),
+                course_access=inv_cfg.get("invite_course_access"),
+            )
+            if res:
+                invite_url = res.get("full_invite_url") or res.get("invite_url") or ""
+                if invite_url:
+                    c_vars["link_cadastro"] = invite_url
+                    c_vars["invite_url"] = invite_url
+                    logger.info(f"🔗 [BULK-INVITE] Link da Área de Membros gerado: {invite_url}")
+        except Exception as err:
+            logger.error(f"❌ [BULK-INVITE] Falha ao gerar link da Área de Membros: {err}")
+
+    needs_bussola = (
+        not c_vars.get("link_bussola")
+        and _components_contain_token(components, c_vars, ("{{link_bussola}}",))
+    )
+    if needs_bussola and client_id:
+        try:
+            from services.bussola_invite_service import generate_bussola_invite
+            res_bussola = await generate_bussola_invite(
+                client_id=client_id,
+                role=inv_cfg.get("bussola_invite_role") or "client",
+                validity_type=inv_cfg.get("bussola_validity_type") or "never",
+            )
+            if res_bussola:
+                bussola_url = res_bussola.get("invite_url") or ""
+                if bussola_url:
+                    c_vars["link_bussola"] = bussola_url
+                    logger.info(f"🔮 [BULK-INVITE] Link da Bússola gerado: {bussola_url}")
+        except Exception as err:
+            logger.error(f"❌ [BULK-INVITE] Falha ao gerar link da Bússola: {err}")
+
+    return c_vars

@@ -39,6 +39,7 @@ class SalesPipelineStage(Base):
     color = Column(String(50), default="blue")  # blue, amber, emerald, rose, purple, slate, sky, indigo, cyan
     stage_type = Column(String(50), default="in_progress")  # initial, in_progress, won, lost
     webhook_event_trigger = Column(String(100), nullable=True)  # carrinho_abandonado, compra_aprovada, etc.
+    contact_tag_trigger = Column(String(100), nullable=True)  # Etiqueta da aba de contatos que move/cria o lead direto nesta coluna
     forward_to_pipeline_id = Column(Integer, ForeignKey("sales_pipelines.id", ondelete="SET NULL"), nullable=True)
     forward_to_stage_id = Column(Integer, ForeignKey("sales_pipeline_stages.id", ondelete="SET NULL"), nullable=True)
     is_followup = Column(Boolean, default=False)

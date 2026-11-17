@@ -41,7 +41,13 @@ export function useEmailTemplates({ activeClient }) {
   const [formData, setFormData] = useState({
     name: '',
     subject: '',
-    body_html: ''
+    body_html: '',
+    invite_role: 'aluno',
+    invite_duration_hours: 0,
+    invite_course_access: [],
+    bussola_invite_role: 'client',
+    bussola_validity_type: 'never',
+    bussola_custom_api_key: ''
   });
 
   const getHeaders = () => {
@@ -80,14 +86,26 @@ export function useEmailTemplates({ activeClient }) {
       setFormData({
         name: tmpl.name,
         subject: tmpl.subject,
-        body_html: tmpl.body_html || ''
+        body_html: tmpl.body_html || '',
+        invite_role: tmpl.invite_role || 'aluno',
+        invite_duration_hours: Number(tmpl.invite_duration_hours || 0),
+        invite_course_access: Array.isArray(tmpl.invite_course_access) ? tmpl.invite_course_access : [],
+        bussola_invite_role: tmpl.bussola_invite_role || 'client',
+        bussola_validity_type: tmpl.bussola_validity_type || 'never',
+        bussola_custom_api_key: tmpl.bussola_custom_api_key || ''
       });
     } else {
       setEditingTemplate(null);
       setFormData({
         name: '',
         subject: '',
-        body_html: ''
+        body_html: '',
+        invite_role: 'aluno',
+        invite_duration_hours: 0,
+        invite_course_access: [],
+        bussola_invite_role: 'client',
+        bussola_validity_type: 'never',
+        bussola_custom_api_key: ''
       });
     }
     setIsModalOpen(true);

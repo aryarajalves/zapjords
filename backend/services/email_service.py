@@ -55,7 +55,21 @@ def inject_email_tracking(body_html: str, dispatch_id: int, recipient_email: str
 
     return tracked_html
 
-async def send_single_email(config, to_email: str, subject: str, body_html: str, recipient_name: str = None, dispatch_id: int = None) -> dict:
+def extract_template_invite_config(template) -> dict:
+    """Extrai as configurações de convite (Área de Membros e Bússola) salvas em um EmailTemplate."""
+    if not template:
+        return {}
+    return {
+        "invite_role": getattr(template, "invite_role", None) or "aluno",
+        "invite_duration_hours": int(getattr(template, "invite_duration_hours", 0) or 0),
+        "invite_course_access": getattr(template, "invite_course_access", None),
+        "bussola_invite_role": getattr(template, "bussola_invite_role", None) or "client",
+        "bussola_validity_type": getattr(template, "bussola_validity_type", None) or "never",
+        "bussola_custom_api_key": getattr(template, "bussola_custom_api_key", None),
+    }
+
+
+async def send_single_email(config, to_email: str, subject: str, body_html: str, recipient_name: str = None, dispatch_id: int = None, invite_config: dict = None) -> dict:
     """
     Envia um único e-mail utilizando a configuração do cliente (Amazon SES, Resend, Brevo ou SMTP).
     Suporta injeção automática de rastreamento de aberturas e cliques quando dispatch_id é fornecido.
@@ -81,9 +95,47 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
     price_val = rec_dict.get("price") or rec_dict.get("valor") or ""
     pay_val = rec_dict.get("payment_method") or rec_dict.get("forma_pagamento") or ""
     tags_val = rec_dict.get("tags") or rec_dict.get("etiquetas") or ""
+    link_cadastro_val = rec_dict.get("link_cadastro") or rec_dict.get("invite_url") or ""
+    link_bussola_val = rec_dict.get("link_bussola") or ""
 
     # Monta URL de descadastro única e segura
     client_id_val = getattr(config, "client_id", 1) or 1
+
+    # Geração automática sob demanda quando a variável está presente no e-mail
+    inv_cfg = invite_config or {}
+    combined_content = f"{subject or ''}\n{body_html or ''}"
+    if not link_cadastro_val and ("{{link_cadastro}}" in combined_content or "{{invite_url}}" in combined_content):
+        try:
+            from services.platform_invite_service import generate_platform_invite
+            invite_res = await generate_platform_invite(
+                client_id=client_id_val,
+                role=inv_cfg.get("invite_role") or "aluno",
+                duration_hours=int(inv_cfg.get("invite_duration_hours") or 0),
+                course_access=inv_cfg.get("invite_course_access"),
+            )
+            if invite_res:
+                link_cadastro_val = invite_res.get("full_invite_url") or invite_res.get("invite_url") or ""
+                if link_cadastro_val:
+                    logger.info(f"🔗 [EMAIL-INVITE] Link da Área de Membros gerado automaticamente para {to_email}: {link_cadastro_val}")
+        except Exception as err:
+            logger.error(f"❌ [EMAIL-INVITE] Erro ao gerar link da Área de Membros para {to_email}: {err}")
+
+    if not link_bussola_val and "{{link_bussola}}" in combined_content:
+        try:
+            from services.bussola_invite_service import generate_bussola_invite
+            bussola_res = await generate_bussola_invite(
+                client_id=client_id_val,
+                role=inv_cfg.get("bussola_invite_role") or "client",
+                validity_type=inv_cfg.get("bussola_validity_type") or "never",
+                custom_api_key=inv_cfg.get("bussola_custom_api_key") or None,
+            )
+            if bussola_res:
+                link_bussola_val = bussola_res.get("invite_url") or ""
+                if link_bussola_val:
+                    logger.info(f"🔮 [EMAIL-INVITE] Link da Bússola gerado automaticamente para {to_email}: {link_bussola_val}")
+        except Exception as err:
+            logger.error(f"❌ [EMAIL-INVITE] Erro ao gerar link da Bússola para {to_email}: {err}")
+
     unsub_token = generate_unsubscribe_token(client_id_val, to_email)
     base_url = (os.getenv("WEBHOOK_BASE_URL") or os.getenv("VITE_API_URL") or "http://localhost:8000").rstrip("/")
     if base_url.endswith("/api"):
@@ -110,6 +162,9 @@ async def send_single_email(config, to_email: str, subject: str, body_html: str,
         "{{payment_method}}": pay_val,
         "{{etiquetas}}": tags_val,
         "{{tags}}": tags_val,
+        "{{link_cadastro}}": link_cadastro_val,
+        "{{invite_url}}": link_cadastro_val,
+        "{{link_bussola}}": link_bussola_val,
         "{{unsubscribe_url}}": unsub_url,
     }
 

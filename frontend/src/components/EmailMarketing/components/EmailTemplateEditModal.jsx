@@ -1,7 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FiFileText, FiZap, FiMaximize2, FiX } from 'react-icons/fi';
+import { FiFileText, FiZap, FiMaximize2, FiX, FiLayout, FiCode, FiKey } from 'react-icons/fi';
 import EmailDragDropEditor from '../EmailDragDropEditor';
+import EmailHtmlImportPanel from './EmailHtmlImportPanel';
+import EmailTemplateInvitesPanel from './EmailTemplateInvitesPanel';
+
+const isFullCustomHtml = (html) => {
+  if (!html || typeof html !== 'string') return false;
+  const trimmed = html.trim().toLowerCase();
+  const isDragDropHtml =
+    trimmed.includes('<title>e-mail marketing</title>') ||
+    trimmed.includes('data-block-type=');
+  if (isDragDropHtml) return false;
+  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html') || trimmed.includes('<!-- custom_html -->');
+};
 
 export default function EmailTemplateEditModal({
   isOpen,
@@ -13,6 +25,17 @@ export default function EmailTemplateEditModal({
   onOpenFullscreen,
   editorActions
 }) {
+  const [editorMode, setEditorMode] = useState('visual'); // 'visual' | 'html'
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editingTemplate && isFullCustomHtml(editingTemplate.body_html)) {
+      setEditorMode('html');
+    } else {
+      setEditorMode('visual');
+    }
+  }, [isOpen, editingTemplate]);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -76,14 +99,73 @@ export default function EmailTemplateEditModal({
           </div>
 
           <div className="relative space-y-2">
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-              Corpo do E-mail (Editor Drag & Drop Visual) *
-            </label>
-            
-            <EmailDragDropEditor
-              initialHtml={formData.body_html}
-              onChangeHtml={(html) => setFormData(prev => ({ ...prev, body_html: html }))}
-            />
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                {editorMode === 'visual'
+                  ? 'Corpo do E-mail (Editor Drag & Drop Visual) *'
+                  : editorMode === 'html'
+                    ? 'Corpo do E-mail (Importar / Código HTML) *'
+                    : 'Configuração de Acessos & Convites ({{link_cadastro}} / {{link_bussola}})'}
+              </label>
+
+              <div className="inline-flex flex-wrap items-center bg-gray-100 dark:bg-slate-900 p-1 rounded-xl border border-gray-200 dark:border-slate-700 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setEditorMode('visual')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    editorMode === 'visual'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <FiLayout size={13} /> Editor Visual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorMode('html')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    editorMode === 'html'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <FiCode size={13} /> Importar / Código HTML
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorMode('invites')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    editorMode === 'invites'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <FiKey size={13} /> Acessos & Convites
+                  {Array.isArray(formData.invite_course_access) && formData.invite_course_access.length > 0 && (
+                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+                      {formData.invite_course_access.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {editorMode === 'visual' ? (
+              <EmailDragDropEditor
+                initialHtml={formData.body_html}
+                onChangeHtml={(html) => setFormData(prev => ({ ...prev, body_html: html }))}
+              />
+            ) : editorMode === 'html' ? (
+              <EmailHtmlImportPanel
+                bodyHtml={formData.body_html}
+                onChangeHtml={(html) => setFormData(prev => ({ ...prev, body_html: html }))}
+              />
+            ) : (
+              <EmailTemplateInvitesPanel
+                formData={formData}
+                setFormData={setFormData}
+              />
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700 shrink-0">

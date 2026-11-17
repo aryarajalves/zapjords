@@ -6,7 +6,7 @@ from core.logger import setup_logger
 from models.email import EmailFunnel, EmailFunnelExecution, EmailTemplate, EmailConfig
 from models.trigger import WebhookLead
 from models.crm import SalesPipelineStage, SalesDeal
-from services.email_service import send_single_email
+from services.email_service import send_single_email, extract_template_invite_config
 
 logger = setup_logger("email_funnel_service")
 
@@ -217,7 +217,8 @@ async def execute_next_step(db: Session, execution_id: int) -> bool:
             to_email=execution.contact_email,
             subject=subject,
             body_html=body_html,
-            recipient_name=rec_name
+            recipient_name=rec_name,
+            invite_config=extract_template_invite_config(template)
         )
 
         hist = list(execution.history or [])
