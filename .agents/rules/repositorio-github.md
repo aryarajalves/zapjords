@@ -15,7 +15,29 @@ O repositório oficial do projeto é:
 4. O branch principal é o `main` — nunca fazer force push no `main`.
 5. Toda mensagem de commit (título e corpo) deve obrigatoriamente estar em **português do Brasil**.
 6. É OBRIGATÓRIO manter o arquivo `README.md` atualizado com a versão corrente antes de realizar qualquer commit ou push.
-7. É OBRIGATÓRIO executar a auditoria de segurança de dependências (`pip-audit`) antes de qualquer commit ou push no repositório, garantindo que o código enviado esteja livre de vulnerabilidades conhecidas.
+7. É OBRIGATÓRIO executar a **esteira completa pré-push** (`python scripts/release.py --no-docker` ou `--build-docker`) antes de qualquer commit ou push no repositório — incluindo auditoria de segurança (`pip-audit` + `npm audit`), integridade do banco de dados (`check_db_schema.py`), segredos, limites de código, endpoints e testes unitários.
+8. **SEMPRE** exibir na resposta final o resultado de todas as etapas da esteira completa, deixando explícito se tudo passou ou se houve algum problema/alerta.
+
+## 🚀 Esteira Completa Pré-Push Obrigatória (`scripts/release.py`)
+
+**Antes de qualquer `git push` ou atualização no repositório GitHub, é OBRIGATÓRIO executar a esteira completa (não basta rodar apenas um script isolado):**
+
+1. **Executar a esteira completa:**
+   ```bash
+   python scripts/release.py --no-docker
+   ```
+   *(ou `python scripts/release.py --build-docker --version X.Y.Z` quando o usuário também autorizar a geração das imagens Docker).*
+2. **Etapas obrigatórias validadas pela esteira:**
+   - Varredura de chaves e segredos expostos (`check_secrets.py`)
+   - Sincronia do `backend/.env.example` (`check_env_sync.py`)
+   - Limites de linhas de código (`check_limits.py`)
+   - Integridade e criação automática de tabelas no banco (`check_db_schema.py`)
+   - Auditoria de endpoints e permissões (`audit_endpoints.py`)
+   - Auditoria de segurança de dependências (`audit_security.py`: `pip-audit` + `npm audit`)
+   - Testes unitários do backend (`pytest -v`)
+   - Limpeza da raiz e validação de tags Docker
+3. **Bloqueio por falha:** Se qualquer etapa falhar, **NÃO** fazer `git push` até corrigir e revalidar.
+4. **Relatório Obrigatório ao Final:** Sempre mostrar para o usuário o resultado completo de cada etapa executada e informar claramente se ocorreu algum problema ou alerta.
 
 ## 🛡️ Auditoria de Segurança de Dependências (pip-audit) Antes do Push
 
