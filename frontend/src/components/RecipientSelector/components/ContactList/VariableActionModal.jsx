@@ -289,6 +289,16 @@ const VariableActionModal = ({
                                 <FiCheck size={14} />
                             </button>
                         )}
+                        {stats.notRealName > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => handleApplyBatch('not_real_name')}
+                                className="w-full py-2.5 px-4 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-black uppercase tracking-wider transition active:scale-95 flex items-center justify-between cursor-pointer"
+                            >
+                                <span>Substituir {stats.notRealName} que não parecem nome por "{batchText || '...'}"</span>
+                                <FiCheck size={14} />
+                            </button>
+                        )}
                         {(stats.numeric > 0 || stats.empty > 0) && (
                             <button
                                 type="button"

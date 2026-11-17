@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import {
+import VariableActionModal, {
   isVariableEmpty,
   isVariableNumeric,
   isNotRealName,
@@ -112,5 +112,40 @@ describe('Filtros de Valores de Variáveis (Vazios, Só Números e Não parece n
     fireEvent.click(screen.getByRole('button', { name: /Limpar filtro/i }));
     expect(screen.getByText('5511999990001')).toBeInTheDocument();
     expect(screen.getByText('5511999990004')).toBeInTheDocument();
+  });
+
+  it('exibe e executa preenchimento em lote para valores que não parecem nome no VariableActionModal', () => {
+    let state = [
+      { phone: '5511999990001', vars: { '1': 'Cinthia' } },
+      { phone: '5511999990002', vars: { '1': 'teste' } },
+    ];
+    const setContacts = vi.fn((updater) => {
+      state = typeof updater === 'function' ? updater(state) : updater;
+    });
+
+    render(
+      <VariableActionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        varKey="1"
+        varLabel="{{1}}"
+        contacts={state}
+        setContacts={setContacts}
+        currentFilter="all"
+        onSetFilter={vi.fn()}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/Digite o texto/i);
+    fireEvent.change(input, { target: { value: 'tudo bem' } });
+
+    const btn = screen.getByRole('button', { name: /Substituir 1 que não parecem nome por "tudo bem"/i });
+    fireEvent.click(btn);
+
+    expect(setContacts).toHaveBeenCalledTimes(1);
+    expect(state).toEqual([
+      { phone: '5511999990001', vars: { '1': 'Cinthia' } },
+      { phone: '5511999990002', vars: { '1': 'tudo bem' } },
+    ]);
   });
 });
