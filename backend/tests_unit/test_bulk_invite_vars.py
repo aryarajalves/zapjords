@@ -85,3 +85,16 @@ def test_sanitize_template_components_replaces_link_cadastro_and_link_bussola():
     assert params[0]["text"] == "Arya"
     assert params[1]["text"] == "https://aulas.teste/register?token=plat1"
     assert params[2]["text"] == "https://bussola.teste/cadastro?token=bus2"
+
+
+def test_bulk_process_uses_c_id_without_undefined_client_id():
+    """Garante que bulk.py não referencia client_id indefinido dentro de process_bulk_send."""
+    import ast
+    from pathlib import Path
+
+    bulk_path = Path(__file__).resolve().parent.parent / "services" / "bulk.py"
+    source = bulk_path.read_text(encoding="utf-8")
+    assert "client_id=client_id" not in source
+    assert "client_id=c_id" in source
+    # Garante sintaxe válida do módulo
+    ast.parse(source)

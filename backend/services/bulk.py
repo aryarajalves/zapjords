@@ -287,7 +287,7 @@ async def process_bulk_send(
                     raw_contact_comps = c.get('components') if isinstance(c, dict) else None
                     per_contact_components = raw_contact_comps if raw_contact_comps else components
                     contact_vars = await ensure_bulk_invite_vars(
-                        client_id=client_id,
+                        client_id=c_id,
                         components=per_contact_components or [],
                         contact_vars=contact_vars,
                         invite_config=trigger_invite_cfg

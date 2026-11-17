@@ -285,29 +285,16 @@ def _resolve_recipients(
                 })
         return target_contacts
 
-    # 2. Audiência Kanban
+    # 2. Audiência Kanban (com fallback de busca de e-mail na aba Contatos pelo telefone)
     if audience_type == "kanban" or pipeline_id:
-        query = db.query(models.SalesDeal).filter(models.SalesDeal.client_id == client_id)
-        if pipeline_id:
-            query = query.filter(models.SalesDeal.pipeline_id == pipeline_id)
-        if stage_id:
-            query = query.filter(models.SalesDeal.stage_id == stage_id)
-        deals = query.all()
-        for d in deals:
-            email = (d.contact_email or "").strip()
-            if email and "@" in email and email.lower() not in seen_emails and email.lower() not in blocked_emails:
-                seen_emails.add(email.lower())
-                target_contacts.append({
-                    "email": email,
-                    "name": d.contact_name or d.title or "",
-                    "phone": d.contact_phone or "",
-                    "product_name": d.product_name or "",
-                    "platform": d.channel or "kanban",
-                    "price": str(d.value) if d.value else "",
-                    "payment_method": "",
-                    "tags": f"kanban_stage_{d.stage_id}"
-                })
-        return target_contacts
+        from services.email_audience_service import resolve_kanban_audience_contacts
+        return resolve_kanban_audience_contacts(
+            db=db,
+            client_id=client_id,
+            pipeline_id=pipeline_id,
+            stage_id=stage_id,
+            blocked_emails=blocked_emails,
+        )
 
     # 3. Audiência Padrão: WebhookLead filtrado por tag_name (ou todos)
     query = db.query(models.WebhookLead).filter(models.WebhookLead.client_id == client_id)

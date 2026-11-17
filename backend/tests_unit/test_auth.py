@@ -280,3 +280,20 @@ def test_reset_password_success(client_app, auth_headers, db):
     )
     assert resp.status_code == 200
     assert resp.json()["email"] == "resetme@test.com"
+
+
+def test_access_token_default_expiration_72_hours():
+    """
+    Garante que o token JWT gerado por padrão (login) expira em 72 horas (4320 minutos).
+    """
+    from datetime import datetime, timezone
+    from jose import jwt
+    from core.security import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
+
+    assert ACCESS_TOKEN_EXPIRE_MINUTES == 4320
+    before = datetime.now(timezone.utc).timestamp()
+    token = create_access_token({"sub": "jwt72h@test.com", "role": "admin"})
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+    delta_seconds = payload["exp"] - before
+    assert 71.9 * 3600 <= delta_seconds <= 72.1 * 3600

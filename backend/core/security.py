@@ -118,7 +118,7 @@ elif len(SECRET_KEY) < 32:
     )
 
 ALGORITHM = "HS256"               # Algoritmo de assinatura do JWT (HMAC + SHA-256)
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440 # Token expira em 24 horas (1440 minutos)
+ACCESS_TOKEN_EXPIRE_MINUTES = 4320 # Token expira em 72 horas (4320 minutos)
 
 # Pimenta (Pepper) secreta lida do ambiente para blindagem contra dumps de banco
 PASSWORD_PEPPER = os.getenv("PASSWORD_PEPPER", "")
@@ -244,7 +244,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode = data.copy()  # Copia os dados para não modificar o original
 
     # Define quando o token vai expirar
-    # Se não passou um tempo personalizado, usa o padrão de 24 horas
+    # Se não passou um tempo personalizado, usa o padrão de 72 horas
     expire = datetime.now(timezone.utc) + (
         expires_delta if expires_delta else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )

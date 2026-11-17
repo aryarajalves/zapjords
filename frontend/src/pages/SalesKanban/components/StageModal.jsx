@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiX, FiTrash2, FiLayers, FiCheck } from 'react-icons/fi';
 import { StageForwardSection } from './StageForwardSection';
 import { StageFollowupSection } from './StageFollowupSection';
+import SearchableSelect from '../../Integrations/components/SearchableSelect';
 import { API_URL } from '../../../config';
 import { fetchWithAuth } from '../../../AuthContext';
 import { useClient } from '../../../contexts/ClientContext';
@@ -255,32 +256,21 @@ export function StageModal({ isOpen, onClose, onSave, onDelete, stageToEdit, pip
 
                     {/* Etiqueta da Aba de Contatos (Opcional) */}
                     <div>
-                        <label
-                            htmlFor="stage-contact-tag-trigger"
-                            className="block text-xs font-bold text-slate-300 mb-1.5"
-                        >
+                        <label className="block text-xs font-bold text-slate-300 mb-1.5">
                             Etiqueta da Aba de Contatos (Opcional)
                         </label>
-                        <select
-                            id="stage-contact-tag-trigger"
+                        <SearchableSelect
+                            options={[
+                                { value: '', label: 'Nenhuma (Não vincular por etiqueta)' },
+                                ...(contactTagTrigger && !availableTags.includes(contactTagTrigger)
+                                    ? [{ value: contactTagTrigger, label: contactTagTrigger }]
+                                    : []),
+                                ...availableTags.map((tag) => ({ value: tag, label: tag }))
+                            ]}
                             value={contactTagTrigger}
-                            onChange={(e) => setContactTagTrigger(e.target.value)}
-                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-medium cursor-pointer"
-                        >
-                            <option value="" className="bg-slate-900 text-white">
-                                Nenhuma (Não vincular por etiqueta)
-                            </option>
-                            {contactTagTrigger && !availableTags.includes(contactTagTrigger) && (
-                                <option value={contactTagTrigger} className="bg-slate-900 text-white">
-                                    {contactTagTrigger}
-                                </option>
-                            )}
-                            {availableTags.map((tag) => (
-                                <option key={tag} value={tag} className="bg-slate-900 text-white">
-                                    {tag}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={(val) => setContactTagTrigger(val)}
+                            placeholder="Nenhuma (Não vincular por etiqueta)"
+                        />
                         <p className="text-[10px] text-slate-500 mt-1">
                             Contatos que possuírem ou receberem esta etiqueta na aba Contatos vão direto para esta coluna.
                         </p>

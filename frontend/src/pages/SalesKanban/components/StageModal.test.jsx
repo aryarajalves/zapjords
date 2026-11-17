@@ -50,12 +50,22 @@ describe('StageModal Contact Tag Trigger Unit Tests', () => {
       />
     );
 
-    const select = await screen.findByLabelText(/Etiqueta da Aba de Contatos \(Opcional\)/i);
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: 'comprou_astrowake' })).toBeInTheDocument();
+      expect(AuthContext.fetchWithAuth).toHaveBeenCalled();
     });
 
-    fireEvent.change(select, { target: { value: 'comprou_astrowake' } });
+    const trigger = screen.getByText(/Nenhuma \(Não vincular por etiqueta\)/i);
+    fireEvent.click(trigger);
+
+    const searchInput = await screen.findByPlaceholderText(/Digite para buscar\.\.\./i);
+    expect(screen.getByText('Compra Aprovada')).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'astrowake' } });
+    expect(screen.queryByText('Compra Aprovada')).not.toBeInTheDocument();
+
+    const targetOpt = screen.getByText('comprou_astrowake');
+    fireEvent.click(targetOpt);
+
     fireEvent.click(screen.getByRole('button', { name: /Salvar Coluna/i }));
 
     await waitFor(() => {
