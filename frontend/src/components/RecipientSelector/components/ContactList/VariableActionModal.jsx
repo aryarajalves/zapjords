@@ -19,6 +19,41 @@ export const isVariableEmpty = (val) => {
     return String(val).trim() === '';
 };
 
+const NON_NAME_PLACEHOLDERS = new Set([
+    'teste', 'test', 'cliente', 'lead', 'contato', 'usuario', 'usuário',
+    'sem nome', 'semnome', 'desconhecido', 'anonimo', 'anônimo',
+    'nao informado', 'não informado', 'na', 'n/a', 'null', 'undefined',
+    'none', 'amigo', 'oi', 'ola', 'olá', 'adm', 'admin', 'suporte', 'bot',
+    'whatsapp', 'insta', 'instagram', 'facebook'
+]);
+
+export const isNotRealName = (val) => {
+    if (isVariableEmpty(val) || isVariableNumeric(val)) return false;
+    const str = String(val).trim();
+    if (/^(https?:\/\/|www\.)/i.test(str)) return false;
+    if (/[@\/]/.test(str) || /\d/.test(str)) return true;
+
+    const lettersOnly = str.replace(/[^\p{L}]/gu, '');
+    if (lettersOnly.length < 2) return true;
+    if (/(.)\1{2,}/i.test(lettersOnly)) return true;
+
+    const normalized = str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return NON_NAME_PLACEHOLDERS.has(normalized);
+};
+
+export const matchesVarFilterMode = (val, mode) => {
+    if (!mode || mode === 'all') return true;
+    if (mode === 'empty') return isVariableEmpty(val);
+    if (mode === 'numeric') return isVariableNumeric(val);
+    if (mode === 'not_real_name') return isNotRealName(val);
+    return true;
+};
+
 const VariableActionModal = ({
     isOpen,
     onClose,
@@ -34,6 +69,7 @@ const VariableActionModal = ({
     const stats = useMemo(() => {
         let empty = 0;
         let numeric = 0;
+        let notRealName = 0;
         let valid = 0;
 
         contacts.forEach(c => {
@@ -42,12 +78,14 @@ const VariableActionModal = ({
                 empty++;
             } else if (isVariableNumeric(val)) {
                 numeric++;
+            } else if (isNotRealName(val)) {
+                notRealName++;
             } else {
                 valid++;
             }
         });
 
-        return { empty, numeric, valid, total: contacts.length };
+        return { empty, numeric, notRealName, valid, total: contacts.length };
     }, [contacts, varKey]);
 
     if (!isOpen) return null;
@@ -68,6 +106,8 @@ const VariableActionModal = ({
                 shouldUpdate = isVariableNumeric(val);
             } else if (targetGroup === 'empty') {
                 shouldUpdate = isVariableEmpty(val);
+            } else if (targetGroup === 'not_real_name') {
+                shouldUpdate = isNotRealName(val);
             } else if (targetGroup === 'numeric_or_empty') {
                 shouldUpdate = isVariableNumeric(val) || isVariableEmpty(val);
             } else if (targetGroup === 'all') {
@@ -165,7 +205,7 @@ const VariableActionModal = ({
                         <FiFilter size={14} className="text-emerald-400" />
                         1. Filtrar Visualização na Tabela
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <button
                             type="button"
                             onClick={() => { onSetFilter('all'); onClose(); }}
@@ -176,6 +216,17 @@ const VariableActionModal = ({
                             }`}
                         >
                             Todos ({stats.total})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { onSetFilter('empty'); onClose(); }}
+                            className={`py-2 px-3 rounded-xl border text-[11px] font-bold transition ${
+                                currentFilter === 'empty'
+                                    ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow'
+                                    : 'bg-slate-800/60 text-slate-400 border-white/5 hover:text-white'
+                            }`}
+                        >
+                            Vazios ({stats.empty})
                         </button>
                         <button
                             type="button"
@@ -190,14 +241,14 @@ const VariableActionModal = ({
                         </button>
                         <button
                             type="button"
-                            onClick={() => { onSetFilter('empty'); onClose(); }}
+                            onClick={() => { onSetFilter('not_real_name'); onClose(); }}
                             className={`py-2 px-3 rounded-xl border text-[11px] font-bold transition ${
-                                currentFilter === 'empty'
-                                    ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow'
+                                currentFilter === 'not_real_name'
+                                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow'
                                     : 'bg-slate-800/60 text-slate-400 border-white/5 hover:text-white'
                             }`}
                         >
-                            Vazios ({stats.empty})
+                            Não parece nome ({stats.notRealName})
                         </button>
                     </div>
                 </div>

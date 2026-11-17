@@ -40,7 +40,7 @@ describe('BussolaInviteSection', () => {
     expect(updateMapping).toHaveBeenCalledWith(0, 'bussola_auto_create_invite', true);
   });
 
-  it('exibe opções de papel, validade e api key quando ativo', () => {
+  it('exibe opções de papel e validade sem renderizar campo de API key personalizada', () => {
     const updateMapping = vi.fn();
     render(
       <BussolaInviteSection
@@ -48,7 +48,6 @@ describe('BussolaInviteSection', () => {
           bussola_auto_create_invite: true,
           bussola_invite_role: 'client',
           bussola_validity_type: 'never',
-          bussola_custom_api_key: ''
         }}
         mIndex={0}
         updateMapping={updateMapping}
@@ -66,9 +65,8 @@ describe('BussolaInviteSection', () => {
     fireEvent.change(select, { target: { value: '24h' } });
     expect(updateMapping).toHaveBeenCalledWith(0, 'bussola_validity_type', '24h');
 
-    const apiKeyInput = screen.getByPlaceholderText(/Deixe em branco para usar a chave padrão das Configurações/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'chave_custom_123' } });
-    expect(updateMapping).toHaveBeenCalledWith(0, 'bussola_custom_api_key', 'chave_custom_123');
+    expect(screen.queryByText(/API Key Personalizada da Bússola/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Deixe em branco para usar a chave padrão das Configurações/i)).not.toBeInTheDocument();
   });
 
   it('gera link de teste com sucesso ao clicar no botão Testar Geração de Link', async () => {

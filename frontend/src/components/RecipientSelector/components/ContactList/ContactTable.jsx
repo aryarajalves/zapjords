@@ -38,6 +38,9 @@ const ContactTable = ({
         showBulkDeleteModal,
         setShowBulkDeleteModal,
         varContentFilters,
+        quickVarFilter,
+        toggleQuickVarFilter,
+        quickFilterStats,
         activeVarModal,
         setActiveVarModal,
         isDragging,
@@ -65,6 +68,7 @@ const ContactTable = ({
     } = useContactTableLogic({
         displayedContacts,
         filteredContacts,
+        activeVarColumns,
         removeContact,
         setDisplayLimit,
         setVariableFilters,
@@ -91,6 +95,10 @@ const ContactTable = ({
                 showContactTags={showContactTags}
                 isLoadingTags={isLoadingTags}
                 toggleShowContactTags={toggleShowContactTags}
+                hasVariables={activeVarColumns.length > 0}
+                quickVarFilter={quickVarFilter}
+                toggleQuickVarFilter={toggleQuickVarFilter}
+                quickFilterStats={quickFilterStats}
             />
 
             {/* Tabela de Contatos */}

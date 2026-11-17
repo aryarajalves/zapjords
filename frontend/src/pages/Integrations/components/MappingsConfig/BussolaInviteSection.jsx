@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import {
   FiCompass,
   FiClock,
-  FiKey,
   FiInfo,
-  FiEye,
-  FiEyeOff,
   FiCheckCircle,
   FiAlertCircle,
   FiLoader,
@@ -23,19 +20,15 @@ const VALIDITY_OPTIONS = [
   { value: '72h', label: '72 Horas (3 dias)' },
 ];
 
-export default function BussolaInviteSection({ mapping, mIndex, updateMapping, hideCustomApiKey = false, compact = false }) {
+export default function BussolaInviteSection({ mapping, mIndex, updateMapping, compact = false }) {
   const { activeClient } = useClient();
   const isAutoInvite = Boolean(mapping.bussola_auto_create_invite);
   const currentRole = mapping.bussola_invite_role || 'client';
   const currentValidity = mapping.bussola_validity_type || 'never';
-  const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
   const handleTestInvite = async () => {
-    const customKey = (mapping.bussola_custom_api_key || '').trim();
-    const isMaskedKey = customKey.includes('****');
-
     setTesting(true);
     setTestResult(null);
 
@@ -47,7 +40,7 @@ export default function BussolaInviteSection({ mapping, mIndex, updateMapping, h
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             api_url: null,
-            api_key: customKey && !isMaskedKey ? customKey : null,
+            api_key: null,
             role: currentRole,
             validity_type: currentValidity,
           }),
@@ -169,42 +162,11 @@ export default function BussolaInviteSection({ mapping, mIndex, updateMapping, h
               </div>
             </div>
 
-            {/* Chave de API Opcional (Sobrescrita) */}
-            {!hideCustomApiKey && (
-              <div className="space-y-1.5 pt-2 border-t border-amber-500/10">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5">
-                  <FiKey size={11} className="text-amber-500" />
-                  API Key Personalizada da Bússola <span className="font-normal text-gray-500">(Opcional)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={mapping.bussola_custom_api_key || ''}
-                    onChange={(e) => updateMapping(mIndex, 'bussola_custom_api_key', e.target.value)}
-                    placeholder="Deixe em branco para usar a chave padrão das Configurações"
-                    className="w-full bg-white dark:bg-[#0b1120] border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 pr-10 text-[11px] font-mono text-gray-700 dark:text-gray-200 outline-none focus:ring-1 focus:ring-amber-500/30 shadow-inner"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500 transition-colors cursor-pointer"
-                    title={showKey ? 'Esconder' : 'Visualizar'}
-                  >
-                    {showKey ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                  </button>
-                </div>
-                <p className="text-[8px] text-gray-400 px-1">
-                  Caso queira usar uma chave da Bússola diferente da cadastrada globalmente nas Configurações.
-                </p>
-              </div>
-            )}
-
             {/* Botão e Feedback de Teste de Geração de Convite */}
             <div className="pt-2 border-t border-amber-500/10 space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  Valide se o ZapVoice consegue gerar um link real usando a URL das Configurações e a chave/papel/validade deste gatilho.
+                  Valide se o ZapVoice consegue gerar um link real usando a URL/chave das Configurações e o papel/validade deste gatilho.
                 </p>
                 <button
                   type="button"

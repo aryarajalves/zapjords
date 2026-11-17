@@ -2,11 +2,12 @@ import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTableDragScroll } from '../../../hooks/useTableDragScroll';
 import { useContactTagsLookup } from '../../../hooks/useContactTagsLookup';
-import { isVariableEmpty, isVariableNumeric } from '../VariableActionModal';
+import { isVariableEmpty, isVariableNumeric, isNotRealName, matchesVarFilterMode } from '../VariableActionModal';
 
 export function useContactTableLogic({
     displayedContacts = [],
     filteredContacts = [],
+    activeVarColumns = [],
     removeContact,
     setDisplayLimit,
     setVariableFilters,
@@ -22,6 +23,7 @@ export function useContactTableLogic({
 
     // 3. Estados de Filtro de Variáveis e Modal de Ações
     const [varContentFilters, setVarContentFilters] = useState({});
+    const [quickVarFilter, setQuickVarFilter] = useState('all');
     const [activeVarModal, setActiveVarModal] = useState({ isOpen: false, varKey: '', varLabel: '' });
 
     // 4. Arraste com o Botão Esquerdo do Mouse (Drag-to-Scroll)
@@ -33,21 +35,47 @@ export function useContactTableLogic({
         return displayedContacts;
     }, [filteredContacts, displayedContacts]);
 
-    // Filtrar contatos pelo conteúdo de variáveis (ex: apenas números ou vazios)
-    const contactsAfterVarFilters = useMemo(() => {
-        const activeFilters = Object.entries(varContentFilters).filter(([_, mode]) => mode && mode !== 'all');
-        if (activeFilters.length === 0) return baseContacts;
+    // Estatísticas para os filtros rápidos de variáveis na toolbar
+    const quickFilterStats = useMemo(() => {
+        let empty = 0;
+        let numeric = 0;
+        let not_real_name = 0;
+        const cols = activeVarColumns || [];
 
-        return baseContacts.filter(c => {
-            return activeFilters.every(([varKey, mode]) => {
-                const rawVal = c.vars?.[varKey];
-                const val = rawVal !== null && rawVal !== undefined ? String(rawVal).trim() : '';
-                if (mode === 'empty') return isVariableEmpty(val);
-                if (mode === 'numeric') return isVariableNumeric(val);
-                return true;
+        if (cols.length > 0) {
+            baseContacts.forEach(c => {
+                const vals = cols.map(v => c.vars?.[v.key]);
+                if (vals.some(isVariableEmpty)) empty++;
+                if (vals.some(isVariableNumeric)) numeric++;
+                if (vals.some(isNotRealName)) not_real_name++;
             });
-        });
-    }, [baseContacts, varContentFilters]);
+        }
+
+        return { empty, numeric, not_real_name };
+    }, [baseContacts, activeVarColumns]);
+
+    const toggleQuickVarFilter = (mode) => {
+        setQuickVarFilter(prev => (prev === mode ? 'all' : mode));
+        setCurrentPage(1);
+    };
+
+    // Filtrar contatos pelo conteúdo de variáveis (toolbar rápida + modal por coluna)
+    const contactsAfterVarFilters = useMemo(() => {
+        let result = baseContacts;
+
+        if (quickVarFilter !== 'all' && activeVarColumns.length > 0) {
+            result = result.filter(c =>
+                activeVarColumns.some(v => matchesVarFilterMode(c.vars?.[v.key], quickVarFilter))
+            );
+        }
+
+        const activeFilters = Object.entries(varContentFilters).filter(([_, mode]) => mode && mode !== 'all');
+        if (activeFilters.length === 0) return result;
+
+        return result.filter(c =>
+            activeFilters.every(([varKey, mode]) => matchesVarFilterMode(c.vars?.[varKey], mode))
+        );
+    }, [baseContacts, varContentFilters, quickVarFilter, activeVarColumns]);
 
     // 5. Consulta de Etiquetas da Aba Contatos
     const {
@@ -177,6 +205,9 @@ export function useContactTableLogic({
         setShowBulkDeleteModal,
         varContentFilters,
         setVarContentFilters,
+        quickVarFilter,
+        toggleQuickVarFilter,
+        quickFilterStats,
         activeVarModal,
         setActiveVarModal,
         isDragging,
